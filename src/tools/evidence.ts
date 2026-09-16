@@ -8,12 +8,63 @@ import {
   resolveDateRange,
 } from "../schemas/common.js";
 import { AnswerSchema, CitationQualitySchema, CitedDomainSchema } from "../schemas/prompteye.js";
+import { CITED_DOMAINS } from "./glossary.js";
 import { READ_ONLY, handled, morePages, num, ok, sampleData, type ToolContext } from "./result.js";
 
+/** The domains behind the answers — served by the API. */
+export function registerSourceTools(server: McpServer, { client, session }: ToolContext): void {
+  server.registerTool(
+    "list_sources",
+    {
+      title: "List the domains assistants cite",
+      description:
+        "The domains the assistants leaned on when answering the active project's prompts, ranked by " +
+        "how often they were cited. Call this to see which pages shape what the assistants say about " +
+        "the brand, and where to go to change it.\n\n" +
+        `${CITED_DOMAINS}\n\n` +
+        "The ranking answers with the most cited domains rather than a list to walk to the end of, so " +
+        "raise `limit` to see further down. `model` narrows it to one assistant, which is how to tell " +
+        "a source every assistant trusts from one that only a single assistant leans on.",
+      annotations: READ_ONLY,
+      inputSchema: {
+        ...dateRangeShape,
+        ...modelFilterShape,
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_LIMIT)
+          .optional()
+          .describe(`How many domains to return, at most ${MAX_LIMIT}.`),
+      },
+      outputSchema: { data: z.array(CitedDomainSchema), nextCursor: z.string().nullable() },
+    },
+    async (args) =>
+      handled(async () => {
+        const project = await session.require();
+        const range = resolveDateRange(args);
+        const page = await client.listSources(project.id, { ...args, ...range });
+
+        const lines = page.data.map(
+          (domain) =>
+            `- ${domain.domain}${domain.ownDomain ? " ← own domain" : ""} — ${domain.citations} citation(s), ` +
+            `${num(domain.share, "%")} share`
+        );
+
+        return ok(
+          (page.data.length === 0
+            ? `No domains were cited between ${range.startDate} and ${range.endDate}.`
+            : `Domains cited on ${project.brand}'s prompts, ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`) +
+            morePages(page.nextCursor),
+          page
+        );
+      })
+  );
+}
+
 /**
- * The three tools that answer "why is the number what it is": the answers
- * themselves, the pages the assistants leaned on, and what the brand was to
- * those answers.
+ * The answers themselves and what the brand was to them. Both still come from
+ * sample data, so they are registered only when `SAMPLE_TOOLS` is on.
  */
 export function registerEvidenceTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
@@ -63,52 +114,6 @@ export function registerEvidenceTools(server: McpServer, { client, session }: To
             (page.data.length === 0
               ? `No answers recorded for ${project.brand} between ${range.startDate} and ${range.endDate}.`
               : `${page.data.length} answer(s):\n${lines.join("\n")}`) + morePages(page.nextCursor)
-          ),
-          page
-        );
-      })
-  );
-
-  server.registerTool(
-    "list_sources",
-    {
-      title: "List the domains assistants cite",
-      description:
-        "The domains the assistants leaned on when answering the active project's prompts, ranked by " +
-        "how often they were cited. The project's own domain is marked. Call this to see which pages " +
-        "shape what the assistants say about the brand.",
-      annotations: READ_ONLY,
-      inputSchema: {
-        ...dateRangeShape,
-        ...modelFilterShape,
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(MAX_LIMIT)
-          .optional()
-          .describe(`How many domains to return, at most ${MAX_LIMIT}.`),
-      },
-      outputSchema: { data: z.array(CitedDomainSchema), nextCursor: z.string().nullable() },
-    },
-    async (args) =>
-      handled(async () => {
-        const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.listSources(project.id, { ...args, ...range });
-
-        const lines = page.data.map(
-          (domain) =>
-            `- ${domain.domain}${domain.ownDomain ? " ← own domain" : ""} — ${domain.citations} citation(s), ` +
-            `${num(domain.share, "%")} share, last cited ${domain.lastCitedOn}`
-        );
-
-        return ok(
-          sampleData(
-            (page.data.length === 0
-              ? `No domains were cited between ${range.startDate} and ${range.endDate}.`
-              : `Domains cited on ${project.brand}'s prompts, ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`) +
-              morePages(page.nextCursor)
           ),
           page
         );

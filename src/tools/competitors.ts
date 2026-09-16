@@ -2,7 +2,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { MAX_LIMIT, dateRangeShape, modelFilterShape, resolveDateRange } from "../schemas/common.js";
 import { CompetitorSchema } from "../schemas/prompteye.js";
-import { READ_ONLY, handled, num, ok, sampleData, signed, type ToolContext } from "./result.js";
+import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
+import { READ_ONLY, handled, num, ok, signed, type ToolContext } from "./result.js";
 
 export function registerCompetitorTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
@@ -11,11 +12,12 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
       title: "Rank the brands answering alongside yours",
       description:
         "Every brand the assistants named on the active project's prompts, measured the same way the " +
-        "project's own brand is and ranked by share of voice. The project's own brand is in the list " +
-        "and marked, so it can be charted against the rest.\n\n" +
-        "Share of voice answers a different question from visibility: visibility is how often the brand " +
-        "was named at all, share of voice is how much of the naming it took from everyone else. This " +
-        "ranks rather than pages — it answers with the strongest brands, not a list you walk to the end of.",
+        "project's own brand is and ranked by share of voice. Call this for 'who are we losing to' " +
+        "and for how a market splits between brands.\n\n" +
+        `${SHARE_OF_VOICE}\n\n${VISIBILITY}\n\n` +
+        "The ranking answers with the strongest brands rather than a list to walk to the end of, so " +
+        "raise `limit` to see further down. `model` narrows it to one assistant, which is how to tell " +
+        "a brand that dominates everywhere from one that owns a single assistant.",
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
@@ -49,11 +51,9 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
         });
 
         return ok(
-          sampleData(
-            page.data.length === 0
-              ? `No brands were named on ${project.brand}'s prompts between ${range.startDate} and ${range.endDate}.`
-              : `Brands answering alongside ${project.brand}, ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`
-          ),
+          page.data.length === 0
+            ? `No brands were named on ${project.brand}'s prompts between ${range.startDate} and ${range.endDate}.`
+            : `Brands answering alongside ${project.brand}, ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`,
           page
         );
       })

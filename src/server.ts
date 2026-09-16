@@ -7,7 +7,7 @@ import { createClient, serverName, serverVersion } from "./config.js";
 import { ProjectSession } from "./session.js";
 import { registerAccountTools } from "./tools/account.js";
 import { registerCompetitorTools } from "./tools/competitors.js";
-import { registerEvidenceTools } from "./tools/evidence.js";
+import { registerEvidenceTools, registerSourceTools } from "./tools/evidence.js";
 import { registerPromptTools } from "./tools/prompts.js";
 import { registerProjectTools } from "./tools/projects.js";
 import { registerVisibilityTools, VISIBILITY_WIDGET_URI } from "./tools/visibility.js";
@@ -18,8 +18,8 @@ const WIDGET_HTML_PATH = path.resolve(__dirname, "../public/visibility-widget.ht
 
 /**
  * Whether to register the tools the PromptEye API does not serve yet —
- * visibility, competitors, answers, sources and citation quality — which answer
- * from the sample data in `src/fixtures`.
+ * visibility, answers and citation quality — which answer from the sample data
+ * in `src/fixtures`.
  *
  * Off, so nothing offers a figure that was not measured for the user's project.
  * Flip it to true to demo those tools; delete it, with the fixtures, once the
@@ -80,6 +80,8 @@ export function createMcpServer(): McpServer {
   registerAccountTools(toolServer, context);
   registerProjectTools(toolServer, context);
   registerPromptTools(toolServer, context);
+  registerSourceTools(toolServer, context);
+  registerCompetitorTools(toolServer, context);
 
   if (SAMPLE_TOOLS) {
     // The widget belongs to get_visibility_summary, so it is registered with it.
@@ -95,7 +97,6 @@ export function createMcpServer(): McpServer {
     );
 
     registerVisibilityTools(toolServer, context);
-    registerCompetitorTools(toolServer, context);
     registerEvidenceTools(toolServer, context);
   }
 

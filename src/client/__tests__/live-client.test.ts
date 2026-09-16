@@ -41,6 +41,18 @@ const LIVE_GROUP = {
   metrics: { visibility: 58.3, reachIndex: 55, averagePosition: 2.6 },
 };
 
+const LIVE_DOMAIN = { domain: "acme.example", citations: 18, share: 5, ownDomain: true };
+
+const LIVE_COMPETITOR = {
+  brand: "Rival",
+  ownBrand: false,
+  metrics: { visibility: 48.1, reachIndex: 45, averagePosition: 3.1 },
+  change: null,
+  shareOfVoice: 18,
+  citations: 31,
+  citationShare: 10,
+};
+
 const RANGE = { startDate: "2026-08-16", endDate: "2026-09-15" };
 
 type Call = { path: string; method: string; body: unknown };
@@ -75,11 +87,18 @@ function liveClient() {
               ? { data: [] }
               : pathname.endsWith("/prompt-groups")
                 ? { data: [LIVE_GROUP], nextCursor: null }
-                : pathname.endsWith("/prompts")
-                  ? { data: [LIVE_PROMPT], nextCursor: "next" }
-                  : pathname.endsWith(`/prompts/${LIVE_PROMPT.id}`)
-                    ? { ...LIVE_PROMPT, byModel: [{ model: "gpt", metrics: { visibility: 100, averagePosition: 2 } }] }
-                    : undefined;
+                : pathname.endsWith("/sources")
+                  ? { data: [LIVE_DOMAIN], nextCursor: null }
+                  : pathname.endsWith("/competitors")
+                    ? { data: [LIVE_COMPETITOR], nextCursor: null }
+                    : pathname.endsWith("/prompts")
+                      ? { data: [LIVE_PROMPT], nextCursor: "next" }
+                      : pathname.endsWith(`/prompts/${LIVE_PROMPT.id}`)
+                        ? {
+                            ...LIVE_PROMPT,
+                            byModel: [{ model: "gpt", metrics: { visibility: 100, averagePosition: 2 } }],
+                          }
+                        : undefined;
 
     return body === undefined
       ? new Response(JSON.stringify({ error: { code: "not_found", message: "No endpoint matches this path." } }), {
@@ -141,6 +160,29 @@ describe("createLiveClient", () => {
     expect(calls[0].path).toBe(`/v1/projects/${LIVE_PROJECT.id}/prompt-groups?startDate=2026-08-16&endDate=2026-09-15`);
   });
 
+  it("ranks cited domains, narrowed to one assistant", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.listSources(LIVE_PROJECT.id, { ...RANGE, model: "gpt", limit: 5 })).resolves.toEqual({
+      data: [LIVE_DOMAIN],
+      nextCursor: null,
+    });
+    expect(calls[0].path).toBe(
+      `/v1/projects/${LIVE_PROJECT.id}/sources?startDate=2026-08-16&endDate=2026-09-15&model=gpt&limit=5`
+    );
+  });
+
+  it("ranks competitors for the period", async () => {
+    const { client, calls } = liveClient();
+
+    const page = await client.listCompetitors(LIVE_PROJECT.id, { ...RANGE, limit: 20 });
+
+    expect(page.data[0].shareOfVoice).toBe(18);
+    expect(calls[0].path).toBe(
+      `/v1/projects/${LIVE_PROJECT.id}/competitors?startDate=2026-08-16&endDate=2026-09-15&limit=20`
+    );
+  });
+
   it("posts a new project", async () => {
     const { client, calls } = liveClient();
 
@@ -170,15 +212,15 @@ describe("createLiveClient", () => {
     });
   });
 
-  it("serves the rest from sample data, for a real project id, without calling the API", async () => {
+  it("serves what has no endpoint from sample data, without calling the API", async () => {
     const { client, calls } = liveClient();
 
     const summary = await client.getVisibilitySummary(LIVE_PROJECT.id, RANGE);
-    const competitors = await client.listCompetitors(LIVE_PROJECT.id, RANGE);
+    const answers = await client.listAnswers(LIVE_PROJECT.id, RANGE);
     const quality = await client.getCitationQuality(LIVE_PROJECT.id);
 
     expect(summary.totals.visibility).not.toBeNull();
-    expect(competitors.data.length).toBeGreaterThan(0);
+    expect(answers.data.length).toBeGreaterThan(0);
     expect(quality.role.distribution.length).toBeGreaterThan(0);
     expect(calls).toEqual([]);
   });

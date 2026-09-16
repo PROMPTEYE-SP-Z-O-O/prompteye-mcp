@@ -2,22 +2,13 @@ import { DEFAULT_LIMIT, type Metrics, type ModelKey, type Page } from "../schema
 import type {
   Answer,
   CitationQuality,
-  CitedDomain,
-  Competitor,
   VisibilityRow,
   VisibilitySummary,
 } from "../schemas/prompteye.js";
 import { PromptEyeApiError } from "../api/index.js";
 import * as fixtures from "../fixtures/prompteye.js";
 import type { FallbackClient } from "./live-client.js";
-import type {
-  AnswerQuery,
-  CompetitorQuery,
-  PageQuery,
-  SourceQuery,
-  VisibilityQuery,
-  VisibilitySummaryQuery,
-} from "./prompteye-client.js";
+import type { AnswerQuery, PageQuery, VisibilityQuery, VisibilitySummaryQuery } from "./prompteye-client.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -47,11 +38,6 @@ function paginate<T>(all: T[], query: PageQuery): Page<T> {
     data,
     nextCursor: next < all.length ? Buffer.from(String(next), "utf-8").toString("base64url") : null,
   };
-}
-
-/** Ranks rather than lists: the strongest `limit` entries, no cursor to walk. */
-function ranked<T>(all: T[], limit: number | undefined): Page<T> {
-  return { data: all.slice(0, limit ?? DEFAULT_LIMIT), nextCursor: null };
 }
 
 function average(values: number[]): number {
@@ -131,7 +117,8 @@ function buildBreakdown(rows: VisibilityRow[], by: NonNullable<VisibilitySummary
  * change, breakdowns — the way the API is specified to.
  *
  * Project ids are not checked against anything: these calls are handed the ids
- * of real projects, and still have to answer.
+ * of real projects, and still have to answer. Nothing here is reachable unless
+ * `SAMPLE_TOOLS` in `src/server.ts` is on.
  */
 export function createFixturesClient(): FallbackClient {
   return {
@@ -169,13 +156,6 @@ export function createFixturesClient(): FallbackClient {
       return paginate(rows, query);
     },
 
-    async listCompetitors(_projectId: string, query: CompetitorQuery): Promise<Page<Competitor>> {
-      const ranking = [...fixtures.competitors].sort(
-        (a, b) => (b.shareOfVoice ?? -1) - (a.shareOfVoice ?? -1)
-      );
-      return ranked(ranking, query.limit);
-    },
-
     async listAnswers(_projectId: string, query: AnswerQuery): Promise<Page<Answer>> {
       const matching = fixtures.answers.filter(
         (answer) =>
@@ -189,11 +169,6 @@ export function createFixturesClient(): FallbackClient {
             answer.prompt.toLowerCase().includes(query.search.toLowerCase()))
       );
       return paginate(matching, query);
-    },
-
-    async listSources(_projectId: string, query: SourceQuery): Promise<Page<CitedDomain>> {
-      const ranking = [...fixtures.citedDomains].sort((a, b) => b.citations - a.citations);
-      return ranked(ranking, query.limit);
     },
 
     async getCitationQuality(_projectId: string): Promise<CitationQuality> {

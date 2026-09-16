@@ -27,6 +27,8 @@ Every one of these calls the PromptEye API.
 | `list_prompt_groups` | `GET /v1/projects/{projectId}/prompt-groups` |
 | `list_prompt_suggestions` | `GET /v1/projects/{projectId}/prompt-suggestions` |
 | `add_prompts` | `POST /v1/projects/{projectId}/prompts` |
+| `list_sources` | `GET /v1/projects/{projectId}/sources` |
+| `list_competitors` | `GET /v1/projects/{projectId}/competitors` |
 
 Periods default to the last 30 days and are capped at 366.
 
@@ -37,7 +39,7 @@ requires `confirmBypassPromptIntelligence: true`.
 
 ### The tools that are switched off
 
-Visibility, competitors, answers, sources and citation quality have no endpoint yet. Their
+Visibility, answers and citation quality have no endpoint yet. Their
 tools, their sample data in `src/fixtures/` and the widget are still in the repository but
 are **not registered**, so no client can call them and nothing reports a figure that was
 never measured. The switch is one constant:

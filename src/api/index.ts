@@ -5,6 +5,7 @@ export type { FetchLike, Query, RequestOptions } from "./http.js";
 export type {
   AccountResource,
   CategoriesResource,
+  CompetitorsResource,
   DateRange,
   KnowledgeBaseResource,
   Pagination,
@@ -12,10 +13,14 @@ export type {
   PromptGroupsResource,
   PromptsResource,
   PromptSuggestionsResource,
+  RankingParams,
+  SourcesResource,
 } from "./resources.js";
 export {
   AccountSchema,
   CategorySchema,
+  CitedDomainSchema,
+  CompetitorSchema,
   COUNTRY_CODES,
   KnowledgeBaseSchema,
   NewPromptSchema,
@@ -26,6 +31,8 @@ export {
   PromptSuggestionSchema,
   type Account,
   type Category,
+  type CitedDomain,
+  type Competitor,
   type CountryCode,
   type CreateProjectInput,
   type KnowledgeBase,

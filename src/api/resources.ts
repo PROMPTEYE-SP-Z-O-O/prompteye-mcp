@@ -2,6 +2,8 @@ import type { HttpClient, RequestOptions } from "./http.js";
 import {
   AccountSchema,
   CategoryListSchema,
+  CitedDomainPageSchema,
+  CompetitorPageSchema,
   KnowledgeBaseSchema,
   NewPromptListSchema,
   ProjectListSchema,
@@ -12,6 +14,8 @@ import {
   PromptSuggestionListSchema,
   type Account,
   type Category,
+  type CitedDomain,
+  type Competitor,
   type CreateProjectInput,
   type KnowledgeBase,
   type List,
@@ -127,6 +131,39 @@ export class PromptGroupsResource {
   /** `GET /v1/projects/{projectId}/prompt-groups` — the groups with their figures for the period. */
   list(projectId: string, params: DateRange & Pagination = {}, options?: RequestOptions): Promise<Page<PromptGroup>> {
     return this.http.get(`${projectPath(projectId)}/prompt-groups`, PromptGroupPageSchema, {
+      ...options,
+      query: params,
+    });
+  }
+}
+
+/** Narrows a ranking to one assistant, and caps how many entries come back. */
+export type RankingParams = DateRange & { limit?: number; model?: string };
+
+export class SourcesResource {
+  constructor(private readonly http: HttpClient) {}
+
+  /**
+   * `GET /v1/projects/{projectId}/sources` — the domains the assistants leaned
+   * on when answering the project's prompts, most cited first.
+   */
+  list(projectId: string, params: RankingParams = {}, options?: RequestOptions): Promise<Page<CitedDomain>> {
+    return this.http.get(`${projectPath(projectId)}/sources`, CitedDomainPageSchema, {
+      ...options,
+      query: params,
+    });
+  }
+}
+
+export class CompetitorsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  /**
+   * `GET /v1/projects/{projectId}/competitors` — every brand named alongside the
+   * project's own, ranked by share of voice. The project's brand is in the list.
+   */
+  list(projectId: string, params: RankingParams = {}, options?: RequestOptions): Promise<Page<Competitor>> {
+    return this.http.get(`${projectPath(projectId)}/competitors`, CompetitorPageSchema, {
       ...options,
       query: params,
     });

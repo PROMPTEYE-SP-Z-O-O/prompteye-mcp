@@ -2,11 +2,13 @@ import { HttpClient, type FetchLike } from "./http.js";
 import {
   AccountResource,
   CategoriesResource,
+  CompetitorsResource,
   KnowledgeBaseResource,
   ProjectsResource,
   PromptGroupsResource,
   PromptsResource,
   PromptSuggestionsResource,
+  SourcesResource,
 } from "./resources.js";
 
 export const DEFAULT_TIMEOUT_MS = 30_000;
@@ -40,6 +42,8 @@ export class PromptEyeApi {
   readonly prompts: PromptsResource;
   readonly promptGroups: PromptGroupsResource;
   readonly promptSuggestions: PromptSuggestionsResource;
+  readonly sources: SourcesResource;
+  readonly competitors: CompetitorsResource;
 
   constructor(options: PromptEyeApiOptions) {
     if (!options.token?.trim()) throw new TypeError("token is required.");
@@ -60,5 +64,7 @@ export class PromptEyeApi {
     this.prompts = new PromptsResource(http);
     this.promptGroups = new PromptGroupsResource(http);
     this.promptSuggestions = new PromptSuggestionsResource(http);
+    this.sources = new SourcesResource(http);
+    this.competitors = new CompetitorsResource(http);
   }
 }

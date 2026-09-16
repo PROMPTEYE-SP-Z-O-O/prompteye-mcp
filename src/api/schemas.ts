@@ -126,6 +126,27 @@ export const PromptSuggestionSchema = z.object({
   expiresAt: z.string(),
 });
 
+export const CitedDomainSchema = z.object({
+  domain: z.string(),
+  citations: z.number(),
+  /** The domain's share of every citation made on the project's prompts. */
+  share: z.number(),
+  /** Whether it is the project's own domain, or one of its alternatives. */
+  ownDomain: z.boolean(),
+});
+
+export const CompetitorSchema = z.object({
+  brand: z.string(),
+  /** True for the project's own brand, which is ranked alongside the rest. */
+  ownBrand: z.boolean(),
+  metrics: MetricsSchema,
+  change: MetricsChangeSchema.nullable(),
+  /** How much of the naming this brand took from everyone else. */
+  shareOfVoice: z.number().nullable(),
+  citations: z.number().nullable(),
+  citationShare: z.number().nullable(),
+});
+
 /** A prompt as it comes back from being added: it has not been asked yet. */
 export const NewPromptSchema = z.object({
   id: z.string(),
@@ -147,6 +168,8 @@ export const PromptSuggestionListSchema = listOf(PromptSuggestionSchema);
 export const NewPromptListSchema = listOf(NewPromptSchema);
 export const PromptPageSchema = pageOf(PromptSchema);
 export const PromptGroupPageSchema = pageOf(PromptGroupSchema);
+export const CitedDomainPageSchema = pageOf(CitedDomainSchema);
+export const CompetitorPageSchema = pageOf(CompetitorSchema);
 
 /** What a project is created from. */
 export type CreateProjectInput = {
@@ -181,6 +204,8 @@ export type Account = z.infer<typeof AccountSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
 export type KnowledgeBase = z.infer<typeof KnowledgeBaseSchema>;
 export type Category = z.infer<typeof CategorySchema>;
+export type CitedDomain = z.infer<typeof CitedDomainSchema>;
+export type Competitor = z.infer<typeof CompetitorSchema>;
 export type Prompt = z.infer<typeof PromptSchema>;
 export type PromptDetail = z.infer<typeof PromptDetailSchema>;
 export type PromptGroup = z.infer<typeof PromptGroupSchema>;

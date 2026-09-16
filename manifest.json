@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "prompteye",
   "display_name": "PromptEye",
-  "version": "1.0.7",
-  "description": "Work with the prompts a brand is tracked on inside the answers AI assistants give — projects, prompts, groups, categories and what to track next.",
-  "long_description": "PromptEye tracks how often AI assistants name a brand when they answer buying questions. Pick a project — one brand tracked in one market — then ask how visible it is, which competitors answer alongside it, which prompts carry it, what the assistants actually wrote, and which pages they leaned on.\n\nAccount, projects, prompts, prompt groups, categories and prompt suggestions come from PromptEye. An API key and the API URL are required — both are at https://app.prompteye.com/integrations.",
+  "version": "1.0.9",
+  "description": "See how a brand stands inside the answers AI assistants give — the prompts it is tracked on, the brands answering alongside it and the pages they cite.",
+  "long_description": "PromptEye tracks how often AI assistants name a brand when they answer buying questions. Pick a project — one brand tracked in one market — then work with the prompts it is tracked on, see which brands answer alongside it and which pages the assistants lean on.\n\nAccount, projects, prompts, prompt groups, categories, prompt suggestions, cited domains and competitors come from PromptEye. An API key and the API URL are required — both are at https://app.prompteye.com/integrations.",
   "author": {
     "name": "PromptEye"
   },
@@ -51,7 +51,9 @@
     { "name": "get_prompt", "description": "One prompt, broken down per assistant" },
     { "name": "list_prompt_groups", "description": "How the prompts are grouped" },
     { "name": "list_categories", "description": "The categories prompts are filed under" },
-    { "name": "list_prompt_suggestions", "description": "Prompts worth tracking next, and why" }
+    { "name": "list_prompt_suggestions", "description": "Prompts worth tracking next, and why" },
+    { "name": "list_sources", "description": "The domains the assistants cite" },
+    { "name": "list_competitors", "description": "Brands answering alongside, by share of voice" }
   ],
   "compatibility": {
     "platforms": ["darwin", "win32"],

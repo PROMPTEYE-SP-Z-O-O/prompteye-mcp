@@ -1,11 +1,5 @@
 import type { ModelKey } from "../schemas/common.js";
-import type {
-  Answer,
-  CitationQuality,
-  CitedDomain,
-  Competitor,
-  VisibilityRow,
-} from "../schemas/prompteye.js";
+import type { Answer, CitationQuality, VisibilityRow } from "../schemas/prompteye.js";
 
 /**
  * Sample data for the endpoints the PromptEye API does not serve yet, in the
@@ -36,52 +30,6 @@ export const prompts: SamplePrompt[] = [
     aiTraffic: null,
     visibility: 92.9,
   },
-];
-
-export const competitors: Competitor[] = [
-  {
-    brand: "PromptEye",
-    ownBrand: true,
-    metrics: { visibility: 62.5, reachIndex: 58, averagePosition: 2.4 },
-    change: { visibility: 4.1, reachIndex: 3, averagePosition: -0.2 },
-    shareOfVoice: 25,
-    citations: 18,
-    citationShare: 5,
-  },
-  {
-    brand: "Example Analytics",
-    ownBrand: false,
-    metrics: { visibility: 48.1, reachIndex: 45, averagePosition: 3.1 },
-    change: { visibility: -2.6, reachIndex: -2, averagePosition: 0.3 },
-    shareOfVoice: 18,
-    citations: 31,
-    citationShare: 10,
-  },
-  {
-    brand: "Northbeam AI",
-    ownBrand: false,
-    metrics: { visibility: 39.4, reachIndex: 36, averagePosition: 3.6 },
-    change: { visibility: 6.2, reachIndex: 5, averagePosition: -0.5 },
-    shareOfVoice: 14,
-    citations: 22,
-    citationShare: 7,
-  },
-  {
-    brand: "Mentionly",
-    ownBrand: false,
-    metrics: { visibility: 21.8, reachIndex: 19, averagePosition: 4.9 },
-    change: { visibility: -0.4, reachIndex: 0, averagePosition: 0.1 },
-    shareOfVoice: 9,
-    citations: 11,
-    citationShare: 3,
-  },
-];
-
-export const citedDomains: CitedDomain[] = [
-  { domain: "example.com", citations: 42, share: 12.4, ownDomain: false, lastCitedOn: "2026-09-09" },
-  { domain: "prompteye.com", citations: 18, share: 5.3, ownDomain: true, lastCitedOn: "2026-09-08" },
-  { domain: "reddit.com", citations: 15, share: 4.4, ownDomain: false, lastCitedOn: "2026-09-09" },
-  { domain: "g2.com", citations: 12, share: 3.5, ownDomain: false, lastCitedOn: "2026-09-07" },
 ];
 
 export const citationQuality: CitationQuality = {

@@ -9,6 +9,8 @@ import { MetricsSchema, ModelSchema, NullableChangeSchema } from "./common.js";
 export {
   AccountSchema,
   CategorySchema,
+  CitedDomainSchema,
+  CompetitorSchema,
   COUNTRY_CODES,
   KnowledgeBaseSchema,
   NewPromptSchema,
@@ -19,6 +21,8 @@ export {
   PromptSuggestionSchema,
   type Account,
   type Category,
+  type CitedDomain,
+  type Competitor,
   type CreateProjectInput,
   type KnowledgeBase,
   type List,
@@ -79,14 +83,6 @@ export const AnswerSchema = z.object({
   sources: z.array(SourceSchema),
 });
 
-export const CitedDomainSchema = z.object({
-  domain: z.string(),
-  citations: z.number(),
-  share: z.number(),
-  ownDomain: z.boolean(),
-  lastCitedOn: z.string(),
-});
-
 const DistributionEntrySchema = z.object({
   key: z.string(),
   count: z.number(),
@@ -107,23 +103,11 @@ export const CitationQualitySchema = z.object({
   }),
 });
 
-export const CompetitorSchema = z.object({
-  brand: z.string(),
-  ownBrand: z.boolean(),
-  metrics: MetricsSchema,
-  change: NullableChangeSchema,
-  shareOfVoice: z.number().nullable(),
-  citations: z.number().nullable(),
-  citationShare: z.number().nullable(),
-});
-
 export type Breakdown = z.infer<typeof BreakdownSchema>;
 export type VisibilitySummary = z.infer<typeof VisibilitySummarySchema>;
 export type VisibilityRow = z.infer<typeof VisibilityRowSchema>;
 export type Answer = z.infer<typeof AnswerSchema>;
-export type CitedDomain = z.infer<typeof CitedDomainSchema>;
 export type CitationQuality = z.infer<typeof CitationQualitySchema>;
-export type Competitor = z.infer<typeof CompetitorSchema>;
 
 /** Whether an answer named the brand. */
 export type BrandPresence = z.infer<typeof AnswerSchema>["brand"];

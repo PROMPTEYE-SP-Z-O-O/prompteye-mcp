@@ -13,7 +13,9 @@ type LiveMethod =
   | "listPrompts"
   | "getPrompt"
   | "addPrompts"
-  | "listPromptGroups";
+  | "listPromptGroups"
+  | "listSources"
+  | "listCompetitors";
 
 /** What is left for the sample data to answer, until the API grows those endpoints too. */
 export type FallbackClient = Omit<PromptEyeClient, LiveMethod>;
@@ -37,5 +39,7 @@ export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): P
     getPrompt: (projectId, promptId, range) => api.prompts.get(projectId, promptId, range),
     addPrompts: (projectId, prompts) => api.prompts.create(projectId, prompts),
     listPromptGroups: (projectId, query) => api.promptGroups.list(projectId, query),
+    listSources: (projectId, query) => api.sources.list(projectId, query),
+    listCompetitors: (projectId, query) => api.competitors.list(projectId, query),
   };
 }

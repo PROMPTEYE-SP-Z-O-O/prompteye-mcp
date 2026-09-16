@@ -36,6 +36,22 @@ export const VISIBILITY =
   "weighted by how much of the market each assistant carries; averagePosition is where in the answer " +
   "the brand was named, counting from 1. Each is null until it is measured.";
 
+export const SHARE_OF_VOICE =
+  "shareOfVoice is how much of all the naming that happened on the project's prompts went to one " +
+  "brand, so the brands in a ranking describe one pie. It answers a different question from " +
+  "visibility: visibility is how often a brand was named at all, and every brand can score high at " +
+  "once, while share of voice is what each took from the others. citations and citationShare count " +
+  "how often the brand's own pages were cited as sources, which can diverge from being named — a " +
+  "brand can be recommended without being linked, and linked without being recommended. The " +
+  "project's own brand is in the ranking and marked with ownBrand, so it can be read against the rest.";
+
+export const CITED_DOMAINS =
+  "A cited domain is a site an assistant leaned on while answering the project's prompts. citations " +
+  "counts how often it was cited, and share is its slice of every citation made on those prompts, so " +
+  "the domains describe one pie. ownDomain marks the project's own domain and the alternatives " +
+  "registered with it: a small own share means the assistants are describing the brand from other " +
+  "people's pages rather than its own, which is where the story about it is being written.";
+
 /** Why generated prompts beat hand-written ones, for the tools that touch prompt creation. */
 export const PROMPT_GENERATION =
   "PromptEye generates the prompts a project tracks: it works out which questions carry demand and " +
