@@ -11,42 +11,20 @@ export {
   CategorySchema,
   KnowledgeBaseSchema,
   ProjectSchema,
+  PromptDetailSchema,
+  PromptGroupSchema,
+  PromptSchema,
   PromptSuggestionSchema,
   type Account,
   type Category,
   type KnowledgeBase,
   type List,
   type Project,
+  type Prompt,
+  type PromptDetail,
+  type PromptGroup,
   type PromptSuggestion,
 } from "../api/schemas.js";
-
-export const PromptSchema = z.object({
-  id: z.string(),
-  prompt: z.string(),
-  keyword: z.string().nullable(),
-  status: z.enum(["active", "paused", "pending"]),
-  categories: z.array(z.string()),
-  subcategories: z.array(z.string()),
-  groupId: z.string().nullable(),
-  createdAt: z.string(),
-  aiTraffic: z.number().nullable(),
-  metrics: MetricsSchema,
-  change: NullableChangeSchema,
-});
-
-export const PromptDetailSchema = PromptSchema.extend({
-  byModel: z.array(z.object({ model: ModelSchema, metrics: MetricsSchema })),
-});
-
-export const PromptGroupSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  order: z.number().nullable(),
-  promptCount: z.number(),
-  businessPriority: z.number().nullable(),
-  aiTrafficTotal: z.number().nullable(),
-  metrics: MetricsSchema,
-});
 
 export const BREAKDOWN_KEYS = ["day", "model", "prompt"] as const;
 export const BreakdownSchema = z.enum(BREAKDOWN_KEYS);
@@ -134,9 +112,6 @@ export const CompetitorSchema = z.object({
   citationShare: z.number().nullable(),
 });
 
-export type Prompt = z.infer<typeof PromptSchema>;
-export type PromptDetail = z.infer<typeof PromptDetailSchema>;
-export type PromptGroup = z.infer<typeof PromptGroupSchema>;
 export type Breakdown = z.infer<typeof BreakdownSchema>;
 export type VisibilitySummary = z.infer<typeof VisibilitySummarySchema>;
 export type VisibilityRow = z.infer<typeof VisibilityRowSchema>;

@@ -50,5 +50,5 @@ export function createClient(): PromptEyeClient {
 
 /** Where the answers come from, for startup logs. Never includes the key. */
 export const describeDataSource = (baseUrl: string): string =>
-  `live data from ${baseUrl} for account, projects, knowledge base, categories and prompt ` +
-  "suggestions; sample data for everything else.";
+  `live data from ${baseUrl} for account, projects, knowledge base, prompts, prompt groups, ` +
+  "categories and prompt suggestions; sample data for visibility, competitors, answers and sources.";

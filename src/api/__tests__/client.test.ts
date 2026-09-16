@@ -47,7 +47,7 @@ describe("PromptEyeApi", () => {
 
     await api.promptSuggestions.list("a/b", { groupId: "g 1" });
 
-    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/a%2Fb/prompt-suggestions?groupId=g%201`);
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/a%2Fb/prompt-suggestions?groupId=g+1`);
   });
 
   it("drops unknown fields and accepts enumeration values added later", async () => {

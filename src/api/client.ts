@@ -4,6 +4,8 @@ import {
   CategoriesResource,
   KnowledgeBaseResource,
   ProjectsResource,
+  PromptGroupsResource,
+  PromptsResource,
   PromptSuggestionsResource,
 } from "./resources.js";
 
@@ -35,6 +37,8 @@ export class PromptEyeApi {
   readonly projects: ProjectsResource;
   readonly knowledgeBase: KnowledgeBaseResource;
   readonly categories: CategoriesResource;
+  readonly prompts: PromptsResource;
+  readonly promptGroups: PromptGroupsResource;
   readonly promptSuggestions: PromptSuggestionsResource;
 
   constructor(options: PromptEyeApiOptions) {
@@ -53,6 +57,8 @@ export class PromptEyeApi {
     this.projects = new ProjectsResource(http);
     this.knowledgeBase = new KnowledgeBaseResource(http);
     this.categories = new CategoriesResource(http);
+    this.prompts = new PromptsResource(http);
+    this.promptGroups = new PromptGroupsResource(http);
     this.promptSuggestions = new PromptSuggestionsResource(http);
   }
 }

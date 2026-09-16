@@ -10,7 +10,7 @@ import {
   type Category,
   type PromptSuggestion,
 } from "../schemas/prompteye.js";
-import { READ_ONLY, handled, morePages, num, ok, sampleData, signed, type ToolContext } from "./result.js";
+import { READ_ONLY, handled, morePages, num, ok, signed, type ToolContext } from "./result.js";
 
 const PURCHASE_INTENT: Record<number, string> = {
   1: "educational",
@@ -66,15 +66,19 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "List the prompts of the project",
       description:
-        "The questions the active project puts to the assistants, with the visibility each one earns. " +
-        "Every measurement PromptEye reports is taken on the answers to these prompts, so this is where " +
-        "to look for which questions carry the brand and which do not.",
+        "The questions the active project puts to the assistants, with the visibility each one earns " +
+        "over the period and how it moved against the period before. Every measurement PromptEye " +
+        "reports is taken on the answers to these prompts, so this is where to look for which " +
+        "questions carry the brand and which do not. Paused prompts are listed too, newest first.",
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
         ...paginationShape,
         groupId: z.string().optional().describe("Only prompts in this prompt group."),
-        categoryId: z.string().optional().describe("Only prompts filed under this category."),
+        categoryId: z
+          .string()
+          .optional()
+          .describe("Only prompts filed under this category or one of its subcategories."),
       },
       outputSchema: { data: z.array(PromptSchema), nextCursor: z.string().nullable() },
     },
@@ -86,18 +90,16 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
 
         const lines = page.data.map(
           (prompt) =>
-            `- "${prompt.prompt}" — visibility ${num(prompt.metrics.visibility, "%")} ` +
-            `(${signed(prompt.change?.visibility ?? null, " pp")}), position ${num(prompt.metrics.averagePosition)} ` +
-            `[id: ${prompt.id}]`
+            `- "${prompt.prompt}" (${prompt.status}) — visibility ${num(prompt.metrics.visibility, "%")} ` +
+            `(${signed(prompt.change?.visibility ?? null, " pp")}), position ${num(prompt.metrics.averagePosition)}, ` +
+            `priority ${prompt.businessPriority ?? "—"} [id: ${prompt.id}]`
         );
 
         return ok(
-          sampleData(
-            (page.data.length === 0
-              ? `${project.name} tracks no prompts matching that.`
-              : `${page.data.length} prompt(s) in ${project.name}:\n${lines.join("\n")}`) +
-              morePages(page.nextCursor)
-          ),
+          (page.data.length === 0
+            ? `${project.name} tracks no prompts matching that.`
+            : `${page.data.length} prompt(s) in ${project.name}, ${range.startDate} to ${range.endDate}:\n` +
+              lines.join("\n")) + morePages(page.nextCursor),
           page
         );
       })
@@ -108,8 +110,9 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "Read one prompt",
       description:
-        "One prompt of the active project, with its visibility broken down per assistant. Call this to " +
-        "see which assistant is carrying a prompt and which is dropping the brand from it.",
+        "One prompt of the active project, with its visibility broken down per assistant — only the " +
+        "assistants that actually answered are listed. Call this to see which assistant is carrying a " +
+        "prompt and which is dropping the brand from it.",
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
@@ -128,17 +131,15 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         );
 
         return ok(
-          sampleData(
-            [
-              `"${prompt.prompt}" (${prompt.status})`,
-              `Keyword: ${prompt.keyword ?? "—"}. Categories: ${prompt.categories.join(", ") || "—"}.`,
-              `Visibility ${num(prompt.metrics.visibility, "%")} (${signed(prompt.change?.visibility ?? null, " pp")}), ` +
-                `reach index ${num(prompt.metrics.reachIndex)}, position ${num(prompt.metrics.averagePosition)}.`,
-              `AI traffic: ${num(prompt.aiTraffic)}.`,
-              "By assistant:",
-              ...perModel,
-            ].join("\n")
-          ),
+          [
+            `"${prompt.prompt}" (${prompt.status})`,
+            `Keyword: ${prompt.keyword || "—"}. Categories: ${prompt.categories.join(", ") || "—"}.`,
+            `Visibility ${num(prompt.metrics.visibility, "%")} (${signed(prompt.change?.visibility ?? null, " pp")}), ` +
+              `reach index ${num(prompt.metrics.reachIndex)}, position ${num(prompt.metrics.averagePosition)}.`,
+            `AI traffic: ${num(prompt.aiTraffic)}. Business priority: ${prompt.businessPriority ?? "—"}.`,
+            "By assistant:",
+            ...perModel,
+          ].join("\n"),
           prompt
         );
       })
@@ -149,8 +150,10 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "List the prompt groups of the project",
       description:
-        "How the active project's prompts are grouped, with the visibility and business priority of " +
-        "each group. Use a group id to narrow list_prompts.",
+        "How the active project's prompts are grouped — comparison queries, problem queries, brand " +
+        "queries — with the visibility of each group over the period. A group is the unit a strategy " +
+        "is judged by. Use a group id to narrow list_prompts. Ungrouped prompts have no row here; " +
+        "they show up in list_prompts with groupId null.",
       annotations: READ_ONLY,
       inputSchema: { ...dateRangeShape, ...paginationShape },
       outputSchema: { data: z.array(PromptGroupSchema), nextCursor: z.string().nullable() },
@@ -158,20 +161,20 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const page = await client.listPromptGroups(project.id, { ...args, ...resolveDateRange(args) });
+        const range = resolveDateRange(args);
+        const page = await client.listPromptGroups(project.id, { ...args, ...range });
 
         const lines = page.data.map(
           (group) =>
             `- ${group.name} — ${group.promptCount} prompt(s), visibility ${num(group.metrics.visibility, "%")}, ` +
-            `priority ${num(group.businessPriority)} [id: ${group.id}]`
+            `position ${num(group.metrics.averagePosition)}, AI traffic ${num(group.aiTrafficTotal)} [id: ${group.id}]`
         );
 
         return ok(
-          sampleData(
-            (page.data.length === 0
-              ? `${project.name} has no prompt groups.`
-              : `${page.data.length} prompt group(s):\n${lines.join("\n")}`) + morePages(page.nextCursor)
-          ),
+          (page.data.length === 0
+            ? `${project.name} has no prompt groups.`
+            : `${page.data.length} prompt group(s), ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`) +
+            morePages(page.nextCursor),
           page
         );
       })

@@ -24,7 +24,9 @@ pass illustrative figures off as measurements.
 | `get_knowledge_base` | `GET /v1/projects/{projectId}/knowledge-base` | **API** |
 | `list_categories` | `GET /v1/projects/{projectId}/categories` | **API** |
 | `list_prompt_suggestions` | `GET /v1/projects/{projectId}/prompt-suggestions` | **API** |
-| `list_prompts`, `get_prompt`, `list_prompt_groups` | — | sample data |
+| `list_prompts` | `GET /v1/projects/{projectId}/prompts` | **API** |
+| `get_prompt` | `GET /v1/projects/{projectId}/prompts/{promptId}` | **API** |
+| `list_prompt_groups` | `GET /v1/projects/{projectId}/prompt-groups` | **API** |
 | `get_visibility_summary`, `get_visibility_timeseries` | — | sample data |
 | `list_competitors`, `list_answers`, `list_sources`, `get_citation_quality` | — | sample data |
 

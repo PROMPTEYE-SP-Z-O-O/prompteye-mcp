@@ -1,12 +1,27 @@
 import type { PromptEyeApi } from "../api/index.js";
 import type { PromptEyeClient } from "./prompteye-client.js";
 
+/** The calls the PromptEye API serves; everything else comes from the fallback. */
+type LiveMethod =
+  | "getAccount"
+  | "listProjects"
+  | "getProject"
+  | "getKnowledgeBase"
+  | "listCategories"
+  | "listPromptSuggestions"
+  | "listPrompts"
+  | "getPrompt"
+  | "listPromptGroups";
+
+/** What is left for the sample data to answer, until the API grows those endpoints too. */
+export type FallbackClient = Omit<PromptEyeClient, LiveMethod>;
+
 /**
  * Answers from the PromptEye API wherever it has an endpoint, and from
  * `fallback` everywhere else. When the API grows an endpoint, the matching
  * method moves from the fallback to here.
  */
-export function createLiveClient(api: PromptEyeApi, fallback: PromptEyeClient): PromptEyeClient {
+export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): PromptEyeClient {
   return {
     ...fallback,
     getAccount: () => api.account.get(),
@@ -15,5 +30,8 @@ export function createLiveClient(api: PromptEyeApi, fallback: PromptEyeClient): 
     getKnowledgeBase: (projectId) => api.knowledgeBase.get(projectId),
     listCategories: (projectId) => api.categories.list(projectId),
     listPromptSuggestions: (projectId, query) => api.promptSuggestions.list(projectId, query),
+    listPrompts: (projectId, query) => api.prompts.list(projectId, query),
+    getPrompt: (projectId, promptId, range) => api.prompts.get(projectId, promptId, range),
+    listPromptGroups: (projectId, query) => api.promptGroups.list(projectId, query),
   };
 }

@@ -1,46 +1,25 @@
-import {
-  DEFAULT_LIMIT,
-  type Metrics,
-  type ModelKey,
-  type Page,
-  type ResolvedRange,
-} from "../schemas/common.js";
+import { DEFAULT_LIMIT, type Metrics, type ModelKey, type Page } from "../schemas/common.js";
 import type {
-  Account,
   Answer,
-  Category,
   CitationQuality,
   CitedDomain,
   Competitor,
-  KnowledgeBase,
-  List,
-  Project,
-  Prompt,
-  PromptDetail,
-  PromptGroup,
-  PromptSuggestion,
   VisibilityRow,
   VisibilitySummary,
 } from "../schemas/prompteye.js";
 import { PromptEyeApiError } from "../api/index.js";
 import * as fixtures from "../fixtures/prompteye.js";
+import type { FallbackClient } from "./live-client.js";
 import type {
   AnswerQuery,
   CompetitorQuery,
   PageQuery,
-  PromptEyeClient,
-  PromptGroupQuery,
-  PromptQuery,
   SourceQuery,
-  SuggestionQuery,
   VisibilityQuery,
   VisibilitySummaryQuery,
 } from "./prompteye-client.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-const notFound = (what: string): PromptEyeApiError =>
-  new PromptEyeApiError(404, { error: { code: "not_found", message: `${what} does not exist.` } });
 
 /** Cursors are opaque to callers; here they simply carry an offset. */
 function decodeCursor(cursor: string | undefined): number {
@@ -147,75 +126,15 @@ function buildBreakdown(rows: VisibilityRow[], by: NonNullable<VisibilitySummary
 }
 
 /**
- * Answers every call from the sample data in `src/fixtures`, computing the
- * derived figures — totals, period-over-period change, breakdowns — the way the
- * API is specified to.
+ * Answers the calls the PromptEye API does not serve yet from the sample data
+ * in `src/fixtures`, computing the derived figures — totals, period-over-period
+ * change, breakdowns — the way the API is specified to.
  *
- * The calls the API already serves check the project exists among the sample
- * projects, as the API would. The others accept any project id: next to the live
- * API they are handed real project ids, and still have to answer.
+ * Project ids are not checked against anything: these calls are handed the ids
+ * of real projects, and still have to answer.
  */
-export function createFixturesClient(): PromptEyeClient {
-  const projectById = (projectId: string): Project => {
-    const project = fixtures.projects.find((candidate) => candidate.id === projectId);
-    if (!project) throw notFound(`Project ${projectId}`);
-    return project;
-  };
-
+export function createFixturesClient(): FallbackClient {
   return {
-    async getAccount(): Promise<Account> {
-      return fixtures.account;
-    },
-
-    async listProjects(): Promise<List<Project>> {
-      return { data: fixtures.projects };
-    },
-
-    async getProject(projectId: string): Promise<Project> {
-      return projectById(projectId);
-    },
-
-    async getKnowledgeBase(projectId: string): Promise<KnowledgeBase> {
-      projectById(projectId);
-      return fixtures.knowledgeBase;
-    },
-
-    async listCategories(projectId: string): Promise<List<Category>> {
-      projectById(projectId);
-      return { data: fixtures.categories };
-    },
-
-    async listPromptSuggestions(projectId: string, query: SuggestionQuery): Promise<List<PromptSuggestion>> {
-      projectById(projectId);
-      return {
-        data: fixtures.promptSuggestions.filter(
-          (suggestion) => query.groupId === undefined || suggestion.groupId === query.groupId
-        ),
-      };
-    },
-
-    async listPrompts(_projectId: string, query: PromptQuery): Promise<Page<Prompt>> {
-      const matching = fixtures.prompts.filter(
-        (prompt) =>
-          (query.groupId === undefined || prompt.groupId === query.groupId) &&
-          (query.categoryId === undefined ||
-            fixtures.categories.some(
-              (category) => category.id === query.categoryId && prompt.categories.includes(category.name)
-            ))
-      );
-      return paginate(matching, query);
-    },
-
-    async getPrompt(_projectId: string, promptId: string, _range: ResolvedRange): Promise<PromptDetail> {
-      const prompt = fixtures.prompts.find((candidate) => candidate.id === promptId);
-      if (!prompt) throw notFound(`Prompt ${promptId}`);
-      return { ...prompt, byModel: fixtures.promptsByModel[promptId] ?? [] };
-    },
-
-    async listPromptGroups(_projectId: string, query: PromptGroupQuery): Promise<Page<PromptGroup>> {
-      return paginate(fixtures.promptGroups, query);
-    },
-
     async getVisibilitySummary(
       _projectId: string,
       query: VisibilitySummaryQuery
