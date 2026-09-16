@@ -21,6 +21,8 @@ pass illustrative figures off as measurements.
 | `get_account` | `GET /v1/me` | **API** |
 | `list_projects` | `GET /v1/projects` | **API** |
 | `select_project`, `get_active_project` | `GET /v1/projects/{projectId}` | **API** |
+| `create_project` | `POST /v1/projects` | **API** |
+| `add_prompts` | `POST /v1/projects/{projectId}/prompts` | **API** (endpoint still being built) |
 | `get_knowledge_base` | `GET /v1/projects/{projectId}/knowledge-base` | **API** |
 | `list_categories` | `GET /v1/projects/{projectId}/categories` | **API** |
 | `list_prompt_suggestions` | `GET /v1/projects/{projectId}/prompt-suggestions` | **API** |

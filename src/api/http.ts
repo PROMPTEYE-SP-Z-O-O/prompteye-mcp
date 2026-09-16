@@ -32,14 +32,43 @@ export class HttpClient {
   constructor(private readonly config: HttpClientConfig) {}
 
   /** GETs `path`, throwing `PromptEyeApiError` on a non-2xx answer and validating a 2xx one. */
-  async get<T>(
+  get<T>(
     path: string,
     schema: z.ZodType<T, z.ZodTypeDef, unknown>,
     options: RequestOptions & { query?: Query } = {}
   ): Promise<T> {
-    const response = await this.config.fetch(`${this.config.baseUrl}${path}${queryString(options.query)}`, {
-      method: "GET",
-      headers: { Accept: "application/json", ...this.config.headers, Authorization: `Bearer ${this.config.token}` },
+    return this.send(`${path}${queryString(options.query)}`, schema, { method: "GET" }, options);
+  }
+
+  /** POSTs `body` as JSON, otherwise behaving exactly as {@link get}. */
+  post<T>(
+    path: string,
+    body: unknown,
+    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+    options: RequestOptions = {}
+  ): Promise<T> {
+    return this.send(
+      path,
+      schema,
+      { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } },
+      options
+    );
+  }
+
+  private async send<T>(
+    path: string,
+    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+    init: RequestInit & { headers?: Record<string, string> },
+    options: RequestOptions
+  ): Promise<T> {
+    const response = await this.config.fetch(`${this.config.baseUrl}${path}`, {
+      ...init,
+      headers: {
+        Accept: "application/json",
+        ...this.config.headers,
+        ...init.headers,
+        Authorization: `Bearer ${this.config.token}`,
+      },
       signal: options.signal ?? AbortSignal.timeout(this.config.timeoutMs),
     });
     const body: unknown = await response.json().catch(() => undefined);

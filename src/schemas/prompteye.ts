@@ -9,7 +9,9 @@ import { MetricsSchema, ModelSchema, NullableChangeSchema } from "./common.js";
 export {
   AccountSchema,
   CategorySchema,
+  COUNTRY_CODES,
   KnowledgeBaseSchema,
+  NewPromptSchema,
   ProjectSchema,
   PromptDetailSchema,
   PromptGroupSchema,
@@ -17,12 +19,15 @@ export {
   PromptSuggestionSchema,
   type Account,
   type Category,
+  type CreateProjectInput,
   type KnowledgeBase,
   type List,
+  type NewPrompt,
   type Project,
   type Prompt,
   type PromptDetail,
   type PromptGroup,
+  type PromptInput,
   type PromptSuggestion,
 } from "../api/schemas.js";
 

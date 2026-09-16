@@ -1,8 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { KnowledgeBaseSchema, ProjectSchema } from "../schemas/prompteye.js";
+import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema } from "../schemas/prompteye.js";
 import type { Project } from "../schemas/prompteye.js";
-import { READ_ONLY, fail, handled, ok, type ToolContext } from "./result.js";
+import { PROMPT_GENERATION } from "./glossary.js";
+import { READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
 
 const describe = (project: Project): string =>
   `${project.name} — brand ${project.brand} (${project.domain}) tracked in ${project.country}, ` +
@@ -91,12 +92,88 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
   );
 
   server.registerTool(
+    "create_project",
+    {
+      title: "Create a project",
+      description:
+        "Starts tracking one brand in one market. The project is the unit everything else hangs off — " +
+        "prompts, answers, competitors and the visibility computed from them — and it becomes the " +
+        "active project, so the following tools report on it without another call.\n\n" +
+        "A brand tracked in several markets needs one project per market: the same `brand` with a " +
+        "different `country`. Check list_projects first; creating a second project for a brand and " +
+        "market already tracked is refused.\n\n" +
+        "Creating a project counts against the workspace plan. Nothing is asked of the assistants " +
+        "until the project has prompts — " +
+        PROMPT_GENERATION,
+      annotations: WRITES,
+      inputSchema: {
+        brand: z
+          .string()
+          .min(1)
+          .max(120)
+          .describe(
+            "The brand name as it is written in answers. Visibility is measured against this name, so " +
+              "write it the way an assistant would, not as a legal entity."
+          ),
+        domain: z
+          .string()
+          .min(3)
+          .max(253)
+          .describe("Primary domain of the brand, without protocol or path, e.g. prompteye.com."),
+        country: z
+          .enum(COUNTRY_CODES)
+          .describe(
+            "Market to track the brand in, as an ISO 3166-1 alpha-2 code such as PL, DE or US. GLOB " +
+              "stands for the global answer set rather than one country."
+          ),
+        name: z
+          .string()
+          .min(1)
+          .max(120)
+          .optional()
+          .describe("Display name of the project. Defaults to the brand name."),
+        label: z.string().min(1).max(40).optional().describe("Short label used to group projects in listings."),
+        alternativeBrandNames: z
+          .array(z.string().min(1).max(120))
+          .max(20)
+          .optional()
+          .describe(
+            "Other spellings that count as naming the brand — a space, a suffix, a common misspelling. " +
+              "Without these, answers using them read as the brand being absent."
+          ),
+        alternativeDomains: z
+          .array(z.string().min(3).max(253))
+          .max(20)
+          .optional()
+          .describe("Further domains owned by the brand; citations of them count as its own."),
+        excludedCompetitors: z
+          .array(z.string().min(1).max(120))
+          .max(50)
+          .optional()
+          .describe(
+            "Brands to keep out of the competitor set — agencies, resellers or anything that is not a " +
+              "rival, so share of voice is not diluted by them."
+          ),
+      },
+      outputSchema: ProjectSchema.shape,
+    },
+    async (args) =>
+      handled(async () => {
+        const project = await client.createProject(args);
+        await session.select(project.id);
+
+        return ok(`Created ${describe(project)}.\nIt is now the active project.`, project);
+      })
+  );
+
+  server.registerTool(
     "get_knowledge_base",
     {
       title: "Read what the project knows about the brand",
       description:
         "The description of the brand the project measures against — what the company sells and to " +
-        "whom. Useful for judging whether a prompt or a competitor genuinely belongs to this brand.",
+        "whom. Everything PromptEye writes for the project reads this first, so it is worth knowing " +
+        "what a brand is being judged against before trusting a prompt or a competitor.",
       annotations: READ_ONLY,
       inputSchema: {},
       outputSchema: KnowledgeBaseSchema.shape,

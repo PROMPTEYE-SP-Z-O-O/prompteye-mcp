@@ -8,12 +8,15 @@ import type {
   CitationQuality,
   CitedDomain,
   Competitor,
+  CreateProjectInput,
   KnowledgeBase,
   List,
+  NewPrompt,
   Project,
   Prompt,
   PromptDetail,
   PromptGroup,
+  PromptInput,
   PromptSuggestion,
   VisibilityRow,
   VisibilitySummary,
@@ -56,12 +59,14 @@ export interface PromptEyeClient {
   getAccount(): Promise<Account>;
   listProjects(): Promise<List<Project>>;
   getProject(projectId: string): Promise<Project>;
+  createProject(input: CreateProjectInput): Promise<Project>;
   getKnowledgeBase(projectId: string): Promise<KnowledgeBase>;
   listCategories(projectId: string): Promise<List<Category>>;
   listPromptSuggestions(projectId: string, query: SuggestionQuery): Promise<List<PromptSuggestion>>;
 
   listPrompts(projectId: string, query: PromptQuery): Promise<Page<Prompt>>;
   getPrompt(projectId: string, promptId: string, range: ResolvedRange): Promise<PromptDetail>;
+  addPrompts(projectId: string, prompts: PromptInput[]): Promise<List<NewPrompt>>;
   listPromptGroups(projectId: string, query: PromptGroupQuery): Promise<Page<PromptGroup>>;
 
   getVisibilitySummary(projectId: string, query: VisibilitySummaryQuery): Promise<VisibilitySummary>;

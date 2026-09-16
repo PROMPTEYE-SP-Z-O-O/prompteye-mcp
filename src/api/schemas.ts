@@ -2,6 +2,15 @@ import { z } from "zod";
 
 /** Mirrors of the PromptEye API responses. Unknown fields are dropped. */
 
+/** The markets a project can be tracked in. `GLOB` is the global answer set. */
+export const COUNTRY_CODES = [
+  "GLOB", "AE", "AR", "AT", "AU", "BE", "BG", "BR", "CA", "CH", "CL", "CN", "CO", "CY", "CZ", "DE",
+  "DK", "EE", "EG", "ES", "FI", "FR", "GB", "GR", "HK", "HR", "HU", "ID", "IE", "IL", "IN", "IS",
+  "IT", "JP", "KE", "KR", "KZ", "LT", "LU", "LV", "MT", "MX", "MY", "NG", "NL", "NO", "NZ", "PE",
+  "PH", "PL", "PT", "QA", "RO", "RS", "RU", "SA", "SE", "SG", "SI", "SK", "TH", "TR", "TW", "UA",
+  "US", "VN", "ZA",
+] as const;
+
 const MetricsSchema = z.object({
   /** Share of answers naming the brand, 0 to 100. `null` until measured. */
   visibility: z.number().nullable(),
@@ -117,6 +126,14 @@ export const PromptSuggestionSchema = z.object({
   expiresAt: z.string(),
 });
 
+/** A prompt as it comes back from being added: it has not been asked yet. */
+export const NewPromptSchema = z.object({
+  id: z.string(),
+  prompt: z.string(),
+  /** The group it was filed under, or `null` when it is ungrouped. */
+  groupName: z.string().nullable(),
+});
+
 /** Every entry an endpoint has, in one response. */
 const listOf = <T extends z.ZodTypeAny>(entry: T) => z.object({ data: z.array(entry) });
 
@@ -127,11 +144,36 @@ const pageOf = <T extends z.ZodTypeAny>(entry: T) =>
 export const ProjectListSchema = listOf(ProjectSchema);
 export const CategoryListSchema = listOf(CategorySchema);
 export const PromptSuggestionListSchema = listOf(PromptSuggestionSchema);
+export const NewPromptListSchema = listOf(NewPromptSchema);
 export const PromptPageSchema = pageOf(PromptSchema);
 export const PromptGroupPageSchema = pageOf(PromptGroupSchema);
 
+/** What a project is created from. */
+export type CreateProjectInput = {
+  /** The brand as it is written in answers; visibility is measured against this name. */
+  brand: string;
+  /** Primary domain, without protocol or path. */
+  domain: string;
+  country: (typeof COUNTRY_CODES)[number];
+  /** Defaults to the brand name. */
+  name?: string;
+  label?: string;
+  alternativeBrandNames?: string[];
+  alternativeDomains?: string[];
+  excludedCompetitors?: string[];
+};
+
+/** One prompt to track, as handed to the API. */
+export type PromptInput = {
+  /** Sent to the assistants verbatim. */
+  prompt: string;
+  /** Creates the group when it does not exist yet, and reuses it when it does. */
+  groupName?: string;
+};
+
 export type List<T> = { data: T[] };
 export type Page<T> = { data: T[]; nextCursor: string | null };
+export type CountryCode = (typeof COUNTRY_CODES)[number];
 export type Metrics = z.infer<typeof MetricsSchema>;
 export type ModelMetrics = z.infer<typeof ModelMetricsSchema>;
 export type MetricsChange = z.infer<typeof MetricsChangeSchema>;
@@ -143,3 +185,4 @@ export type Prompt = z.infer<typeof PromptSchema>;
 export type PromptDetail = z.infer<typeof PromptDetailSchema>;
 export type PromptGroup = z.infer<typeof PromptGroupSchema>;
 export type PromptSuggestion = z.infer<typeof PromptSuggestionSchema>;
+export type NewPrompt = z.infer<typeof NewPromptSchema>;

@@ -6,11 +6,13 @@ type LiveMethod =
   | "getAccount"
   | "listProjects"
   | "getProject"
+  | "createProject"
   | "getKnowledgeBase"
   | "listCategories"
   | "listPromptSuggestions"
   | "listPrompts"
   | "getPrompt"
+  | "addPrompts"
   | "listPromptGroups";
 
 /** What is left for the sample data to answer, until the API grows those endpoints too. */
@@ -27,11 +29,13 @@ export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): P
     getAccount: () => api.account.get(),
     listProjects: () => api.projects.list(),
     getProject: (projectId) => api.projects.get(projectId),
+    createProject: (input) => api.projects.create(input),
     getKnowledgeBase: (projectId) => api.knowledgeBase.get(projectId),
     listCategories: (projectId) => api.categories.list(projectId),
     listPromptSuggestions: (projectId, query) => api.promptSuggestions.list(projectId, query),
     listPrompts: (projectId, query) => api.prompts.list(projectId, query),
     getPrompt: (projectId, promptId, range) => api.prompts.get(projectId, promptId, range),
+    addPrompts: (projectId, prompts) => api.prompts.create(projectId, prompts),
     listPromptGroups: (projectId, query) => api.promptGroups.list(projectId, query),
   };
 }

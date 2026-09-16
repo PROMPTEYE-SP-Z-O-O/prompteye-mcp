@@ -43,12 +43,26 @@ const LIVE_GROUP = {
 
 const RANGE = { startDate: "2026-08-16", endDate: "2026-09-15" };
 
-/** An API that knows one project and one prompt, recording the paths it is asked for. */
+type Call = { path: string; method: string; body: unknown };
+
+/** An API that knows one project and one prompt, recording what it is asked for. */
 function liveClient() {
-  const requested: string[] = [];
-  const fetch: FetchLike = async (url) => {
+  const calls: Call[] = [];
+  const fetch: FetchLike = async (url, init) => {
     const { pathname, search } = new URL(url);
-    requested.push(pathname + search);
+    calls.push({
+      path: pathname + search,
+      method: init.method ?? "GET",
+      body: typeof init.body === "string" ? JSON.parse(init.body) : undefined,
+    });
+
+    if (init.method === "POST") {
+      const created =
+        pathname === "/v1/projects"
+          ? LIVE_PROJECT
+          : { data: [{ id: "p2", prompt: "how much does acme cost", groupName: "Pricing" }] };
+      return new Response(JSON.stringify(created), { status: 201 });
+    }
 
     const body =
       pathname === "/v1/projects"
@@ -75,19 +89,19 @@ function liveClient() {
   };
 
   const api = new PromptEyeApi({ token: "pe_live_test", baseUrl: "https://example.convex.site", fetch });
-  return { client: createLiveClient(api, createFixturesClient()), requested };
+  return { client: createLiveClient(api, createFixturesClient()), calls };
 }
 
 describe("createLiveClient", () => {
   it("serves what the API has from the API", async () => {
-    const { client, requested } = liveClient();
+    const { client, calls } = liveClient();
 
     await expect(client.listProjects()).resolves.toEqual({ data: [LIVE_PROJECT] });
     await expect(client.getProject(LIVE_PROJECT.id)).resolves.toEqual(LIVE_PROJECT);
     await client.listCategories(LIVE_PROJECT.id);
     await client.listPromptSuggestions(LIVE_PROJECT.id, { groupId: "g1" });
 
-    expect(requested).toEqual([
+    expect(calls.map((call) => call.path)).toEqual([
       "/v1/projects",
       `/v1/projects/${LIVE_PROJECT.id}`,
       `/v1/projects/${LIVE_PROJECT.id}/categories`,
@@ -96,41 +110,68 @@ describe("createLiveClient", () => {
   });
 
   it("passes the period and filters of a prompt listing to the API", async () => {
-    const { client, requested } = liveClient();
+    const { client, calls } = liveClient();
 
     const page = await client.listPrompts(LIVE_PROJECT.id, { ...RANGE, groupId: "g1", limit: 10 });
 
     expect(page).toEqual({ data: [LIVE_PROMPT], nextCursor: "next" });
-    expect(requested[0]).toBe(
+    expect(calls[0].path).toBe(
       `/v1/projects/${LIVE_PROJECT.id}/prompts?startDate=2026-08-16&endDate=2026-09-15&groupId=g1&limit=10`
     );
   });
 
   it("reads one prompt with its per-assistant breakdown", async () => {
-    const { client, requested } = liveClient();
+    const { client, calls } = liveClient();
 
     const prompt = await client.getPrompt(LIVE_PROJECT.id, LIVE_PROMPT.id, RANGE);
 
     expect(prompt.byModel).toEqual([{ model: "gpt", metrics: { visibility: 100, averagePosition: 2 } }]);
-    expect(requested[0]).toBe(
+    expect(calls[0].path).toBe(
       `/v1/projects/${LIVE_PROJECT.id}/prompts/${LIVE_PROMPT.id}?startDate=2026-08-16&endDate=2026-09-15`
     );
   });
 
   it("lists prompt groups for the period", async () => {
-    const { client, requested } = liveClient();
+    const { client, calls } = liveClient();
 
     await expect(client.listPromptGroups(LIVE_PROJECT.id, RANGE)).resolves.toEqual({
       data: [LIVE_GROUP],
       nextCursor: null,
     });
-    expect(requested[0]).toBe(
-      `/v1/projects/${LIVE_PROJECT.id}/prompt-groups?startDate=2026-08-16&endDate=2026-09-15`
+    expect(calls[0].path).toBe(`/v1/projects/${LIVE_PROJECT.id}/prompt-groups?startDate=2026-08-16&endDate=2026-09-15`);
+  });
+
+  it("posts a new project", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.createProject({ brand: "Acme", domain: "acme.example", country: "DE" })).resolves.toEqual(
+      LIVE_PROJECT
     );
+
+    expect(calls[0]).toEqual({
+      path: "/v1/projects",
+      method: "POST",
+      body: { brand: "Acme", domain: "acme.example", country: "DE" },
+    });
+  });
+
+  it("posts hand-written prompts in one call", async () => {
+    const { client, calls } = liveClient();
+
+    const added = await client.addPrompts(LIVE_PROJECT.id, [
+      { prompt: "how much does acme cost", groupName: "Pricing" },
+    ]);
+
+    expect(added.data[0].groupName).toBe("Pricing");
+    expect(calls[0]).toEqual({
+      path: `/v1/projects/${LIVE_PROJECT.id}/prompts`,
+      method: "POST",
+      body: { prompts: [{ prompt: "how much does acme cost", groupName: "Pricing" }] },
+    });
   });
 
   it("serves the rest from sample data, for a real project id, without calling the API", async () => {
-    const { client, requested } = liveClient();
+    const { client, calls } = liveClient();
 
     const summary = await client.getVisibilitySummary(LIVE_PROJECT.id, RANGE);
     const competitors = await client.listCompetitors(LIVE_PROJECT.id, RANGE);
@@ -139,7 +180,7 @@ describe("createLiveClient", () => {
     expect(summary.totals.visibility).not.toBeNull();
     expect(competitors.data.length).toBeGreaterThan(0);
     expect(quality.role.distribution.length).toBeGreaterThan(0);
-    expect(requested).toEqual([]);
+    expect(calls).toEqual([]);
   });
 
   it("lets the session select the only project the key reaches", async () => {

@@ -10,6 +10,17 @@ import type { ProjectSession } from "../session.js";
  */
 export const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
 
+/**
+ * A tool that changes the workspace. Nothing here deletes or overwrites, but
+ * calling one twice adds twice, so hosts are told to confirm rather than repeat.
+ */
+export const WRITES = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: true,
+} as const;
+
 /** What every tool module is handed when it registers itself. */
 export type ToolContext = {
   client: PromptEyeClient;

@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "prompteye",
   "display_name": "PromptEye",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "description": "See how visible a brand is inside the answers AI assistants give — visibility, competitors, prompts and the sources behind the numbers.",
-  "long_description": "PromptEye tracks how often AI assistants name a brand when they answer buying questions. Pick a project — one brand tracked in one market — then ask how visible it is, which competitors answer alongside it, which prompts carry it, what the assistants actually wrote, and which pages they leaned on.\n\nWith an API key, the account, projects, knowledge base, categories and prompt suggestions come from PromptEye; the remaining tools answer from sample data until the API serves them. Without a key everything answers from sample data.",
+  "long_description": "PromptEye tracks how often AI assistants name a brand when they answer buying questions. Pick a project — one brand tracked in one market — then ask how visible it is, which competitors answer alongside it, which prompts carry it, what the assistants actually wrote, and which pages they leaned on.\n\nAccount, projects, prompts, prompt groups, categories and prompt suggestions come from PromptEye. Visibility, competitors, answers and sources answer from sample data until the API serves them, and say so in every answer. An API key and the API URL are required — both are at https://app.prompteye.com/integrations.",
   "author": {
     "name": "PromptEye"
   },
@@ -44,6 +44,8 @@
     { "name": "list_projects", "description": "Every project the key reaches" },
     { "name": "select_project", "description": "Makes one project the active one" },
     { "name": "get_active_project", "description": "Which project the numbers refer to" },
+    { "name": "create_project", "description": "Starts tracking one brand in one market" },
+    { "name": "add_prompts", "description": "Adds hand-written prompts — not the recommended way" },
     { "name": "get_knowledge_base", "description": "What the project knows about the brand" },
     { "name": "list_prompts", "description": "The questions being put to the assistants" },
     { "name": "get_prompt", "description": "One prompt, broken down per assistant" },
