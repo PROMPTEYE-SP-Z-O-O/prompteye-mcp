@@ -1,0 +1,66 @@
+{
+  "manifest_version": "0.3",
+  "name": "prompteye",
+  "display_name": "PromptEye",
+  "version": "1.0.5",
+  "description": "See how visible a brand is inside the answers AI assistants give — visibility, competitors, prompts and the sources behind the numbers.",
+  "long_description": "PromptEye tracks how often AI assistants name a brand when they answer buying questions. Pick a project — one brand tracked in one market — then ask how visible it is, which competitors answer alongside it, which prompts carry it, what the assistants actually wrote, and which pages they leaned on.\n\nWith an API key, the account, projects, knowledge base, categories and prompt suggestions come from PromptEye; the remaining tools answer from sample data until the API serves them. Without a key everything answers from sample data.",
+  "author": {
+    "name": "PromptEye"
+  },
+  "homepage": "https://prompteye.com",
+  "documentation": "https://api.prompteye.com",
+  "license": "MIT",
+  "keywords": ["ai-visibility", "seo", "brand-monitoring", "prompteye", "aeo"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "PROMPTEYE_API_KEY": "${user_config.api_key}",
+        "PROMPTEYE_API_BASE_URL": "${user_config.base_url}"
+      }
+    }
+  },
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "PromptEye API key",
+      "description": "Create one at https://app.prompteye.com/integrations. It starts with pe_live_ and needs the api_access scope.",
+      "sensitive": true,
+      "required": true
+    },
+    "base_url": {
+      "type": "string",
+      "title": "API base URL",
+      "description": "The API URL of the deployment the key belongs to. Copy it from https://app.prompteye.com/integrations, next to the key.",
+      "required": true
+    }
+  },
+  "tools": [
+    { "name": "get_account", "description": "Who the key belongs to, which plan, how many prompts" },
+    { "name": "list_projects", "description": "Every project the key reaches" },
+    { "name": "select_project", "description": "Makes one project the active one" },
+    { "name": "get_active_project", "description": "Which project the numbers refer to" },
+    { "name": "get_knowledge_base", "description": "What the project knows about the brand" },
+    { "name": "list_prompts", "description": "The questions being put to the assistants" },
+    { "name": "get_prompt", "description": "One prompt, broken down per assistant" },
+    { "name": "list_prompt_groups", "description": "How the prompts are grouped" },
+    { "name": "list_categories", "description": "The categories prompts are filed under" },
+    { "name": "list_prompt_suggestions", "description": "Prompts worth tracking next, and why" },
+    { "name": "get_visibility_summary", "description": "The headline figures and how they moved" },
+    { "name": "get_visibility_timeseries", "description": "The individual measurements behind them" },
+    { "name": "list_competitors", "description": "Brands answering alongside, by share of voice" },
+    { "name": "list_answers", "description": "What the assistants actually wrote" },
+    { "name": "list_sources", "description": "The domains they cited" },
+    { "name": "get_citation_quality", "description": "What the brand was to those answers" }
+  ],
+  "compatibility": {
+    "platforms": ["darwin", "win32"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  }
+}
