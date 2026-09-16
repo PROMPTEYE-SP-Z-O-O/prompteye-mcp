@@ -17,6 +17,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WIDGET_HTML_PATH = path.resolve(__dirname, "../public/visibility-widget.html");
 
 /**
+ * Whether to register the tools the PromptEye API does not serve yet —
+ * visibility, competitors, answers, sources and citation quality — which answer
+ * from the sample data in `src/fixtures`.
+ *
+ * Off, so nothing offers a figure that was not measured for the user's project.
+ * Flip it to true to demo those tools; delete it, with the fixtures, once the
+ * API serves them and the methods move to `live-client.ts`.
+ */
+const SAMPLE_TOOLS = false;
+
+/**
  * The SDK's Zod v3 converter emits draft-07 output schemas. Claude Desktop
  * accepts draft 2020-12 only, so omit the optional output schemas rather than
  * advertising a dialect the client rejects. Tool results still include their
@@ -66,23 +77,27 @@ export function createMcpServer(): McpServer {
   const context: ToolContext = { client, session: new ProjectSession(client) };
   const toolServer = withoutOutputSchemas(server);
 
-  const widgetHtml = loadWidgetHtml();
-  registerAppResource(
-    server,
-    "PromptEye Visibility",
-    VISIBILITY_WIDGET_URI,
-    { description: "Visibility totals, period-over-period change and breakdown for a project" },
-    async () => ({
-      contents: [{ uri: VISIBILITY_WIDGET_URI, mimeType: RESOURCE_MIME_TYPE, text: widgetHtml }],
-    })
-  );
-
   registerAccountTools(toolServer, context);
   registerProjectTools(toolServer, context);
   registerPromptTools(toolServer, context);
-  registerVisibilityTools(toolServer, context);
-  registerCompetitorTools(toolServer, context);
-  registerEvidenceTools(toolServer, context);
+
+  if (SAMPLE_TOOLS) {
+    // The widget belongs to get_visibility_summary, so it is registered with it.
+    const widgetHtml = loadWidgetHtml();
+    registerAppResource(
+      server,
+      "PromptEye Visibility",
+      VISIBILITY_WIDGET_URI,
+      { description: "Visibility totals, period-over-period change and breakdown for a project" },
+      async () => ({
+        contents: [{ uri: VISIBILITY_WIDGET_URI, mimeType: RESOURCE_MIME_TYPE, text: widgetHtml }],
+      })
+    );
+
+    registerVisibilityTools(toolServer, context);
+    registerCompetitorTools(toolServer, context);
+    registerEvidenceTools(toolServer, context);
+  }
 
   return server;
 }

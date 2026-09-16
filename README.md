@@ -3,37 +3,53 @@
 An MCP server for [PromptEye](https://prompteye.com) — how visible a brand is inside the
 answers AI assistants give.
 
-A client picks a project, then asks about its visibility, the competitors answering
-alongside it, the prompts being tracked, and the answers and sources behind the numbers.
+A client picks a project, then works with the prompts it is tracked on: which questions are
+being asked, how they are grouped and filed, and which ones PromptEye suggests adding next.
 
 The server needs an API key and the API URL of the deployment it belongs to. Both are at
 [app.prompteye.com/integrations](https://app.prompteye.com/integrations), and it refuses to
 start without them.
 
-## Where the answers come from
+## Tools
 
-Every tool whose endpoint the PromptEye API already serves calls the API. The rest answer
-from the sample data in `src/fixtures/`, and say so in their text, so the model does not
-pass illustrative figures off as measurements.
+Every one of these calls the PromptEye API.
 
-| Tool | Endpoint | Source |
-|---|---|---|
-| `get_account` | `GET /v1/me` | **API** |
-| `list_projects` | `GET /v1/projects` | **API** |
-| `select_project`, `get_active_project` | `GET /v1/projects/{projectId}` | **API** |
-| `create_project` | `POST /v1/projects` | **API** |
-| `add_prompts` | `POST /v1/projects/{projectId}/prompts` | **API** (endpoint still being built) |
-| `get_knowledge_base` | `GET /v1/projects/{projectId}/knowledge-base` | **API** |
-| `list_categories` | `GET /v1/projects/{projectId}/categories` | **API** |
-| `list_prompt_suggestions` | `GET /v1/projects/{projectId}/prompt-suggestions` | **API** |
-| `list_prompts` | `GET /v1/projects/{projectId}/prompts` | **API** |
-| `get_prompt` | `GET /v1/projects/{projectId}/prompts/{promptId}` | **API** |
-| `list_prompt_groups` | `GET /v1/projects/{projectId}/prompt-groups` | **API** |
-| `get_visibility_summary`, `get_visibility_timeseries` | — | sample data |
-| `list_competitors`, `list_answers`, `list_sources`, `get_citation_quality` | — | sample data |
+| Tool | Endpoint |
+|---|---|
+| `get_account` | `GET /v1/me` |
+| `list_projects` | `GET /v1/projects` |
+| `select_project`, `get_active_project` | `GET /v1/projects/{projectId}` |
+| `create_project` | `POST /v1/projects` |
+| `get_knowledge_base` | `GET /v1/projects/{projectId}/knowledge-base` |
+| `list_categories` | `GET /v1/projects/{projectId}/categories` |
+| `list_prompts` | `GET /v1/projects/{projectId}/prompts` |
+| `get_prompt` | `GET /v1/projects/{projectId}/prompts/{promptId}` |
+| `list_prompt_groups` | `GET /v1/projects/{projectId}/prompt-groups` |
+| `list_prompt_suggestions` | `GET /v1/projects/{projectId}/prompt-suggestions` |
+| `add_prompts` | `POST /v1/projects/{projectId}/prompts` |
 
-When the API grows an endpoint: add it to the client in `src/api/`, then move the method
-from the fixtures to `src/client/live-client.ts`.
+Periods default to the last 30 days and are capped at 366.
+
+`list_prompt_suggestions` is the way to add prompts: PromptEye generates them from real
+demand and from how people actually put questions to assistants. `add_prompts` tracks
+hand-written prompts instead, skipping that, so it says as much in its own description and
+requires `confirmBypassPromptIntelligence: true`.
+
+### The tools that are switched off
+
+Visibility, competitors, answers, sources and citation quality have no endpoint yet. Their
+tools, their sample data in `src/fixtures/` and the widget are still in the repository but
+are **not registered**, so no client can call them and nothing reports a figure that was
+never measured. The switch is one constant:
+
+```ts
+// src/server.ts
+const SAMPLE_TOOLS = false;   // true to demo them from sample data
+```
+
+When the API serves those endpoints: add them to the client in `src/api/`, move the methods
+from `src/client/fixtures-client.ts` to `src/client/live-client.ts`, then delete the
+constant and the fixtures.
 
 ## Running it
 
@@ -62,7 +78,7 @@ Extensions → Advanced settings → Install Extension. The install form asks fo
 Both are at [app.prompteye.com/integrations](https://app.prompteye.com/integrations).
 
 After changing either, disable and re-enable the extension so the server restarts with them.
-The server logs where its answers come from — never the key — to
+The server logs which deployment it talks to — never the key — to
 `~/Library/Logs/Claude/mcp-server-PromptEye.log`.
 
 Pushing a `v*` tag builds the bundle in CI and attaches it to the GitHub release
@@ -101,9 +117,9 @@ const api = new PromptEyeApi({
 const account = await api.account.get();
 const { data: projects } = await api.projects.list();
 const project = await api.projects.get(projects[0].id);
-const knowledgeBase = await api.knowledgeBase.get(project.id);
-const { data: categories } = await api.categories.list(project.id);
-const { data: suggestions } = await api.promptSuggestions.list(project.id, { groupId: "…" });
+const { data: prompts } = await api.prompts.list(project.id, { startDate: "2026-08-01" });
+const { data: suggestions } = await api.promptSuggestions.list(project.id);
+await api.prompts.create(project.id, [{ prompt: "best crm for agencies", groupName: "Comparisons" }]);
 ```
 
 | Option | Default | |
@@ -125,34 +141,19 @@ which maps every documented error code to a human message.
 
 ## How a conversation goes
 
-Every tool but `list_projects`, `select_project` and `get_account` reports on **the active
-project**, and takes no project argument. So a session starts by choosing one:
+Every tool but `list_projects`, `create_project`, `select_project` and `get_account` reports
+on **the active project**, and takes no project argument. So a session starts by choosing one:
 
 ```
 list_projects                  → the projects, with their ids
 select_project(projectId: …)   → that project is now active
 list_prompt_suggestions()
-get_visibility_summary(by: "day")
+list_prompts(by group or category)
 ```
 
 Calling a project-scoped tool before selecting returns a recoverable error telling the
 model to list and select first — except when the key reaches exactly one project, which is
-then selected automatically.
-
-Periods default to the last 30 days and are capped at 366. `model` narrows any of them to
-one assistant: `gpt`, `perplexity`, `claude`, `deepSeek`, `gemini`, `grok`, `llama`,
-`aiOverview`, `copilot`, `googleAiMode`.
-
-## The widget
-
-`get_visibility_summary` is registered as an MCP App tool: hosts that support MCP Apps
-render `public/visibility-widget.html` alongside the text — the three headline figures with
-their period-over-period change, a trend line when called with `by: "day"`, and per-assistant
-bars when called with `by: "model"`.
-
-It is one self-contained HTML file with no build step, so it speaks the MCP Apps
-`ui/initialize` handshake over `postMessage` directly rather than importing the ext-apps
-client.
+then selected automatically. `create_project` also makes what it created active.
 
 ## Layout
 
@@ -161,15 +162,15 @@ src/
   api/                PromptEye API client — no MCP in it, publishable on its own
   index.ts            stdio entry point
   index-http.ts       Streamable HTTP entry point, one MCP session per mcp-session-id
-  server.ts           builds one server: session, tools, widget resource
+  server.ts           builds one server: session, tools, and the SAMPLE_TOOLS switch
   session.ts          ProjectSession — which project the tools report on
   config.ts           environment, and the client factory
-  client/             PromptEyeClient interface; live (API + fallback) and fixture implementations
+  client/             PromptEyeClient interface; live (API) and fixture implementations
   schemas/            zod mirrors of the models the API does not serve yet
-  tools/              one module per group of tools
-  fixtures/           sample data
+  tools/              one module per group of tools, plus the glossary they quote
+  fixtures/           sample data, for the switched-off tools only
 public/
-  visibility-widget.html
+  visibility-widget.html   registered with get_visibility_summary, so only with SAMPLE_TOOLS
 manifest.json         MCPB manifest — entry point, and the settings users fill in
 scripts/bundle.mjs    stages dist/, public/ and production deps, then packs the .mcpb
 ```
