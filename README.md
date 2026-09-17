@@ -6,7 +6,7 @@ answers AI assistants give.
 A client picks a project, then works with the prompts it is tracked on: which questions are
 being asked, how they are grouped and filed, and which ones PromptEye suggests adding next.
 
-The server needs an API key and the API URL of the deployment it belongs to. Both are at
+The server needs the API URL of the deployment and an API key for it. Both are at
 [app.prompteye.com/integrations](https://app.prompteye.com/integrations), and it refuses to
 start without them.
 
@@ -95,8 +95,8 @@ Configured by hand instead of as a bundle:
       "command": "node",
       "args": ["/absolute/path/to/prompteye-mcp/dist/index.js"],
       "env": {
-        "PROMPTEYE_API_KEY": "pe_live_…",
-        "PROMPTEYE_API_BASE_URL": "https://…"
+        "PROMPTEYE_API_BASE_URL": "https://…",
+        "PROMPTEYE_API_KEY": "pe_live_…"
       }
     }
   }
@@ -112,8 +112,8 @@ Configured by hand instead of as a bundle:
 import { PromptEyeApi, PromptEyeApiError } from "./api/index.js";
 
 const api = new PromptEyeApi({
-  token: process.env.PROMPTEYE_API_KEY!,
   baseUrl: process.env.PROMPTEYE_API_BASE_URL!,
+  token: process.env.PROMPTEYE_API_KEY!,
 });
 
 const account = await api.account.get();
@@ -181,11 +181,11 @@ scripts/bundle.mjs    stages dist/, public/ and production deps, then packs the 
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PROMPTEYE_API_KEY` | required | The API key |
-| `PROMPTEYE_API_BASE_URL` | required | API root of the deployment that key belongs to |
+| `PROMPTEYE_API_BASE_URL` | required | API root of the deployment |
+| `PROMPTEYE_API_KEY` | required | The API key for that deployment |
 | `MCP_SERVER_NAME` | `prompteye-mcp` | Name reported to clients |
 | `MCP_SERVER_VERSION` | `1.0.0` | Version reported to clients |
 | `PORT` | `3000` | HTTP transport port |
 
-Both the key and the API URL are at
+Both the API URL and the key are at
 [app.prompteye.com/integrations](https://app.prompteye.com/integrations).
