@@ -19,23 +19,23 @@
       "command": "node",
       "args": ["${__dirname}/dist/index.js"],
       "env": {
-        "PROMPTEYE_API_KEY": "${user_config.api_key}",
-        "PROMPTEYE_API_BASE_URL": "${user_config.base_url}"
+        "PROMPTEYE_API_BASE_URL": "${user_config.base_url}",
+        "PROMPTEYE_API_KEY": "${user_config.api_key}"
       }
     }
   },
   "user_config": {
+    "base_url": {
+      "type": "string",
+      "title": "API base URL",
+      "description": "The API URL of the deployment the key belongs to. Copy it from https://app.prompteye.com/integrations, next to the key.",
+      "required": true
+    },
     "api_key": {
       "type": "string",
       "title": "PromptEye API key",
       "description": "Create one at https://app.prompteye.com/integrations. It starts with pe_live_ and needs the api_access scope.",
       "sensitive": true,
-      "required": true
-    },
-    "base_url": {
-      "type": "string",
-      "title": "API base URL",
-      "description": "The API URL of the deployment the key belongs to. Copy it from https://app.prompteye.com/integrations, next to the key.",
       "required": true
     }
   },

@@ -10,22 +10,22 @@ export const serverVersion = process.env.MCP_SERVER_VERSION ?? "1.0.0";
 const readSetting = (name: string): string | undefined => process.env[name]?.trim() || undefined;
 
 /**
- * The key and the deployment to talk to. Both are required — there is no
- * default deployment, and nothing answers without a key.
+ * The deployment to talk to and the key for it. Both are required — there is
+ * no default deployment, and nothing answers without a key.
  */
 export function requireSettings(): { token: string; baseUrl: string } {
-  const token = readSetting("PROMPTEYE_API_KEY");
   const baseUrl = readSetting("PROMPTEYE_API_BASE_URL");
+  const token = readSetting("PROMPTEYE_API_KEY");
 
-  if (!token || !baseUrl) {
-    const missing = !token
-      ? baseUrl
-        ? "PROMPTEYE_API_KEY is"
-        : "PROMPTEYE_API_KEY and PROMPTEYE_API_BASE_URL are"
-      : "PROMPTEYE_API_BASE_URL is";
+  if (!baseUrl || !token) {
+    const missing = !baseUrl
+      ? token
+        ? "PROMPTEYE_API_BASE_URL is"
+        : "PROMPTEYE_API_BASE_URL and PROMPTEYE_API_KEY are"
+      : "PROMPTEYE_API_KEY is";
 
     throw new Error(
-      `${missing} not set. The API key and the API URL are both at https://app.prompteye.com/integrations.`
+      `${missing} not set. The API URL and the API key are both at https://app.prompteye.com/integrations.`
     );
   }
 
