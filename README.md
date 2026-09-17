@@ -53,6 +53,27 @@ When the API serves those endpoints: add them to the client in `src/api/`, move 
 from `src/client/fixtures-client.ts` to `src/client/live-client.ts`, then delete the
 constant and the fixtures.
 
+## The branded pages
+
+`list_competitors` and `list_sources` are MCP App tools: a host that supports UI renders a
+PromptEye-branded page beside the text — the mark, the orange the mark is drawn in, warm
+neutrals, and ranked bars with the project's own brand or domain picked out.
+
+One shell carries the brand and both handshakes, and each widget contributes only its
+`render()`; `src/widgets.ts` composes them, so the brand lives in one file rather than
+copied into each page.
+
+| Host | How the page gets its data |
+|---|---|
+| Claude | The MCP Apps handshake over `postMessage`: `ui/initialize`, then `ui/notifications/tool-result` |
+| ChatGPT | The Apps SDK: `window.openai.toolOutput`, refreshed by the `openai:set_globals` event |
+
+Both paths call the same `render()`, so a widget is written once. Tools carry the resource
+uri under `_meta.ui.resourceUri` for Claude and `_meta["openai/outputTemplate"]` for the
+Apps SDK, and the resource is served as `text/html;profile=mcp-app`. ChatGPT also expects
+its own `text/html+skybridge` mime, which would be a second registration of the same page —
+worth adding only once the server is actually reachable as a ChatGPT connector.
+
 ## Running it
 
 ```bash
@@ -171,8 +192,10 @@ src/
   schemas/            zod mirrors of the models the API does not serve yet
   tools/              one module per group of tools, plus the glossary they quote
   fixtures/           sample data, for the switched-off tools only
+  widgets.ts          composes and registers the branded pages tools render
 public/
-  visibility-widget.html   registered with get_visibility_summary, so only with SAMPLE_TOOLS
+  widget-shell.html        the brand: mark, palette, and both host handshakes
+  widgets/*.js             one render() per widget, dropped into that shell
 manifest.json         MCPB manifest — entry point, and the settings users fill in
 scripts/bundle.mjs    stages dist/, public/ and production deps, then packs the .mcpb
 ```

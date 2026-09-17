@@ -13,9 +13,10 @@ import {
   VisibilityRowSchema,
   VisibilitySummarySchema,
 } from "../schemas/prompteye.js";
+import { widgetMeta, widgetUri } from "../widgets.js";
 import { READ_ONLY, handled, morePages, num, ok, sampleData, signed, type ToolContext } from "./result.js";
 
-export const VISIBILITY_WIDGET_URI = "ui://prompteye-visibility/widget.html";
+export const VISIBILITY_WIDGET = "visibility";
 
 export function registerVisibilityTools(server: McpServer, { client, session }: ToolContext): void {
   registerAppTool(
@@ -53,7 +54,7 @@ export function registerVisibilityTools(server: McpServer, { client, session }: 
         brand: z.string(),
         by: BreakdownSchema.nullable(),
       }).shape,
-      _meta: { ui: { resourceUri: VISIBILITY_WIDGET_URI } },
+      _meta: widgetMeta(widgetUri(VISIBILITY_WIDGET), "Measuring visibility…", "Measured visibility"),
     },
     async (args) =>
       handled(async () => {
