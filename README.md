@@ -55,9 +55,11 @@ constant and the fixtures.
 
 ## The branded pages
 
-`list_competitors` and `list_sources` are MCP App tools: a host that supports UI renders a
-PromptEye-branded page beside the text — the mark, the orange the mark is drawn in, warm
-neutrals, and ranked bars with the project's own brand or domain picked out.
+`list_prompts`, `list_competitors` and `list_sources` are MCP App tools: a host that
+supports UI renders a PromptEye-branded page beside the text — the mark, the orange the
+mark is drawn in, warm neutrals, and ranked bars with the project's own brand or domain
+picked out. The prompts page adds headline tiles and a chip per prompt for its status,
+business priority and categories.
 
 One shell carries the brand and both handshakes, and each widget contributes only its
 `render()`; `src/widgets.ts` composes them, so the brand lives in one file rather than

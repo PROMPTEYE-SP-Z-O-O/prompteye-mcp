@@ -85,6 +85,12 @@
       .fill.other { background: var(--brand-soft); border-right: 2px solid var(--brand); }
       .row-value { font-variant-numeric: tabular-nums; font-size: 12.5px; min-width: 58px; text-align: right; color: var(--muted); }
       .row-value strong { color: var(--ink); font-weight: 600; }
+      .row.stacked { grid-template-columns: minmax(150px, 46%) 1fr auto; align-items: start; }
+      .row.stacked .track { margin-top: 5px; }
+      .row-sub { margin-top: 3px; display: flex; gap: 4px; flex-wrap: wrap; }
+      .chip { font-size: 10.5px; line-height: 1.6; padding: 0 6px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); white-space: nowrap; }
+      .chip.brand { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); }
+      .row-value .delta { font-size: 11px; margin-top: 1px; }
 
       svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
       .empty { color: var(--muted); font-style: italic; padding: 16px 0; }

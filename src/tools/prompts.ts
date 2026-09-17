@@ -1,5 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
+import { widgetMeta, widgetUri } from "../widgets.js";
 import { dateRangeShape, paginationShape, resolveDateRange } from "../schemas/common.js";
 import {
   CategorySchema,
@@ -70,8 +72,11 @@ function renderSuggestion(suggestion: PromptSuggestion): string {
   ].join("\n");
 }
 
+export const PROMPTS_WIDGET = "prompts";
+
 export function registerPromptTools(server: McpServer, { client, session }: ToolContext): void {
-  server.registerTool(
+  registerAppTool(
+    server,
     "list_prompts",
     {
       title: "List the prompts of the project",
@@ -91,7 +96,15 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
           .optional()
           .describe("Only prompts filed under this category or one of its subcategories."),
       },
-      outputSchema: { data: z.array(PromptSchema), nextCursor: z.string().nullable() },
+      outputSchema: {
+        data: z.array(PromptSchema),
+        nextCursor: z.string().nullable(),
+        projectName: z.string(),
+        brand: z.string(),
+        startDate: z.string(),
+        endDate: z.string(),
+      },
+      _meta: widgetMeta(widgetUri(PROMPTS_WIDGET), "Reading the prompts…", "Read the prompts"),
     },
     async (args) =>
       handled(async () => {
@@ -111,7 +124,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
             ? `${project.name} tracks no prompts matching that.`
             : `${page.data.length} prompt(s) in ${project.name}, ${range.startDate} to ${range.endDate}:\n` +
               lines.join("\n")) + morePages(page.nextCursor),
-          page
+          { ...page, projectName: project.name, brand: project.brand, ...range }
         );
       })
   );

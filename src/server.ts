@@ -5,7 +5,7 @@ import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
 import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
 import { SOURCES_WIDGET, registerEvidenceTools, registerSourceTools } from "./tools/evidence.js";
-import { registerPromptTools } from "./tools/prompts.js";
+import { PROMPTS_WIDGET, registerPromptTools } from "./tools/prompts.js";
 import { registerProjectTools } from "./tools/projects.js";
 import { VISIBILITY_WIDGET, registerVisibilityTools } from "./tools/visibility.js";
 import type { ToolContext } from "./tools/result.js";
@@ -65,6 +65,13 @@ export function createMcpServer(): McpServer {
 
   registerAccountTools(toolServer, context);
   registerProjectTools(toolServer, context);
+
+  registerWidget(
+    server,
+    PROMPTS_WIDGET,
+    "PromptEye Prompts",
+    "The prompts a project is tracked on, with the visibility each earned in the period"
+  );
   registerPromptTools(toolServer, context);
 
   // Each page is registered next to the tool that renders it.
