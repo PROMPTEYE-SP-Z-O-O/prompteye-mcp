@@ -1,8 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createClient, serverName, serverVersion } from "./config.js";
+import { SERVER_INSTRUCTIONS } from "./instructions.js";
+import { registerPromptWorkflows } from "./prompts.js";
 import { ProjectSession } from "./session.js";
 import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
+import { registerGettingStartedTools } from "./tools/getting-started.js";
 import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
 import { SOURCES_WIDGET, registerEvidenceTools, registerSourceTools } from "./tools/evidence.js";
 import { PROMPTS_WIDGET, registerPromptTools } from "./tools/prompts.js";
@@ -56,12 +59,16 @@ function withoutOutputSchemas(server: McpServer): McpServer {
 export function createMcpServer(): McpServer {
   const server = new McpServer(
     { name: serverName, version: serverVersion },
-    { capabilities: { resources: {} } }
+    { capabilities: { resources: {}, prompts: {} }, instructions: SERVER_INSTRUCTIONS }
   );
 
   const client = createClient();
   const context: ToolContext = { client, session: new ProjectSession(client) };
   const toolServer = withoutOutputSchemas(server);
+
+  // First, so a host reading the tool list meets the orientation tool before the rest.
+  registerGettingStartedTools(toolServer, context);
+  registerPromptWorkflows(server);
 
   registerAccountTools(toolServer, context);
   registerProjectTools(toolServer, context);

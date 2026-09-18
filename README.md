@@ -10,12 +10,28 @@ The server needs the API URL of the deployment and an API key for it. Both are a
 [app.prompteye.com/integrations](https://app.prompteye.com/integrations), and it refuses to
 start without them.
 
+## Knowing what to do with it
+
+"I connected it — now what?" is the first question a user asks, and a list of sixteen tools does
+not answer it. Three things answer it instead:
+
+- **Server instructions** (`src/instructions.ts`) reach the host at connection time, before any
+  call. They lay out the order the product works in — project, brand description, prompts,
+  measurement — and say plainly what cannot be done through the API, so nobody is promised a
+  button that is not there.
+- **`get_started`** answers from the workspace rather than from a brochure: it reads the account,
+  the project, whether the brand description exists, how many prompts are tracked, how many were
+  never named and how many suggestions are waiting, then names the first rung that is missing.
+- **Prompts** (`src/prompts.ts`) are the workflows, surfaced by hosts as slash commands:
+  `visibility_review`, `what_to_track_next`, `own_the_narrative` and `onboard_brand`.
+
 ## Tools
 
 Every one of these calls the PromptEye API.
 
 | Tool | Endpoint |
 |---|---|
+| `get_started` | several, read together |
 | `get_account` | `GET /v1/me` |
 | `list_projects` | `GET /v1/projects` |
 | `select_project`, `get_active_project` | `GET /v1/projects/{projectId}` |

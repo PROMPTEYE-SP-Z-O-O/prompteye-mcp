@@ -13,10 +13,12 @@ export const AI_TRAFFIC =
   "is null when nothing could be measured for it.";
 
 export const BUSINESS_PRIORITY =
-  "businessPriority is how much the project should bet on a prompt — its demand weighed against how " +
-  "close to a purchase the question is asked — banded very_high, high, medium, low or very_low. A " +
-  "priority set by hand in the app wins over the one PromptEye computes, and the two are not reported " +
-  "apart. It is null before the prompt has been ranked.";
+  "businessPriority is how much the project should bet on a prompt: the average of how close to a " +
+  "purchase the question is asked and where the prompt ranks on demand among the project's own " +
+  "prompts. It is banded very_high above 0.8, high above 0.6, medium above 0.4, low above 0.2 and " +
+  "very_low below that. A priority set by hand in the app wins over the computed one, and the two " +
+  "are not reported apart, so a surprising value may be someone's deliberate call. It is null before " +
+  "the prompt has been ranked.";
 
 export const RELATIVE_VOLUME =
   "relativeVolumeScore places the demand among the other prompts of the same group, 0 for the lowest " +
@@ -24,8 +26,10 @@ export const RELATIVE_VOLUME =
   "relative to the group, so `high` means high for this group and says nothing about the market.";
 
 export const PURCHASE_INTENT =
-  "purchaseIntentLevel is how close to a purchase the question is asked: 1 educational, 2 " +
-  "solution-seeking, 3 comparison, 4 decision.";
+  "purchaseIntentLevel is the funnel stage the question is asked at: 1 awareness (educational), 2 " +
+  "consideration (looking for a solution), 3 comparison (weighing options), 4 decision (ready to " +
+  "buy). A group with no prompts at a stage is a blind spot, not a tidy funnel: customers ask there " +
+  "and nobody sees what the assistants answer.";
 
 export const COMPANY_FIT =
   "companyFitScore is how well the question fits what the brand sells, 0 unrelated to 1 squarely on " +
