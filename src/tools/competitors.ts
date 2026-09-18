@@ -1,12 +1,17 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { MAX_LIMIT, dateRangeShape, modelFilterShape, resolveDateRange } from "../schemas/common.js";
 import { CompetitorSchema } from "../schemas/prompteye.js";
+import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
 import { READ_ONLY, handled, num, ok, signed, type ToolContext } from "./result.js";
 
+export const COMPETITORS_WIDGET = "competitors";
+
 export function registerCompetitorTools(server: McpServer, { client, session }: ToolContext): void {
-  server.registerTool(
+  registerAppTool(
+    server,
     "list_competitors",
     {
       title: "Rank the brands answering alongside yours",
@@ -33,7 +38,13 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
       outputSchema: {
         data: z.array(CompetitorSchema),
         nextCursor: z.string().nullable(),
+        projectName: z.string(),
+        brand: z.string(),
+        startDate: z.string(),
+        endDate: z.string(),
+        model: z.string().nullable(),
       },
+      _meta: widgetMeta(widgetUri(COMPETITORS_WIDGET), "Ranking the brands…", "Ranked the brands"),
     },
     async (args) =>
       handled(async () => {
@@ -54,7 +65,13 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
           page.data.length === 0
             ? `No brands were named on ${project.brand}'s prompts between ${range.startDate} and ${range.endDate}.`
             : `Brands answering alongside ${project.brand}, ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`,
-          page
+          {
+            ...page,
+            projectName: project.name,
+            brand: project.brand,
+            ...range,
+            model: args.model ?? null,
+          }
         );
       })
   );

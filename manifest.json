@@ -39,7 +39,34 @@
       "required": true
     }
   },
+  "prompts": [
+    {
+      "name": "visibility_review",
+      "description": "Read the prompts, competitors and sources, and say what to fix first",
+      "arguments": ["period"],
+      "text": "Review how this brand stands inside AI answers. Gather list_prompts, list_competitors and list_sources, read them together, and finish with at most three things to do next."
+    },
+    {
+      "name": "what_to_track_next",
+      "description": "Work through the suggestions and the gaps in the funnel",
+      "arguments": ["group"],
+      "text": "Decide which prompts this project should start tracking. Read the groups, the prompts and list_prompt_suggestions, and recommend the suggestions that close a missing funnel stage."
+    },
+    {
+      "name": "own_the_narrative",
+      "description": "Turn the cited domains into where to publish, pitch or correct",
+      "arguments": ["model"],
+      "text": "Work out where this brand's story is being written. Read list_sources and list_competitors, sort the domains by the kind of work each needs, and name the ones worth acting on."
+    },
+    {
+      "name": "onboard_brand",
+      "description": "Set up a new brand and get its first prompts in place",
+      "arguments": ["brand", "domain", "country"],
+      "text": "Set up PromptEye tracking for a brand in one market: check list_projects, create the project, read the brand description, then walk through the first prompt suggestions."
+    }
+  ],
   "tools": [
+    { "name": "get_started", "description": "Where the workspace stands and what to do next" },
     { "name": "get_account", "description": "Who the key belongs to, which plan, how many prompts" },
     { "name": "list_projects", "description": "Every project the key reaches" },
     { "name": "select_project", "description": "Makes one project the active one" },

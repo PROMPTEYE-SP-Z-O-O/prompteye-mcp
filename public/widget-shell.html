@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{TITLE}}</title>
+    <style>
+      /* PromptEye — the mark's orange on warm neutrals, in both themes. */
+      :root {
+        color-scheme: light dark;
+        --brand: #fd723a;
+        --brand-soft: rgba(253, 114, 58, 0.14);
+        --ink: #16130f;
+        --muted: #78716c;
+        --line: #eae7e3;
+        --ground: #ffffff;
+        --panel: #faf8f6;
+        --up: #15803d;
+        --down: #b91c1c;
+        --radius: 10px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --ink: #f7f5f3;
+          --muted: #a8a29e;
+          --line: #2b2622;
+          --ground: #14110f;
+          --panel: #1c1815;
+          --brand-soft: rgba(253, 114, 58, 0.18);
+          --up: #4ade80;
+          --down: #f87171;
+        }
+      }
+      :root[data-theme="dark"] {
+        --ink: #f7f5f3;
+        --muted: #a8a29e;
+        --line: #2b2622;
+        --ground: #14110f;
+        --panel: #1c1815;
+        --brand-soft: rgba(253, 114, 58, 0.18);
+        --up: #4ade80;
+        --down: #f87171;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 18px 16px 16px;
+        background: var(--ground);
+        color: var(--ink);
+        font: 14px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Brand bar */
+      .brand { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+      .mark { width: 22px; height: auto; color: var(--brand); flex: none; }
+      .wordmark { font-size: 13px; font-weight: 650; letter-spacing: -0.015em; }
+      .context { margin-left: auto; color: var(--muted); font-size: 12px; text-align: right; }
+
+      h1 { margin: 14px 0 2px; font-size: 16px; font-weight: 620; letter-spacing: -0.015em; }
+      .sub { color: var(--muted); font-size: 12.5px; }
+      section { margin-top: 16px; }
+      h2 { margin: 0 0 8px; font-size: 11.5px; font-weight: 620; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+      /* Headline tiles */
+      .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+      @media (max-width: 460px) { .tiles { grid-template-columns: 1fr; } }
+      .tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 13px; }
+      .tile .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+      .tile .value { font-size: 24px; font-weight: 640; letter-spacing: -0.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+      .tile .delta { font-size: 11.5px; margin-top: 1px; }
+      .up { color: var(--up); }
+      .down { color: var(--down); }
+      .flat { color: var(--muted); }
+
+      /* Ranked rows */
+      .rows { display: grid; gap: 7px; }
+      .row { display: grid; grid-template-columns: minmax(96px, 30%) 1fr auto; gap: 10px; align-items: center; }
+      .row-name { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .row-name .tag { color: var(--brand); font-weight: 620; }
+      .track { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; height: 10px; overflow: hidden; }
+      .fill { background: var(--brand); height: 100%; border-radius: 4px; min-width: 2px; }
+      .fill.own { background: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; }
+      .fill.other { background: var(--brand-soft); border-right: 2px solid var(--brand); }
+      .row-value { font-variant-numeric: tabular-nums; font-size: 12.5px; min-width: 58px; text-align: right; color: var(--muted); }
+      .row-value strong { color: var(--ink); font-weight: 600; }
+      .row.stacked { grid-template-columns: minmax(150px, 46%) 1fr auto; align-items: start; }
+      .row.stacked .track { margin-top: 5px; }
+      .row-sub { margin-top: 3px; display: flex; gap: 4px; flex-wrap: wrap; }
+      .chip { font-size: 10.5px; line-height: 1.6; padding: 0 6px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); white-space: nowrap; }
+      .chip.brand { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); }
+      .row-value .delta { font-size: 11px; margin-top: 1px; }
+
+      svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
+      .empty { color: var(--muted); font-style: italic; padding: 16px 0; }
+      footer { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; display: flex; gap: 6px; }
+      footer .dot { color: var(--brand); }
+    </style>
+  </head>
+  <body>
+    <header class="brand">
+      <svg class="mark" viewBox="0 0 142.232 98.884" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M136.774 22.8324L87.2119 3.11062C76.828 -1.01571 65.3823 -1.01571 54.9985 3.11062L5.45738 22.8324C2.16596 24.1444 0 27.3185 0 30.8523V95.5829C0 97.4027 1.48644 98.8839 3.31265 98.8839H14.0363C15.8625 98.8839 17.3489 97.4027 17.3489 95.5829V40.2053C17.3489 38.0893 18.6443 36.1848 20.6191 35.4018L61.4539 19.1293C67.6757 16.6535 74.5558 16.6535 80.7777 19.1293L121.612 35.4018C123.587 36.1848 124.883 38.0893 124.883 40.2053V46.3631C124.883 48.4792 123.587 50.3836 121.612 51.1666L80.7777 67.4391C74.5771 69.9149 67.6545 69.9149 61.4539 67.4391L31.4914 55.5045C29.8563 54.8485 28.0938 56.0547 28.0938 57.7899V71.0576C28.0938 72.0733 28.7096 72.9832 29.644 73.343L54.9985 83.4366C65.3823 87.563 76.828 87.563 87.2119 83.4366L136.774 63.6937C140.066 62.3817 142.232 59.2076 142.232 55.6738V30.81C142.232 27.2761 140.066 24.102 136.774 22.7901V22.8324Z"
+        />
+        <path
+          fill="currentColor"
+          d="M71.1162 59.7154C80.2521 59.7154 87.6582 52.3352 87.6582 43.2313C87.6582 34.1273 80.2521 26.7471 71.1162 26.7471C61.9803 26.7471 54.5742 34.1273 54.5742 43.2313C54.5742 52.3352 61.9803 59.7154 71.1162 59.7154Z"
+        />
+      </svg>
+      <span class="wordmark">PromptEye</span>
+      <span class="context" id="context"></span>
+    </header>
+
+    <main id="root"><p class="empty">Waiting for data…</p></main>
+
+    <footer><span class="dot">●</span><span>Measured by PromptEye across the assistants this project tracks.</span></footer>
+
+    <script type="module">
+      const root = document.getElementById("root");
+      const contextEl = document.getElementById("context");
+
+      const esc = (value) =>
+        String(value).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+      /** Renders a number, keeping null legible as "no data". */
+      const fmt = (value, suffix = "") => (value === null || value === undefined ? "—" : `${value}${suffix}`);
+
+      const setContext = (text) => {
+        contextEl.textContent = text ?? "";
+      };
+
+      /** A rise in visibility is good; a rise in average position is a slide down the answer. */
+      function delta(value, suffix, higherIsBetter) {
+        if (value === null || value === undefined) return '<div class="delta flat">no prior period</div>';
+        const better = higherIsBetter ? value > 0 : value < 0;
+        const cls = value === 0 ? "flat" : better ? "up" : "down";
+        return `<div class="delta ${cls}">${value > 0 ? "+" : ""}${value}${suffix} vs previous period</div>`;
+      }
+
+      function tile(label, value, suffix, change, higherIsBetter) {
+        return `<div class="tile">
+          <div class="label">${esc(label)}</div>
+          <div class="value">${esc(fmt(value, suffix))}</div>
+          ${delta(change, suffix === "%" ? " pp" : "", higherIsBetter)}
+        </div>`;
+      }
+
+      /** One ranked bar per entry: { name, own, value, suffix, note }. */
+      function rows(entries) {
+        const max = Math.max(1, ...entries.map((entry) => entry.value ?? 0));
+
+        return `<div class="rows">${entries
+          .map((entry) => {
+            const value = entry.value ?? 0;
+            return `<div class="row">
+              <div class="row-name" title="${esc(entry.name)}">${esc(entry.name)}${
+                entry.own ? ' <span class="tag">· yours</span>' : ""
+              }</div>
+              <div class="track">
+                <div class="fill ${entry.own ? "own" : "other"}" style="width:${Math.max(2, (value / max) * 100)}%"></div>
+              </div>
+              <div class="row-value"><strong>${esc(fmt(entry.value, entry.suffix ?? ""))}</strong>${
+                entry.note ? ` ${esc(entry.note)}` : ""
+              }</div>
+            </div>`;
+          })
+          .join("")}</div>`;
+      }
+
+      const empty = (message) => {
+        root.innerHTML = `<p class="empty">${esc(message)}</p>`;
+      };
+
+      {{RENDER}}
+
+      function show(data) {
+        try {
+          render(data);
+        } catch (error) {
+          empty("This result could not be rendered.");
+        }
+        reportSize();
+      }
+
+      function applyTheme(theme) {
+        if (theme !== "dark" && theme !== "light") return;
+        document.documentElement.setAttribute("data-theme", theme);
+        document.documentElement.style.colorScheme = theme;
+      }
+
+      /*
+       * ChatGPT's Apps SDK hands the widget its data on `window.openai` and
+       * refreshes it by dispatching `openai:set_globals`. Claude speaks the MCP
+       * Apps handshake below instead; both paths end in the same `show`.
+       */
+      if (window.openai) {
+        applyTheme(window.openai.theme);
+        if (window.openai.toolOutput) show(window.openai.toolOutput);
+
+        window.addEventListener("openai:set_globals", (event) => {
+          const globals = event.detail?.globals ?? window.openai ?? {};
+          if (globals.theme) applyTheme(globals.theme);
+          if (globals.toolOutput) show(globals.toolOutput);
+        });
+      }
+
+      /*
+       * The MCP Apps handshake, spoken directly over postMessage.
+       *
+       * The ext-apps `App` class does this for us, but it is an npm module and
+       * this widget ships as one self-contained file with no build step — so the
+       * four messages it needs are written out here:
+       *   → ui/initialize (request)          ← host result
+       *   → ui/notifications/initialized     ← ui/notifications/tool-result
+       */
+      const PROTOCOL_VERSION = "2026-01-26";
+      let nextId = 1;
+      const send = (message) => window.parent.postMessage({ jsonrpc: "2.0", ...message }, "*");
+
+      let lastHeight = 0;
+      function reportSize() {
+        const height = Math.ceil(document.documentElement.getBoundingClientRect().height);
+        if (height === lastHeight) return;
+        lastHeight = height;
+        send({ method: "ui/notifications/size-changed", params: { width: Math.ceil(window.innerWidth), height } });
+      }
+
+      const initializeId = nextId++;
+
+      window.addEventListener("message", (event) => {
+        const message = event.data;
+        if (message?.jsonrpc !== "2.0") return;
+
+        if (message.id === initializeId && message.result) {
+          applyTheme(message.result.hostContext?.theme);
+          send({ method: "ui/notifications/initialized" });
+          reportSize();
+          return;
+        }
+
+        if (message.method === "ui/notifications/tool-result") {
+          show(message.params?.structuredContent);
+          return;
+        }
+
+        if (message.method === "ui/notifications/host-context-changed") {
+          applyTheme(message.params?.theme);
+          return;
+        }
+
+        // The host pings to check the app is alive; an unanswered ping tears it down.
+        if (message.method === "ping" && message.id !== undefined) {
+          send({ id: message.id, result: {} });
+        }
+      });
+
+      send({
+        id: initializeId,
+        method: "ui/initialize",
+        params: {
+          appInfo: { name: "{{APP}}", version: "1.0.0" },
+          appCapabilities: {},
+          protocolVersion: PROTOCOL_VERSION,
+        },
+      });
+    </script>
+  </body>
+</html>

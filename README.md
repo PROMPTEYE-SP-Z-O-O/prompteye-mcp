@@ -10,12 +10,28 @@ The server needs the API URL of the deployment and an API key for it. Both are a
 [app.prompteye.com/integrations](https://app.prompteye.com/integrations), and it refuses to
 start without them.
 
+## Knowing what to do with it
+
+"I connected it — now what?" is the first question a user asks, and a list of sixteen tools does
+not answer it. Three things answer it instead:
+
+- **Server instructions** (`src/instructions.ts`) reach the host at connection time, before any
+  call. They lay out the order the product works in — project, brand description, prompts,
+  measurement — and say plainly what cannot be done through the API, so nobody is promised a
+  button that is not there.
+- **`get_started`** answers from the workspace rather than from a brochure: it reads the account,
+  the project, whether the brand description exists, how many prompts are tracked, how many were
+  never named and how many suggestions are waiting, then names the first rung that is missing.
+- **Prompts** (`src/prompts.ts`) are the workflows, surfaced by hosts as slash commands:
+  `visibility_review`, `what_to_track_next`, `own_the_narrative` and `onboard_brand`.
+
 ## Tools
 
 Every one of these calls the PromptEye API.
 
 | Tool | Endpoint |
 |---|---|
+| `get_started` | several, read together |
 | `get_account` | `GET /v1/me` |
 | `list_projects` | `GET /v1/projects` |
 | `select_project`, `get_active_project` | `GET /v1/projects/{projectId}` |
@@ -52,6 +68,29 @@ const SAMPLE_TOOLS = false;   // true to demo them from sample data
 When the API serves those endpoints: add them to the client in `src/api/`, move the methods
 from `src/client/fixtures-client.ts` to `src/client/live-client.ts`, then delete the
 constant and the fixtures.
+
+## The branded pages
+
+`list_prompts`, `list_competitors` and `list_sources` are MCP App tools: a host that
+supports UI renders a PromptEye-branded page beside the text — the mark, the orange the
+mark is drawn in, warm neutrals, and ranked bars with the project's own brand or domain
+picked out. The prompts page adds headline tiles and a chip per prompt for its status,
+business priority and categories.
+
+One shell carries the brand and both handshakes, and each widget contributes only its
+`render()`; `src/widgets.ts` composes them, so the brand lives in one file rather than
+copied into each page.
+
+| Host | How the page gets its data |
+|---|---|
+| Claude | The MCP Apps handshake over `postMessage`: `ui/initialize`, then `ui/notifications/tool-result` |
+| ChatGPT | The Apps SDK: `window.openai.toolOutput`, refreshed by the `openai:set_globals` event |
+
+Both paths call the same `render()`, so a widget is written once. Tools carry the resource
+uri under `_meta.ui.resourceUri` for Claude and `_meta["openai/outputTemplate"]` for the
+Apps SDK, and the resource is served as `text/html;profile=mcp-app`. ChatGPT also expects
+its own `text/html+skybridge` mime, which would be a second registration of the same page —
+worth adding only once the server is actually reachable as a ChatGPT connector.
 
 ## Running it
 
@@ -171,8 +210,10 @@ src/
   schemas/            zod mirrors of the models the API does not serve yet
   tools/              one module per group of tools, plus the glossary they quote
   fixtures/           sample data, for the switched-off tools only
+  widgets.ts          composes and registers the branded pages tools render
 public/
-  visibility-widget.html   registered with get_visibility_summary, so only with SAMPLE_TOOLS
+  widget-shell.html        the brand: mark, palette, and both host handshakes
+  widgets/*.js             one render() per widget, dropped into that shell
 manifest.json         MCPB manifest — entry point, and the settings users fill in
 scripts/bundle.mjs    stages dist/, public/ and production deps, then packs the .mcpb
 ```

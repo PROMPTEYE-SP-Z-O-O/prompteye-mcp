@@ -1,20 +1,17 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerAppResource, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { createClient, serverName, serverVersion } from "./config.js";
+import { SERVER_INSTRUCTIONS } from "./instructions.js";
+import { registerPromptWorkflows } from "./prompts.js";
 import { ProjectSession } from "./session.js";
+import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
-import { registerCompetitorTools } from "./tools/competitors.js";
-import { registerEvidenceTools, registerSourceTools } from "./tools/evidence.js";
-import { registerPromptTools } from "./tools/prompts.js";
+import { registerGettingStartedTools } from "./tools/getting-started.js";
+import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
+import { SOURCES_WIDGET, registerEvidenceTools, registerSourceTools } from "./tools/evidence.js";
+import { PROMPTS_WIDGET, registerPromptTools } from "./tools/prompts.js";
 import { registerProjectTools } from "./tools/projects.js";
-import { registerVisibilityTools, VISIBILITY_WIDGET_URI } from "./tools/visibility.js";
+import { VISIBILITY_WIDGET, registerVisibilityTools } from "./tools/visibility.js";
 import type { ToolContext } from "./tools/result.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const WIDGET_HTML_PATH = path.resolve(__dirname, "../public/visibility-widget.html");
 
 /**
  * Whether to register the tools the PromptEye API does not serve yet —
@@ -53,14 +50,6 @@ function withoutOutputSchemas(server: McpServer): McpServer {
   }) as McpServer;
 }
 
-function loadWidgetHtml(): string {
-  try {
-    return fs.readFileSync(WIDGET_HTML_PATH, "utf-8");
-  } catch {
-    return "<html><body>Visibility widget unavailable</body></html>";
-  }
-}
-
 /**
  * Builds one MCP server, and with it one project selection.
  *
@@ -70,32 +59,52 @@ function loadWidgetHtml(): string {
 export function createMcpServer(): McpServer {
   const server = new McpServer(
     { name: serverName, version: serverVersion },
-    { capabilities: { resources: {} } }
+    { capabilities: { resources: {}, prompts: {} }, instructions: SERVER_INSTRUCTIONS }
   );
 
   const client = createClient();
   const context: ToolContext = { client, session: new ProjectSession(client) };
   const toolServer = withoutOutputSchemas(server);
 
+  // First, so a host reading the tool list meets the orientation tool before the rest.
+  registerGettingStartedTools(toolServer, context);
+  registerPromptWorkflows(server);
+
   registerAccountTools(toolServer, context);
   registerProjectTools(toolServer, context);
+
+  registerWidget(
+    server,
+    PROMPTS_WIDGET,
+    "PromptEye Prompts",
+    "The prompts a project is tracked on, with the visibility each earned in the period"
+  );
   registerPromptTools(toolServer, context);
+
+  // Each page is registered next to the tool that renders it.
+  registerWidget(
+    server,
+    SOURCES_WIDGET,
+    "PromptEye Sources",
+    "The domains the assistants cite on a project's prompts, ranked by share of citations"
+  );
   registerSourceTools(toolServer, context);
+
+  registerWidget(
+    server,
+    COMPETITORS_WIDGET,
+    "PromptEye Competitors",
+    "The brands answering alongside a project's own, ranked by share of voice"
+  );
   registerCompetitorTools(toolServer, context);
 
   if (SAMPLE_TOOLS) {
-    // The widget belongs to get_visibility_summary, so it is registered with it.
-    const widgetHtml = loadWidgetHtml();
-    registerAppResource(
+    registerWidget(
       server,
+      VISIBILITY_WIDGET,
       "PromptEye Visibility",
-      VISIBILITY_WIDGET_URI,
-      { description: "Visibility totals, period-over-period change and breakdown for a project" },
-      async () => ({
-        contents: [{ uri: VISIBILITY_WIDGET_URI, mimeType: RESOURCE_MIME_TYPE, text: widgetHtml }],
-      })
+      "Visibility totals, period-over-period change and breakdown for a project"
     );
-
     registerVisibilityTools(toolServer, context);
     registerEvidenceTools(toolServer, context);
   }

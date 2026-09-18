@@ -38,7 +38,7 @@ run("npm", ["ci", "--omit=dev", "--ignore-scripts"], stage);
  * staged layout ever stops matching that, the server falls back to a placeholder
  * and the widget silently disappears — so assert the exact path it will resolve.
  */
-const widget = path.resolve(path.join(stage, "dist"), "../public/visibility-widget.html");
+const widget = path.resolve(path.join(stage, "dist"), "../public/widget-shell.html");
 if (!fs.existsSync(widget)) {
   throw new Error(`The widget is not where the server will look for it: ${widget}`);
 }

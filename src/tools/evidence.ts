@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import {
   MAX_LIMIT,
@@ -8,12 +9,16 @@ import {
   resolveDateRange,
 } from "../schemas/common.js";
 import { AnswerSchema, CitationQualitySchema, CitedDomainSchema } from "../schemas/prompteye.js";
+import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
 import { READ_ONLY, handled, morePages, num, ok, sampleData, type ToolContext } from "./result.js";
 
+export const SOURCES_WIDGET = "sources";
+
 /** The domains behind the answers — served by the API. */
 export function registerSourceTools(server: McpServer, { client, session }: ToolContext): void {
-  server.registerTool(
+  registerAppTool(
+    server,
     "list_sources",
     {
       title: "List the domains assistants cite",
@@ -37,7 +42,16 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
           .optional()
           .describe(`How many domains to return, at most ${MAX_LIMIT}.`),
       },
-      outputSchema: { data: z.array(CitedDomainSchema), nextCursor: z.string().nullable() },
+      outputSchema: {
+        data: z.array(CitedDomainSchema),
+        nextCursor: z.string().nullable(),
+        projectName: z.string(),
+        brand: z.string(),
+        startDate: z.string(),
+        endDate: z.string(),
+        model: z.string().nullable(),
+      },
+      _meta: widgetMeta(widgetUri(SOURCES_WIDGET), "Reading the citations…", "Read the citations"),
     },
     async (args) =>
       handled(async () => {
@@ -56,7 +70,13 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
             ? `No domains were cited between ${range.startDate} and ${range.endDate}.`
             : `Domains cited on ${project.brand}'s prompts, ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`) +
             morePages(page.nextCursor),
-          page
+          {
+            ...page,
+            projectName: project.name,
+            brand: project.brand,
+            ...range,
+            model: args.model ?? null,
+          }
         );
       })
   );
