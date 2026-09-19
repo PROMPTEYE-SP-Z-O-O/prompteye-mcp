@@ -167,6 +167,46 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
   );
 
   server.registerTool(
+    "update_project",
+    {
+      title: "Update project settings",
+      description:
+        "Correct what the active project tracks: change the display name, grouping label, primary domain, " +
+        "alternative brand spellings, and alternative domains.\n\n" +
+        "Note: alternativeBrandNames and alternativeDomains are replaced as a whole rather than appended to, " +
+        "so pass the complete list. Neither the brand name nor the market country can be changed here because " +
+        "historical measurements depend on them (a different brand/market is a separate project).",
+      annotations: WRITES,
+      inputSchema: {
+        name: z.string().min(1).max(120).optional().describe("Display name of the project. Defaults to the brand name."),
+        label: z.string().min(1).max(40).optional().describe("Short label used to group projects in listings."),
+        domain: z.string().min(3).max(253).optional().describe("Primary domain of the brand, without protocol or path, e.g. prompteye.com."),
+        alternativeBrandNames: z
+          .array(z.string().min(1).max(120))
+          .max(20)
+          .optional()
+          .describe(
+            "Other spellings that count as naming the brand. Replaces the existing list."
+          ),
+        alternativeDomains: z
+          .array(z.string().min(3).max(253))
+          .max(20)
+          .optional()
+          .describe("Further domains owned by the brand whose citations count as its own. Replaces the existing list."),
+      },
+      outputSchema: ProjectSchema.shape,
+    },
+    async (args) =>
+      handled(async () => {
+        const current = await session.require();
+        const project = await client.updateProject(current.id, args);
+        await session.select(project.id);
+
+        return ok(`Updated project ${describe(project)}.`, project);
+      })
+  );
+
+  server.registerTool(
     "get_knowledge_base",
     {
       title: "Read what the project knows about the brand",
@@ -187,6 +227,46 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
           knowledgeBase.text === null
             ? `${project.name} has no description of ${project.brand} yet.`
             : `Knowledge base for ${project.brand} (updated ${knowledgeBase.updatedAt ?? "—"}):\n\n${knowledgeBase.text}`,
+          knowledgeBase
+        );
+      })
+  );
+
+  server.registerTool(
+    "update_knowledge_base",
+    {
+      title: "Describe the brand better in the knowledge base",
+      description:
+        "Updates what the project knows about the brand — who buys it, where it sells, and what makes it distinct. " +
+        "Everything PromptEye generates for the project (prompts, suggestions, analyses) leans on these fields, " +
+        "so keeping them accurate ensures generated content and evaluation criteria match reality.\n\n" +
+        "Only provided fields are updated; omitted fields keep their current values.",
+      annotations: WRITES,
+      inputSchema: {
+        industry: z.string().max(4000).optional().describe("The industry the brand sells into, e.g. 'AI search analytics'."),
+        productCategory: z
+          .string()
+          .max(4000)
+          .optional()
+          .describe("What kind of product or service it is, in buyer words, e.g. 'Brand visibility monitoring for AI assistants'."),
+        targetAudience: z.string().max(4000).optional().describe("Who buys it, e.g. 'Marketing and SEO teams at B2B software companies'."),
+        icp: z.string().max(4000).optional().describe("Ideal customer profile: the target buyer persona."),
+        operatingArea: z.string().max(4000).optional().describe("Where the brand sells, e.g. 'Europe, US'."),
+        description: z
+          .string()
+          .max(4000)
+          .optional()
+          .describe("Full description of what the brand does. Prompt generation leans heavily on this."),
+      },
+      outputSchema: KnowledgeBaseSchema.shape,
+    },
+    async (args) =>
+      handled(async () => {
+        const project = await session.require();
+        const knowledgeBase = await client.updateKnowledgeBase(project.id, args);
+
+        return ok(
+          `Updated knowledge base for ${project.brand} (updated ${knowledgeBase.updatedAt ?? "—"}):\n\n${knowledgeBase.text ?? "No description"}`,
           knowledgeBase
         );
       })

@@ -28,52 +28,61 @@ function queryString(query: Query = {}): string {
   return rendered === "" ? "" : `?${rendered}`;
 }
 
+export type Schema<T> = z.ZodType<T, z.ZodTypeDef, unknown>;
+
+export type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+
+export interface SendRequest<T> {
+  method: HttpMethod;
+  path: string;
+  schema: Schema<T>;
+  body?: unknown;
+  options?: RequestOptions;
+}
+
+export type HttpMethodWithBody = <T>(
+  path: string,
+  body: unknown,
+  schema: Schema<T>,
+  options?: RequestOptions
+) => Promise<T>;
+
 export class HttpClient {
   constructor(private readonly config: HttpClientConfig) {}
 
-  /** GETs `path`, throwing `PromptEyeApiError` on a non-2xx answer and validating a 2xx one. */
   get<T>(
     path: string,
-    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+    schema: Schema<T>,
     options: RequestOptions & { query?: Query } = {}
   ): Promise<T> {
-    return this.send(`${path}${queryString(options.query)}`, schema, { method: "GET" }, options);
+    return this.send({ method: "GET", path: `${path}${queryString(options.query)}`, schema, options });
   }
 
-  /** POSTs `body` as JSON, otherwise behaving exactly as {@link get}. */
-  post<T>(
-    path: string,
-    body: unknown,
-    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
-    options: RequestOptions = {}
-  ): Promise<T> {
-    return this.send(
-      path,
-      schema,
-      { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } },
-      options
-    );
-  }
+  post: HttpMethodWithBody = (path, body, schema, options) =>
+    this.send({ method: "POST", path, schema, body, options });
 
-  private async send<T>(
-    path: string,
-    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
-    init: RequestInit & { headers?: Record<string, string> },
-    options: RequestOptions
-  ): Promise<T> {
+  patch: HttpMethodWithBody = (path, body, schema, options) =>
+    this.send({ method: "PATCH", path, schema, body, options });
+
+  put: HttpMethodWithBody = (path, body, schema, options) =>
+    this.send({ method: "PUT", path, schema, body, options });
+
+  private async send<T>({ method, path, schema, body, options = {} }: SendRequest<T>): Promise<T> {
+    const hasBody = body !== undefined;
     const response = await this.config.fetch(`${this.config.baseUrl}${path}`, {
-      ...init,
+      method,
       headers: {
         Accept: "application/json",
+        ...(hasBody ? { "Content-Type": "application/json" } : {}),
         ...this.config.headers,
-        ...init.headers,
         Authorization: `Bearer ${this.config.token}`,
       },
+      body: hasBody ? JSON.stringify(body) : undefined,
       signal: options.signal ?? AbortSignal.timeout(this.config.timeoutMs),
     });
-    const body: unknown = await response.json().catch(() => undefined);
+    const responseBody: unknown = await response.json().catch(() => undefined);
 
-    if (!response.ok) throw new PromptEyeApiError(response.status, body);
-    return schema.parse(body);
+    if (!response.ok) throw new PromptEyeApiError(response.status, responseBody);
+    return schema.parse(responseBody);
   }
 }

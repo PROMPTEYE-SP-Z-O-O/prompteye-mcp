@@ -9,6 +9,7 @@ import {
   PromptDetailSchema,
   PromptGroupSchema,
   PromptSchema,
+  PromptSettingsSchema,
   PromptSuggestionSchema,
   type Category,
   type PromptSuggestion,
@@ -348,6 +349,74 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
             "figures arrive after the next run. Check list_prompt_suggestions for the prompts it " +
             "would have proposed instead.",
           list
+        );
+      })
+  );
+
+  server.registerTool(
+    "update_prompt",
+    {
+      title: "Pause, resume, file or re-prioritise a prompt",
+      description:
+        "Changes what happens to one prompt from here on in the active project: whether it is asked " +
+        "(status 'active' or 'paused'), which group and categories it is filed under, and how much " +
+        "the project bets on it.\n\n" +
+        "Note:\n" +
+        "- Pausing a prompt frees capacity against the plan limit; resuming consumes capacity.\n" +
+        "- The prompt text itself cannot be changed: a different question is a different measurement " +
+        "(add a new prompt and pause the old one instead).\n" +
+        "- Moving a prompt between groups or categories keeps its history intact.\n" +
+        "- Setting businessPriority overrides the computed priority; passing null hands it back to PromptEye's computation.",
+      annotations: WRITES,
+      inputSchema: {
+        promptId: z.string().min(1).describe("Id of the prompt to update, as list_prompts reports it."),
+        status: z
+          .enum(["active", "paused"])
+          .optional()
+          .describe("Whether the prompt is asked on the next run ('active' or 'paused')."),
+        groupId: z
+          .string()
+          .min(1)
+          .nullable()
+          .optional()
+          .describe("Group id to move the prompt into, or null to leave it ungrouped."),
+        categoryId: z
+          .string()
+          .min(1)
+          .nullable()
+          .optional()
+          .describe("Category id to file the prompt under, as listed by list_categories. Null clears all categories."),
+        subcategoryId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Subcategory id of categoryId, which must be sent together with categoryId."),
+        businessPriority: z
+          .enum(["very_high", "high", "medium", "low", "very_low"])
+          .nullable()
+          .optional()
+          .describe("Sets priority manually ('very_high', 'high', 'medium', 'low', 'very_low'), or null to reset to computed."),
+        businessPriorityReason: z
+          .string()
+          .max(500)
+          .optional()
+          .describe("Reason why that priority was set manually."),
+      },
+      outputSchema: PromptSettingsSchema.shape,
+    },
+    async ({ promptId, ...fields }) =>
+      handled(async () => {
+        const project = await session.require();
+        const updated = await client.updatePrompt(project.id, promptId, fields);
+
+        return ok(
+          `Updated prompt "${updated.prompt}" [id: ${updated.id}]:\n` +
+            `- Status: ${updated.status}\n` +
+            `- Group: ${updated.groupId ?? "ungrouped"}\n` +
+            `- Categories: ${updated.categories.join(", ") || "none"}\n` +
+            `- Priority: ${updated.businessPriority ?? "computed"}` +
+            (updated.businessPriorityReason ? ` (${updated.businessPriorityReason})` : ""),
+          updated
         );
       })
   );

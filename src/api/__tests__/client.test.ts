@@ -95,4 +95,96 @@ describe("PromptEyeApi", () => {
 
     await expect(api.account.get()).rejects.toMatchObject({ status: 502, code: undefined, body: undefined });
   });
+
+  it("patches a project and returns updated project", async () => {
+    const project = {
+      id: "p1",
+      name: "Acme",
+      brand: "Acme",
+      domain: "acme.com",
+      country: "PL",
+      label: null,
+      alternativeBrandNames: ["Acme Corp"],
+      alternativeDomains: ["acme.io"],
+      excludedCompetitors: [],
+      accessRole: "OWNER",
+      createdAt: "2026-09-10T09:24:11.000Z",
+    };
+    const { api, calls } = stubFetch(json(200, project));
+
+    const result = await api.projects.update("p1", { name: "Acme New" });
+
+    expect(result).toEqual(project);
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1`);
+    expect(calls[0].init.method).toBe("PATCH");
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ name: "Acme New" });
+  });
+
+  it("patches knowledge base and returns updated knowledge base", async () => {
+    const kb = {
+      text: "Industry: Tech",
+      profile: {
+        industry: "Tech",
+        productCategory: null,
+        targetAudience: null,
+        icp: null,
+        operatingArea: null,
+        description: null,
+      },
+      updatedAt: "2026-09-10T09:24:11.000Z",
+    };
+    const { api, calls } = stubFetch(json(200, kb));
+
+    const result = await api.knowledgeBase.update("p1", { industry: "Tech" });
+
+    expect(result).toEqual(kb);
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/knowledge-base`);
+    expect(calls[0].init.method).toBe("PATCH");
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ industry: "Tech" });
+  });
+
+  it("patches a prompt and returns settings", async () => {
+    const settings = {
+      id: "prompt1",
+      prompt: "test prompt",
+      keyword: "",
+      status: "paused",
+      categories: [],
+      subcategories: [],
+      groupId: null,
+      createdAt: "2026-09-10T09:24:11.000Z",
+      aiTraffic: null,
+      businessPriority: "high",
+      businessPriorityReason: "Important",
+    };
+    const { api, calls } = stubFetch(json(200, settings));
+
+    const result = await api.prompts.update("p1", "prompt1", { status: "paused" });
+
+    expect(result).toEqual(settings);
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/prompts/prompt1`);
+    expect(calls[0].init.method).toBe("PATCH");
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ status: "paused" });
+  });
+
+  it("gets competitor exclusions", async () => {
+    const exclusions = [{ name: "Competitor A", aliases: ["CompA"] }];
+    const { api, calls } = stubFetch(json(200, { data: exclusions }));
+
+    const list = await api.competitors.listExclusions("p1");
+    expect(list).toEqual({ data: exclusions });
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/competitors/exclusions`);
+    expect(calls[0].init.method).toBe("GET");
+  });
+
+  it("replaces competitor exclusions via PUT", async () => {
+    const exclusions = [{ name: "Competitor A", aliases: ["CompA"] }];
+    const { api, calls } = stubFetch(json(200, { data: exclusions }));
+
+    const result = await api.competitors.replaceExclusions("p1", exclusions);
+    expect(result).toEqual({ data: exclusions });
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/competitors/exclusions`);
+    expect(calls[0].init.method).toBe("PUT");
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ exclusions });
+  });
 });

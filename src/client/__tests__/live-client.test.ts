@@ -76,12 +76,42 @@ function liveClient() {
       return new Response(JSON.stringify(created), { status: 201 });
     }
 
+    if (init.method === "PATCH") {
+      const patched =
+        pathname === `/v1/projects/${LIVE_PROJECT.id}`
+          ? LIVE_PROJECT
+          : pathname === `/v1/projects/${LIVE_PROJECT.id}/knowledge-base`
+            ? { text: "KB text", updatedAt: null }
+            : pathname === `/v1/projects/${LIVE_PROJECT.id}/prompts/${LIVE_PROMPT.id}`
+              ? LIVE_PROMPT
+              : undefined;
+      return patched === undefined
+        ? new Response(JSON.stringify({ error: { code: "not_found", message: "No endpoint matches this path." } }), {
+            status: 404,
+          })
+        : new Response(JSON.stringify(patched), { status: 200 });
+    }
+
+    if (init.method === "PUT") {
+      const putRes =
+        pathname === `/v1/projects/${LIVE_PROJECT.id}/competitors/exclusions`
+          ? { data: [{ name: "Rival Agency", aliases: [] }] }
+          : undefined;
+      return putRes === undefined
+        ? new Response(JSON.stringify({ error: { code: "not_found", message: "No endpoint matches this path." } }), {
+            status: 404,
+          })
+        : new Response(JSON.stringify(putRes), { status: 200 });
+    }
+
     const body =
       pathname === "/v1/projects"
         ? { data: [LIVE_PROJECT] }
         : pathname === `/v1/projects/${LIVE_PROJECT.id}`
           ? LIVE_PROJECT
-          : pathname.endsWith("/categories")
+          : pathname.endsWith("/knowledge-base")
+            ? { text: "KB text", updatedAt: null }
+            : pathname.endsWith("/categories")
             ? { data: [{ id: "c1", name: "Pricing", parentId: null, source: "manual" }] }
             : pathname.endsWith("/prompt-suggestions")
               ? { data: [] }
@@ -89,7 +119,9 @@ function liveClient() {
                 ? { data: [LIVE_GROUP], nextCursor: null }
                 : pathname.endsWith("/sources")
                   ? { data: [LIVE_DOMAIN], nextCursor: null }
-                  : pathname.endsWith("/competitors")
+                  : pathname.endsWith("/competitors/exclusions")
+                    ? { data: [{ name: "Rival Agency", aliases: [] }] }
+                    : pathname.endsWith("/competitors")
                     ? { data: [LIVE_COMPETITOR], nextCursor: null }
                     : pathname.endsWith("/prompts")
                       ? { data: [LIVE_PROMPT], nextCursor: "next" }
@@ -229,5 +261,70 @@ describe("createLiveClient", () => {
     const { client } = liveClient();
 
     await expect(new ProjectSession(client).require()).resolves.toEqual(LIVE_PROJECT);
+  });
+
+  it("updates a project via PATCH", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.updateProject(LIVE_PROJECT.id, { name: "New Name" })).resolves.toEqual(LIVE_PROJECT);
+    expect(calls[0]).toEqual({
+      path: `/v1/projects/${LIVE_PROJECT.id}`,
+      method: "PATCH",
+      body: { name: "New Name" },
+    });
+  });
+
+  it("updates knowledge base via PATCH", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.updateKnowledgeBase(LIVE_PROJECT.id, { industry: "SaaS" })).resolves.toEqual({
+      text: "KB text",
+      updatedAt: null,
+    });
+    expect(calls[0]).toEqual({
+      path: `/v1/projects/${LIVE_PROJECT.id}/knowledge-base`,
+      method: "PATCH",
+      body: { industry: "SaaS" },
+    });
+  });
+
+  it("updates a prompt via PATCH", async () => {
+    const { client, calls } = liveClient();
+    const settings = { ...LIVE_PROMPT } as Record<string, unknown>;
+    delete settings.metrics;
+    delete settings.change;
+
+    await expect(client.updatePrompt(LIVE_PROJECT.id, LIVE_PROMPT.id, { status: "paused" })).resolves.toEqual(
+      settings
+    );
+    expect(calls[0]).toEqual({
+      path: `/v1/projects/${LIVE_PROJECT.id}/prompts/${LIVE_PROMPT.id}`,
+      method: "PATCH",
+      body: { status: "paused" },
+    });
+  });
+
+  it("lists and replaces competitor exclusions", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.listCompetitorExclusions(LIVE_PROJECT.id)).resolves.toEqual({
+      data: [{ name: "Rival Agency", aliases: [] }],
+    });
+    expect(calls[0]).toEqual({
+      path: `/v1/projects/${LIVE_PROJECT.id}/competitors/exclusions`,
+      method: "GET",
+      body: undefined,
+    });
+
+    await expect(
+      client.replaceCompetitorExclusions(LIVE_PROJECT.id, [{ name: "Rival Agency", aliases: [] }])
+    ).resolves.toEqual({
+      data: [{ name: "Rival Agency", aliases: [] }],
+    });
+    expect(calls[1]).toEqual({
+      path: `/v1/projects/${LIVE_PROJECT.id}/competitors/exclusions`,
+      method: "PUT",
+      body: { exclusions: [{ name: "Rival Agency", aliases: [] }] },
+    });
   });
 });

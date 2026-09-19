@@ -8,6 +8,7 @@ import type {
   CitationQuality,
   CitedDomain,
   Competitor,
+  CompetitorExclusion,
   CreateProjectInput,
   KnowledgeBase,
   List,
@@ -17,7 +18,11 @@ import type {
   PromptDetail,
   PromptGroup,
   PromptInput,
+  PromptSettings,
   PromptSuggestion,
+  UpdateKnowledgeBaseInput,
+  UpdateProjectInput,
+  UpdatePromptInput,
   VisibilityRow,
   VisibilitySummary,
 } from "../schemas/prompteye.js";
@@ -60,19 +65,27 @@ export interface PromptEyeClient {
   listProjects(): Promise<List<Project>>;
   getProject(projectId: string): Promise<Project>;
   createProject(input: CreateProjectInput): Promise<Project>;
+  updateProject(projectId: string, input: UpdateProjectInput): Promise<Project>;
   getKnowledgeBase(projectId: string): Promise<KnowledgeBase>;
+  updateKnowledgeBase(projectId: string, input: UpdateKnowledgeBaseInput): Promise<KnowledgeBase>;
   listCategories(projectId: string): Promise<List<Category>>;
   listPromptSuggestions(projectId: string, query: SuggestionQuery): Promise<List<PromptSuggestion>>;
 
   listPrompts(projectId: string, query: PromptQuery): Promise<Page<Prompt>>;
   getPrompt(projectId: string, promptId: string, range: ResolvedRange): Promise<PromptDetail>;
   addPrompts(projectId: string, prompts: PromptInput[]): Promise<List<NewPrompt>>;
+  updatePrompt(projectId: string, promptId: string, input: UpdatePromptInput): Promise<PromptSettings>;
   listPromptGroups(projectId: string, query: PromptGroupQuery): Promise<Page<PromptGroup>>;
 
   getVisibilitySummary(projectId: string, query: VisibilitySummaryQuery): Promise<VisibilitySummary>;
   getVisibility(projectId: string, query: VisibilityQuery): Promise<Page<VisibilityRow>>;
 
   listCompetitors(projectId: string, query: CompetitorQuery): Promise<Page<Competitor>>;
+  listCompetitorExclusions(projectId: string): Promise<List<CompetitorExclusion>>;
+  replaceCompetitorExclusions(
+    projectId: string,
+    exclusions: Array<{ name: string; aliases?: string[] }>
+  ): Promise<List<CompetitorExclusion>>;
 
   listAnswers(projectId: string, query: AnswerQuery): Promise<Page<Answer>>;
   listSources(projectId: string, query: SourceQuery): Promise<Page<CitedDomain>>;

@@ -7,15 +7,20 @@ type LiveMethod =
   | "listProjects"
   | "getProject"
   | "createProject"
+  | "updateProject"
   | "getKnowledgeBase"
+  | "updateKnowledgeBase"
   | "listCategories"
   | "listPromptSuggestions"
   | "listPrompts"
   | "getPrompt"
   | "addPrompts"
+  | "updatePrompt"
   | "listPromptGroups"
   | "listSources"
-  | "listCompetitors";
+  | "listCompetitors"
+  | "listCompetitorExclusions"
+  | "replaceCompetitorExclusions";
 
 /** What is left for the sample data to answer, until the API grows those endpoints too. */
 export type FallbackClient = Omit<PromptEyeClient, LiveMethod>;
@@ -32,14 +37,19 @@ export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): P
     listProjects: () => api.projects.list(),
     getProject: (projectId) => api.projects.get(projectId),
     createProject: (input) => api.projects.create(input),
+    updateProject: (projectId, input) => api.projects.update(projectId, input),
     getKnowledgeBase: (projectId) => api.knowledgeBase.get(projectId),
+    updateKnowledgeBase: (projectId, input) => api.knowledgeBase.update(projectId, input),
     listCategories: (projectId) => api.categories.list(projectId),
     listPromptSuggestions: (projectId, query) => api.promptSuggestions.list(projectId, query),
     listPrompts: (projectId, query) => api.prompts.list(projectId, query),
     getPrompt: (projectId, promptId, range) => api.prompts.get(projectId, promptId, range),
     addPrompts: (projectId, prompts) => api.prompts.create(projectId, prompts),
+    updatePrompt: (projectId, promptId, input) => api.prompts.update(projectId, promptId, input),
     listPromptGroups: (projectId, query) => api.promptGroups.list(projectId, query),
     listSources: (projectId, query) => api.sources.list(projectId, query),
     listCompetitors: (projectId, query) => api.competitors.list(projectId, query),
+    listCompetitorExclusions: (projectId) => api.competitors.listExclusions(projectId),
+    replaceCompetitorExclusions: (projectId, exclusions) => api.competitors.replaceExclusions(projectId, exclusions),
   };
 }

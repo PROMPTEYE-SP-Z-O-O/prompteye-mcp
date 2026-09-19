@@ -56,9 +56,28 @@ export const ProjectSchema = z.object({
   createdAt: z.string(),
 });
 
+export const CompanyProfileSchema = z.object({
+  industry: z.string().nullable(),
+  productCategory: z.string().nullable(),
+  targetAudience: z.string().nullable(),
+  icp: z.string().nullable(),
+  operatingArea: z.string().nullable(),
+  description: z.string().nullable(),
+});
+
 export const KnowledgeBaseSchema = z.object({
   text: z.string().nullable(),
+  profile: CompanyProfileSchema.optional(),
   updatedAt: z.string().nullable(),
+});
+
+export const UpdateKnowledgeBaseRequestSchema = z.object({
+  industry: z.string().max(4000).optional(),
+  productCategory: z.string().max(4000).optional(),
+  targetAudience: z.string().max(4000).optional(),
+  icp: z.string().max(4000).optional(),
+  operatingArea: z.string().max(4000).optional(),
+  description: z.string().max(4000).optional(),
 });
 
 export const CategorySchema = z.object({
@@ -171,6 +190,61 @@ export const PromptGroupPageSchema = pageOf(PromptGroupSchema);
 export const CitedDomainPageSchema = pageOf(CitedDomainSchema);
 export const CompetitorPageSchema = pageOf(CompetitorSchema);
 
+export const UpdateProjectRequestSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  label: z.string().min(1).max(40).optional(),
+  domain: z.string().min(3).max(253).optional(),
+  alternativeBrandNames: z.array(z.string().min(1).max(120)).max(20).optional(),
+  alternativeDomains: z.array(z.string().min(3).max(253)).max(20).optional(),
+});
+
+export const BUSINESS_PRIORITY_VALUES = [
+  "very_high",
+  "high",
+  "medium",
+  "low",
+  "very_low",
+] as const;
+
+export const UpdatePromptRequestSchema = z.object({
+  status: z.enum(["active", "paused"]).optional(),
+  groupId: z.string().min(1).nullable().optional(),
+  categoryId: z.string().min(1).nullable().optional(),
+  subcategoryId: z.string().min(1).optional(),
+  businessPriority: z.enum(BUSINESS_PRIORITY_VALUES).nullable().optional(),
+  businessPriorityReason: z.string().max(500).optional(),
+});
+
+export const PromptSettingsSchema = z.object({
+  id: z.string(),
+  prompt: z.string(),
+  keyword: z.string(),
+  status: z.string(),
+  categories: z.array(z.string()),
+  subcategories: z.array(z.string()),
+  groupId: z.string().nullable(),
+  createdAt: z.string(),
+  aiTraffic: z.number().nullable(),
+  businessPriority: z.string().nullable(),
+  businessPriorityReason: z.string().nullable().optional(),
+});
+
+export const CompetitorExclusionSchema = z.object({
+  name: z.string(),
+  aliases: z.array(z.string()),
+});
+
+export const CompetitorExclusionListSchema = listOf(CompetitorExclusionSchema);
+
+export const ReplaceCompetitorExclusionItemSchema = z.object({
+  name: z.string().min(1).max(120),
+  aliases: z.array(z.string().min(1).max(120)).max(20).optional(),
+});
+
+export const ReplaceCompetitorExclusionsRequestSchema = z.object({
+  exclusions: z.array(ReplaceCompetitorExclusionItemSchema).max(50),
+});
+
 /** What a project is created from. */
 export type CreateProjectInput = {
   /** The brand as it is written in answers; visibility is measured against this name. */
@@ -186,6 +260,8 @@ export type CreateProjectInput = {
   excludedCompetitors?: string[];
 };
 
+export type UpdateProjectInput = z.infer<typeof UpdateProjectRequestSchema>;
+
 /** One prompt to track, as handed to the API. */
 export type PromptInput = {
   /** Sent to the assistants verbatim. */
@@ -193,6 +269,8 @@ export type PromptInput = {
   /** Creates the group when it does not exist yet, and reuses it when it does. */
   groupName?: string;
 };
+
+export type UpdatePromptInput = z.infer<typeof UpdatePromptRequestSchema>;
 
 export type List<T> = { data: T[] };
 export type Page<T> = { data: T[]; nextCursor: string | null };
@@ -202,12 +280,18 @@ export type ModelMetrics = z.infer<typeof ModelMetricsSchema>;
 export type MetricsChange = z.infer<typeof MetricsChangeSchema>;
 export type Account = z.infer<typeof AccountSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
+export type CompanyProfile = z.infer<typeof CompanyProfileSchema>;
 export type KnowledgeBase = z.infer<typeof KnowledgeBaseSchema>;
+export type UpdateKnowledgeBaseInput = z.infer<typeof UpdateKnowledgeBaseRequestSchema>;
 export type Category = z.infer<typeof CategorySchema>;
 export type CitedDomain = z.infer<typeof CitedDomainSchema>;
 export type Competitor = z.infer<typeof CompetitorSchema>;
+export type CompetitorExclusion = z.infer<typeof CompetitorExclusionSchema>;
+export type ReplaceCompetitorExclusionItem = z.infer<typeof ReplaceCompetitorExclusionItemSchema>;
+export type ReplaceCompetitorExclusionsInput = z.infer<typeof ReplaceCompetitorExclusionsRequestSchema>;
 export type Prompt = z.infer<typeof PromptSchema>;
 export type PromptDetail = z.infer<typeof PromptDetailSchema>;
+export type PromptSettings = z.infer<typeof PromptSettingsSchema>;
 export type PromptGroup = z.infer<typeof PromptGroupSchema>;
 export type PromptSuggestion = z.infer<typeof PromptSuggestionSchema>;
 export type NewPrompt = z.infer<typeof NewPromptSchema>;

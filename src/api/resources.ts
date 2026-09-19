@@ -3,6 +3,7 @@ import {
   AccountSchema,
   CategoryListSchema,
   CitedDomainPageSchema,
+  CompetitorExclusionListSchema,
   CompetitorPageSchema,
   KnowledgeBaseSchema,
   NewPromptListSchema,
@@ -11,11 +12,13 @@ import {
   PromptDetailSchema,
   PromptGroupPageSchema,
   PromptPageSchema,
+  PromptSettingsSchema,
   PromptSuggestionListSchema,
   type Account,
   type Category,
   type CitedDomain,
   type Competitor,
+  type CompetitorExclusion,
   type CreateProjectInput,
   type KnowledgeBase,
   type List,
@@ -26,7 +29,11 @@ import {
   type PromptDetail,
   type PromptGroup,
   type PromptInput,
+  type PromptSettings,
   type PromptSuggestion,
+  type UpdateKnowledgeBaseInput,
+  type UpdateProjectInput,
+  type UpdatePromptInput,
 } from "./schemas.js";
 
 const projectPath = (projectId: string): string => `/v1/projects/${encodeURIComponent(projectId)}`;
@@ -63,6 +70,11 @@ export class ProjectsResource {
   create(input: CreateProjectInput, options?: RequestOptions): Promise<Project> {
     return this.http.post("/v1/projects", input, ProjectSchema, options);
   }
+
+  /** `PATCH /v1/projects/{projectId}` — correct what the project tracks. */
+  update(projectId: string, input: UpdateProjectInput, options?: RequestOptions): Promise<Project> {
+    return this.http.patch(projectPath(projectId), input, ProjectSchema, options);
+  }
 }
 
 export class KnowledgeBaseResource {
@@ -71,6 +83,11 @@ export class KnowledgeBaseResource {
   /** `GET /v1/projects/{projectId}/knowledge-base` — what the project knows about the brand. */
   get(projectId: string, options?: RequestOptions): Promise<KnowledgeBase> {
     return this.http.get(`${projectPath(projectId)}/knowledge-base`, KnowledgeBaseSchema, options);
+  }
+
+  /** `PATCH /v1/projects/{projectId}/knowledge-base` — describe the brand better. */
+  update(projectId: string, input: UpdateKnowledgeBaseInput, options?: RequestOptions): Promise<KnowledgeBase> {
+    return this.http.patch(`${projectPath(projectId)}/knowledge-base`, input, KnowledgeBaseSchema, options);
   }
 }
 
@@ -123,6 +140,21 @@ export class PromptsResource {
   create(projectId: string, prompts: PromptInput[], options?: RequestOptions): Promise<List<NewPrompt>> {
     return this.http.post(`${projectPath(projectId)}/prompts`, { prompts }, NewPromptListSchema, options);
   }
+
+  /** `PATCH /v1/projects/{projectId}/prompts/{promptId}` — pause, file or re-prioritise a prompt. */
+  update(
+    projectId: string,
+    promptId: string,
+    input: UpdatePromptInput,
+    options?: RequestOptions
+  ): Promise<PromptSettings> {
+    return this.http.patch(
+      `${projectPath(projectId)}/prompts/${encodeURIComponent(promptId)}`,
+      input,
+      PromptSettingsSchema,
+      options
+    );
+  }
 }
 
 export class PromptGroupsResource {
@@ -167,6 +199,25 @@ export class CompetitorsResource {
       ...options,
       query: params,
     });
+  }
+
+  /** `GET /v1/projects/{projectId}/competitors/exclusions` — read which brands are kept out of the ranking. */
+  listExclusions(projectId: string, options?: RequestOptions): Promise<List<CompetitorExclusion>> {
+    return this.http.get(`${projectPath(projectId)}/competitors/exclusions`, CompetitorExclusionListSchema, options);
+  }
+
+  /** `PUT /v1/projects/{projectId}/competitors/exclusions` — set which brands are kept out of the ranking. */
+  replaceExclusions(
+    projectId: string,
+    exclusions: Array<{ name: string; aliases?: string[] }>,
+    options?: RequestOptions
+  ): Promise<List<CompetitorExclusion>> {
+    return this.http.put(
+      `${projectPath(projectId)}/competitors/exclusions`,
+      { exclusions },
+      CompetitorExclusionListSchema,
+      options
+    );
   }
 }
 

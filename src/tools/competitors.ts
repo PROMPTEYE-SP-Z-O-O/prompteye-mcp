@@ -2,10 +2,10 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { MAX_LIMIT, dateRangeShape, modelFilterShape, resolveDateRange } from "../schemas/common.js";
-import { CompetitorSchema } from "../schemas/prompteye.js";
+import { CompetitorExclusionSchema, CompetitorSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
-import { READ_ONLY, handled, num, ok, signed, type ToolContext } from "./result.js";
+import { READ_ONLY, WRITES, handled, num, ok, signed, type ToolContext } from "./result.js";
 
 export const COMPETITORS_WIDGET = "competitors";
 
@@ -72,6 +72,82 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
             ...range,
             model: args.model ?? null,
           }
+        );
+      })
+  );
+
+  server.registerTool(
+    "list_competitor_exclusions",
+    {
+      title: "List brands excluded from competitor rankings",
+      description:
+        "The brands the active project keeps out of its competitor rankings. Everything the assistants name is " +
+        "a candidate competitor, so the ranking picks up resellers, marketplaces, directories, and the client's own " +
+        "agency until they are excluded here.\n\n" +
+        "Excluding a brand drops it from competitor rankings and share-of-voice calculations across historical data.",
+      annotations: READ_ONLY,
+      inputSchema: {},
+      outputSchema: { data: z.array(CompetitorExclusionSchema) },
+    },
+    async () =>
+      handled(async () => {
+        const project = await session.require();
+        const list = await client.listCompetitorExclusions(project.id);
+        const lines = list.data.map((ex) => {
+          const aliases = ex.aliases.length > 0 ? ` (aliases: ${ex.aliases.join(", ")})` : "";
+          return `- ${ex.name}${aliases}`;
+        });
+
+        return ok(
+          list.data.length === 0
+            ? `No competitor exclusions configured for ${project.name}.`
+            : `Excluded competitors for ${project.name} (${list.data.length}):\n${lines.join("\n")}`,
+          list
+        );
+      })
+  );
+
+  server.registerTool(
+    "set_competitor_exclusions",
+    {
+      title: "Set brands excluded from competitor rankings",
+      description:
+        "Replaces the complete exclusion list for the active project with the one provided. Read the current list " +
+        "with list_competitor_exclusions first if you want to add to existing exclusions rather than replace them.\n\n" +
+        "Excluding a brand drops it from the competitor rankings, share of voice, and citations across all historical measurements. " +
+        "Accepts up to 50 excluded brands, each with optional alternative spellings/aliases.",
+      annotations: WRITES,
+      inputSchema: {
+        exclusions: z
+          .array(
+            z.object({
+              name: z.string().min(1).max(120).describe("The brand to keep out of competitor rankings."),
+              aliases: z
+                .array(z.string().min(1).max(120))
+                .max(20)
+                .optional()
+                .describe("Other spellings or aliases excluded alongside it."),
+            })
+          )
+          .max(50)
+          .describe("Complete list of excluded brands. Sending an empty array excludes nobody."),
+      },
+      outputSchema: { data: z.array(CompetitorExclusionSchema) },
+    },
+    async ({ exclusions }) =>
+      handled(async () => {
+        const project = await session.require();
+        const result = await client.replaceCompetitorExclusions(project.id, exclusions);
+        const lines = result.data.map((ex) => {
+          const aliases = ex.aliases.length > 0 ? ` (aliases: ${ex.aliases.join(", ")})` : "";
+          return `- ${ex.name}${aliases}`;
+        });
+
+        return ok(
+          result.data.length === 0
+            ? `Cleared all competitor exclusions for ${project.name}.`
+            : `Updated competitor exclusions for ${project.name} (${result.data.length}):\n${lines.join("\n")}`,
+          result
         );
       })
   );
