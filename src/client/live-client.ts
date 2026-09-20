@@ -20,7 +20,10 @@ type LiveMethod =
   | "listSources"
   | "listCompetitors"
   | "listCompetitorExclusions"
-  | "replaceCompetitorExclusions";
+  | "replaceCompetitorExclusions"
+  | "createReport"
+  | "listReports"
+  | "getReport";
 
 /** What is left for the sample data to answer, until the API grows those endpoints too. */
 export type FallbackClient = Omit<PromptEyeClient, LiveMethod>;
@@ -47,6 +50,9 @@ export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): P
     addPrompts: (projectId, prompts) => api.prompts.create(projectId, prompts),
     updatePrompt: (projectId, promptId, input) => api.prompts.update(projectId, promptId, input),
     listPromptGroups: (projectId, query) => api.promptGroups.list(projectId, query),
+    createReport: (input) => api.reports.create(input),
+    listReports: (query) => api.reports.list(query),
+    getReport: (reportId) => api.reports.get(reportId),
     listSources: (projectId, query) => api.sources.list(projectId, query),
     listCompetitors: (projectId, query) => api.competitors.list(projectId, query),
     listCompetitorExclusions: (projectId) => api.competitors.listExclusions(projectId),

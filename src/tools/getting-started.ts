@@ -4,6 +4,15 @@ import { resolveDateRange } from "../schemas/common.js";
 import type { Project } from "../schemas/prompteye.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
 
+/** The lead pipeline, or null when this account cannot read reports at all. */
+type Reports = {
+  total: number;
+  more: boolean;
+  waiting: number;
+  processing: number;
+  unconverted: number;
+};
+
 /** The state the answer is built from, so the model reports facts rather than guesses. */
 type Standing = {
   project: Project | null;
@@ -15,31 +24,41 @@ type Standing = {
   groups: number;
   suggestions: number;
   more: boolean;
+  reports: Reports | null;
 };
 
 /**
  * What to do next, in the order PromptEye itself works: a project, then the
  * brand description everything is written from, then prompts, then reading what
  * they measured. The first rung that is missing is the answer.
+ *
+ * A prospect waiting to be contacted jumps the queue: it is the only thing here
+ * that goes cold while nobody looks at it.
  */
 function nextSteps(standing: Standing): string[] {
+  const steps: string[] = [];
+
+  if (standing.reports && standing.reports.waiting > 0) {
+    steps.push(
+      `${standing.reports.waiting} report(s) have someone asking to be contacted and no closed lead — get_report names who asked, how to reach them and what their report said.`
+    );
+  }
+
   if (standing.projectCount === 0) {
-    return [
-      "Create the first project with create_project — one brand in one market. Nothing is measured until a project exists.",
-    ];
+    steps.push(
+      "Create the first project with create_project — one brand in one market. Nothing is measured until a project exists."
+    );
+    return steps;
   }
 
   if (!standing.project) {
-    return [
-      "Pick which project to work on with select_project; every other tool reports on the active one.",
-    ];
+    steps.push("Pick which project to work on with select_project; every other tool reports on the active one.");
+    return steps;
   }
-
-  const steps: string[] = [];
 
   if (!standing.knowledgeBase) {
     steps.push(
-      "Write the brand description in the PromptEye app. Every prompt PromptEye proposes is written from it, so this comes before adding prompts."
+      "Fill in the brand description with update_knowledge_base — industry, product category, audience, ICP. Every prompt PromptEye proposes is written from it, so this comes before adding prompts."
     );
   }
 
@@ -69,6 +88,12 @@ function nextSteps(standing: Standing): string[] {
     );
   }
 
+  if (standing.reports && standing.reports.unconverted > 0) {
+    steps.push(
+      `${standing.reports.unconverted} finished report(s) are still only samples. Converting one into a tracked project — done in the app — is what turns a free report into ongoing monitoring.`
+    );
+  }
+
   return steps;
 }
 
@@ -80,10 +105,10 @@ export function registerGettingStartedTools(server: McpServer, { client, session
       description:
         "Call this when the user asks what they can do with PromptEye, where to begin, where they " +
         "stand, or what to do next — and at the start of a session before guessing at any of that. " +
-        "It reads the account, the project, its brand description, prompts and pending suggestions, " +
-        "then names the next step from what is actually missing, which is more useful than a list of " +
-        "everything this server could do. It also reports what has to be done in the PromptEye app " +
-        "rather than here.",
+        "It reads the account, the project, its brand description, prompts, pending suggestions and " +
+        "the public reports the account has generated, then names the next step from what is actually " +
+        "missing, which is more useful than a list of everything this server could do. It also " +
+        "reports what has to be done in the PromptEye app rather than here.",
       annotations: READ_ONLY,
       inputSchema: {
         projectId: z
@@ -102,6 +127,14 @@ export function registerGettingStartedTools(server: McpServer, { client, session
         awaitingFirstRun: z.number(),
         groups: z.number(),
         suggestions: z.number(),
+        reports: z
+          .object({
+            total: z.number(),
+            waiting: z.number(),
+            processing: z.number(),
+            unconverted: z.number(),
+          })
+          .nullable(),
         nextSteps: z.array(z.string()),
       },
     },
@@ -124,7 +157,26 @@ export function registerGettingStartedTools(server: McpServer, { client, session
           groups: 0,
           suggestions: 0,
           more: false,
+          reports: null,
         };
+
+        // An account that cannot reach reports still deserves the rest of the answer.
+        try {
+          const reports = await client.listReports({ limit: 200 });
+          standing.reports = {
+            total: reports.data.length,
+            more: reports.nextCursor !== null,
+            waiting: reports.data.filter(
+              (report) => report.contactCount > 0 && report.leadStatus !== "done"
+            ).length,
+            processing: reports.data.filter((report) => report.status === "processing").length,
+            unconverted: reports.data.filter(
+              (report) => report.status === "ready" && report.projectId === null
+            ).length,
+          };
+        } catch {
+          standing.reports = null;
+        }
 
         if (active) {
           const range = resolveDateRange({});
@@ -149,7 +201,10 @@ export function registerGettingStartedTools(server: McpServer, { client, session
         const steps = nextSteps(standing);
 
         const lines = [
-          `Account ${account.email} on the ${account.plan?.name ?? "unknown"} plan, ${account.promptCount} prompt(s) tracked across the workspace.`,
+          `Account ${account.email} on the ${account.plan?.name ?? "unknown"} plan: ` +
+            `${account.promptCount} of ${account.promptLimit} prompt(s) tracked, asked on ` +
+            `${account.models.join(", ") || "no assistants"} ${account.scanFrequency}. ` +
+            `Next run ${account.nextScanAt}.`,
           standing.project
             ? `Working on ${standing.project.name} — ${standing.project.brand} (${standing.project.domain}) in ${standing.project.country}.`
             : `${standing.projectCount} project(s) reachable, none selected yet.`,
@@ -164,11 +219,23 @@ export function registerGettingStartedTools(server: McpServer, { client, session
           );
         }
 
+        if (standing.reports) {
+          lines.push(
+            standing.reports.total === 0
+              ? "Public reports: none generated yet. create_report builds one for any brand and emails it — the free sample agencies hand to a prospect."
+              : `Public reports: ${standing.reports.total}${standing.reports.more ? "+" : ""} generated, ` +
+                `${standing.reports.waiting} waiting to be contacted, ${standing.reports.processing} still running, ` +
+                `${standing.reports.unconverted} finished but not converted into a project.`
+          );
+        }
+
         lines.push("", "What to do next:", ...steps.map((step, index) => `${index + 1}. ${step}`));
         lines.push(
           "",
-          "Done in the PromptEye app, not here: writing the brand description, accepting or editing a " +
-            "suggestion, and pausing or deleting a prompt. Prompt generation cannot be triggered through the API."
+          "Done in the PromptEye app, not here: accepting a suggestion, deleting a prompt, and " +
+            "converting a report into a tracked project. Prompt generation cannot be triggered through " +
+            "the API. What can be done here: update_knowledge_base for the brand description, and " +
+            "update_prompt to pause a prompt, move it between groups or set its priority."
         );
 
         return ok(lines.join("\n"), {
@@ -185,6 +252,14 @@ export function registerGettingStartedTools(server: McpServer, { client, session
           awaitingFirstRun: standing.awaitingFirstRun,
           groups: standing.groups,
           suggestions: standing.suggestions,
+          reports: standing.reports
+            ? {
+                total: standing.reports.total,
+                waiting: standing.reports.waiting,
+                processing: standing.reports.processing,
+                unconverted: standing.reports.unconverted,
+              }
+            : null,
           nextSteps: steps,
         });
       })

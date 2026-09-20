@@ -10,6 +10,7 @@ import type {
   Competitor,
   CompetitorExclusion,
   CreateProjectInput,
+  CreateReportInput,
   KnowledgeBase,
   List,
   NewPrompt,
@@ -20,6 +21,8 @@ import type {
   PromptInput,
   PromptSettings,
   PromptSuggestion,
+  Report,
+  ReportDetail,
   UpdateKnowledgeBaseInput,
   UpdateProjectInput,
   UpdatePromptInput,
@@ -86,6 +89,11 @@ export interface PromptEyeClient {
     projectId: string,
     exclusions: Array<{ name: string; aliases?: string[] }>
   ): Promise<List<CompetitorExclusion>>;
+
+  /** The lead-magnet reports: generated through a public endpoint, read with the key. */
+  createReport(input: CreateReportInput): Promise<{ report: Report; reused: boolean }>;
+  listReports(query: PageQuery): Promise<Page<Report>>;
+  getReport(reportId: string): Promise<ReportDetail>;
 
   listAnswers(projectId: string, query: AnswerQuery): Promise<Page<Answer>>;
   listSources(projectId: string, query: SourceQuery): Promise<Page<CitedDomain>>;

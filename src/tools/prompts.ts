@@ -162,7 +162,8 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
             `Keyword: ${prompt.keyword || "—"}. Categories: ${prompt.categories.join(", ") || "—"}.`,
             `Visibility ${num(prompt.metrics.visibility, "%")} (${signed(prompt.change?.visibility ?? null, " pp")}), ` +
               `reach index ${num(prompt.metrics.reachIndex)}, position ${num(prompt.metrics.averagePosition)}.`,
-            `AI traffic: ${num(prompt.aiTraffic)}. Business priority: ${prompt.businessPriority ?? "—"}.`,
+            `AI traffic: ${num(prompt.aiTraffic)}. Business priority: ${prompt.businessPriority ?? "—"}` +
+              `${prompt.businessPriorityReason ? ` — set by hand: ${prompt.businessPriorityReason}` : ""}.`,
             "By assistant:",
             ...perModel,
           ].join("\n"),

@@ -8,6 +8,7 @@ import {
   PromptGroupsResource,
   PromptsResource,
   PromptSuggestionsResource,
+  ReportsResource,
   SourcesResource,
 } from "./resources.js";
 
@@ -44,6 +45,7 @@ export class PromptEyeApi {
   readonly promptSuggestions: PromptSuggestionsResource;
   readonly sources: SourcesResource;
   readonly competitors: CompetitorsResource;
+  readonly reports: ReportsResource;
 
   constructor(options: PromptEyeApiOptions) {
     if (!options.token?.trim()) throw new TypeError("token is required.");
@@ -66,5 +68,6 @@ export class PromptEyeApi {
     this.promptSuggestions = new PromptSuggestionsResource(http);
     this.sources = new SourcesResource(http);
     this.competitors = new CompetitorsResource(http);
+    this.reports = new ReportsResource(http);
   }
 }

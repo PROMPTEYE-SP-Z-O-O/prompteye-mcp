@@ -29,6 +29,9 @@ export {
   PromptGroupSchema,
   PromptSchema,
   PromptSuggestionSchema,
+  REPORT_REACH,
+  ReportDetailSchema,
+  ReportSchema,
   type Account,
   type Category,
   type CitedDomain,
@@ -48,4 +51,8 @@ export {
   type PromptGroup,
   type PromptInput,
   type PromptSuggestion,
+  type CreateReportInput,
+  type Report,
+  type ReportDetail,
+  type ReportReach,
 } from "./schemas.js";

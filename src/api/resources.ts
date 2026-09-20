@@ -14,12 +14,18 @@ import {
   PromptPageSchema,
   PromptSettingsSchema,
   PromptSuggestionListSchema,
+  ReportDetailSchema,
+  ReportPageSchema,
+  ReportSchema,
   type Account,
   type Category,
   type CitedDomain,
   type Competitor,
   type CompetitorExclusion,
   type CreateProjectInput,
+  type CreateReportInput,
+  type Report,
+  type ReportDetail,
   type KnowledgeBase,
   type List,
   type NewPrompt,
@@ -218,6 +224,46 @@ export class CompetitorsResource {
       CompetitorExclusionListSchema,
       options
     );
+  }
+}
+
+/**
+ * The public reports an agency hands out as a free sample, and the leads they turn into.
+ *
+ * Creating one is the odd call in this client: the endpoint is public, so it
+ * carries no key and identifies the account by `agencyId` instead.
+ */
+export class ReportsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  /**
+   * `POST /v1/reports` — generates a report for one brand and emails it.
+   *
+   * `reused` says which of the two answers came back: a fresh report that is
+   * still processing, or one generated for the same domain and account within
+   * the last 30 days, sent again to this address. It spends the account's
+   * lead-magnet quota either way.
+   */
+  async create(
+    input: CreateReportInput,
+    options?: RequestOptions
+  ): Promise<{ report: Report; reused: boolean }> {
+    const { data, status } = await this.http.postAnswered("/v1/reports", input, ReportSchema, {
+      ...options,
+      auth: false,
+    });
+
+    return { report: data, reused: status === 200 };
+  }
+
+  /** `GET /v1/reports` — every report of the account, newest first. */
+  list(params: Pagination = {}, options?: RequestOptions): Promise<Page<Report>> {
+    return this.http.get("/v1/reports", ReportPageSchema, { ...options, query: params });
+  }
+
+  /** `GET /v1/reports/{reportId}` — one report with its prompts, models, examples and contacts. */
+  get(reportId: string, options?: RequestOptions): Promise<ReportDetail> {
+    return this.http.get(`/v1/reports/${encodeURIComponent(reportId)}`, ReportDetailSchema, options);
   }
 }
 

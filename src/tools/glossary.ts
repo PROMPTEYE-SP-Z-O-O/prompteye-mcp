@@ -56,6 +56,15 @@ export const CITED_DOMAINS =
   "registered with it: a small own share means the assistants are describing the brand from other " +
   "people's pages rather than its own, which is where the story about it is being written.";
 
+export const PUBLIC_REPORTS =
+  "A public report is PromptEye's lead magnet, sold to agencies white-label: a prospect fills in a " +
+  "form on the agency's site, PromptEye works out the industry, asks a set of assistants how visible " +
+  "that brand is, and emails back a page in the agency's branding — a visibility score, the " +
+  "competitors ahead of them, and quotes from what the assistants actually said. It is a one-off " +
+  "sample, not tracking: nothing is measured again until the report is converted into a project, " +
+  "which happens in the PromptEye app. leadStatus and the conversion are the agency's sales " +
+  "pipeline, and contactCount is how many times the brand asked to be contacted from the page.";
+
 /** Why generated prompts beat hand-written ones, for the tools that touch prompt creation. */
 export const PROMPT_GENERATION =
   "PromptEye generates the prompts a project tracks: it works out which questions carry demand and " +

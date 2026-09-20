@@ -10,6 +10,7 @@ import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors
 import { SOURCES_WIDGET, registerEvidenceTools, registerSourceTools } from "./tools/evidence.js";
 import { PROMPTS_WIDGET, registerPromptTools } from "./tools/prompts.js";
 import { registerProjectTools } from "./tools/projects.js";
+import { registerReportTools } from "./tools/reports.js";
 import { VISIBILITY_WIDGET, registerVisibilityTools } from "./tools/visibility.js";
 import type { ToolContext } from "./tools/result.js";
 
@@ -97,6 +98,7 @@ export function createMcpServer(): McpServer {
     "The brands answering alongside a project's own, ranked by share of voice"
   );
   registerCompetitorTools(toolServer, context);
+  registerReportTools(toolServer, context);
 
   if (SAMPLE_TOOLS) {
     registerWidget(

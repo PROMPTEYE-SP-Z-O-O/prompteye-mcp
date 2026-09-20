@@ -25,6 +25,10 @@ const account = {
   addons: ["claude"],
   scopes: ["api_access"],
   promptCount: 128,
+  promptLimit: 200,
+  models: ["gpt", "perplexity", "claude"],
+  scanFrequency: "daily",
+  nextScanAt: "2026-09-21T02:00:00.000Z",
 };
 
 describe("PromptEyeApi", () => {
@@ -186,5 +190,104 @@ describe("PromptEyeApi", () => {
     expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/competitors/exclusions`);
     expect(calls[0].init.method).toBe("PUT");
     expect(JSON.parse(calls[0].init.body as string)).toEqual({ exclusions });
+  });
+
+  describe("public reports", () => {
+    const report = {
+      id: "r1",
+      brand: "Acme",
+      domain: "acme.example",
+      email: "lead@acme.example",
+      status: "processing",
+      score: null,
+      reach: "national",
+      country: "PL",
+      language: "pl",
+      utm: null,
+      leadStatus: "new",
+      projectId: null,
+      contactCount: 0,
+      createdAt: "2026-09-20T09:00:00.000Z",
+      readyAt: null,
+      url: "https://reports.example/r1",
+    };
+
+    it("creates a report without sending the API key", async () => {
+      const { api, calls } = stubFetch(json(201, report));
+
+      const result = await api.reports.create({
+        agencyId: "a1",
+        brand: "Acme",
+        email: "lead@acme.example",
+        website: "acme.example",
+      });
+
+      expect(result).toEqual({ report, reused: false });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/reports`);
+      expect(calls[0].init.method).toBe("POST");
+      // The endpoint is public: a key would be handed over for nothing.
+      expect(calls[0].init.headers).not.toHaveProperty("Authorization");
+      expect(JSON.parse(calls[0].init.body as string)).toEqual({
+        agencyId: "a1",
+        brand: "Acme",
+        email: "lead@acme.example",
+        website: "acme.example",
+      });
+    });
+
+    it("reports a 200 as a report that was sent again rather than rebuilt", async () => {
+      const { api } = stubFetch(json(200, { ...report, status: "ready", score: 42 }));
+
+      const result = await api.reports.create({ agencyId: "a1", brand: "Acme", email: "lead@acme.example" });
+
+      expect(result.reused).toBe(true);
+      expect(result.report.score).toBe(42);
+    });
+
+    it("lists reports with the key and the page window", async () => {
+      const { api, calls } = stubFetch(json(200, { data: [report], nextCursor: "50" }));
+
+      const page = await api.reports.list({ limit: 50, cursor: "0" });
+
+      expect(page).toEqual({ data: [report], nextCursor: "50" });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/reports?limit=50&cursor=0`);
+      expect(calls[0].init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}` });
+    });
+
+    it("reads one report by id", async () => {
+      const detail = {
+        ...report,
+        status: "ready",
+        score: 42,
+        industry: "SaaS",
+        monthlySearches: 1900,
+        prompts: ["best crm for agencies"],
+        rankingPhrases: ["crm for agencies"],
+        competitors: [{ name: "Rival", score: 61 }],
+        models: [{ model: "gpt", score: 42, answers: 3, averagePosition: 2.5 }],
+        examples: [
+          {
+            prompt: "best crm for agencies",
+            response: "…",
+            model: "gpt",
+            sources: [{ url: "https://g2.com/x", title: null }],
+          },
+        ],
+        contacts: [
+          {
+            type: "calendly",
+            createdAt: "2026-09-20T10:00:00.000Z",
+            email: null,
+            phone: null,
+            meetingAt: "2026-09-22T09:00:00.000Z",
+            inviteeEmail: "lead@acme.example",
+          },
+        ],
+      };
+      const { api, calls } = stubFetch(json(200, detail));
+
+      await expect(api.reports.get("r 1")).resolves.toEqual(detail);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/reports/r%201`);
+    });
   });
 });

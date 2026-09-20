@@ -39,6 +39,14 @@ export const AccountSchema = z.object({
   addons: z.array(z.string()),
   scopes: z.array(z.string()),
   promptCount: z.number(),
+  /** What the plan allows in total; `promptCount` counts against it. */
+  promptLimit: z.number(),
+  /** The assistants every active prompt is asked on, following the plan and its add-ons. */
+  models: z.array(z.string()),
+  /** How often the prompts are asked. */
+  scanFrequency: z.string(),
+  /** When the next run starts, RFC 3339 in UTC. */
+  nextScanAt: z.string(),
 });
 
 export const ProjectSchema = z.object({
@@ -103,6 +111,8 @@ export const PromptSchema = z.object({
   aiTraffic: z.number().nullable(),
   /** `very_high`, `high`, `medium`, `low`, `very_low`, or `null` before it is ranked. */
   businessPriority: z.string().nullable(),
+  /** Why someone set the priority by hand; `null` when it is the computed one. */
+  businessPriorityReason: z.string().nullable(),
   metrics: MetricsSchema,
   change: MetricsChangeSchema.nullable(),
 });
@@ -189,6 +199,102 @@ export const PromptPageSchema = pageOf(PromptSchema);
 export const PromptGroupPageSchema = pageOf(PromptGroupSchema);
 export const CitedDomainPageSchema = pageOf(CitedDomainSchema);
 export const CompetitorPageSchema = pageOf(CompetitorSchema);
+
+/** How wide the brand competes, which decides the prompts a report is built from. */
+export const REPORT_REACH = ["local", "regional", "national"] as const;
+
+/**
+ * A public report: the free sample an agency's prospect fills a form for, and
+ * the lead that comes out of it.
+ */
+export const ReportSchema = z.object({
+  id: z.string(),
+  brand: z.string(),
+  /** Without `www.`; `null` when the form carried no website. */
+  domain: z.string().nullable(),
+  /** Where the finished report was sent. */
+  email: z.string(),
+  /** `processing`, `ready` or `error`. */
+  status: z.string(),
+  /** Visibility 0–100, `null` until the report is ready. */
+  score: z.number().nullable(),
+  reach: z.string().nullable(),
+  country: z.string().nullable(),
+  language: z.string().nullable(),
+  utm: z.string().nullable(),
+  /** `new`, `in_progress` or `done` — moved in the PromptEye app, not through the API. */
+  leadStatus: z.string(),
+  /** The project this report was converted into, or `null` while it is still just a sample. */
+  projectId: z.string().nullable(),
+  /** How many times the brand asked to be contacted from the report page. */
+  contactCount: z.number(),
+  createdAt: z.string(),
+  readyAt: z.string().nullable(),
+  /** The public report page, in the agency's branding. */
+  url: z.string(),
+});
+
+export const ReportDetailSchema = ReportSchema.extend({
+  industry: z.string().nullable(),
+  monthlySearches: z.number().nullable(),
+  /** Every question put to the assistants for this report. */
+  prompts: z.array(z.string()),
+  rankingPhrases: z.array(z.string()),
+  /** Strongest first. */
+  competitors: z.array(z.object({ name: z.string(), score: z.number() })),
+  /** Assistants that answered; the others are left out. */
+  models: z.array(
+    z.object({
+      model: z.string(),
+      score: z.number().nullable(),
+      answers: z.number().nullable(),
+      averagePosition: z.number().nullable(),
+    })
+  ),
+  examples: z.array(
+    z.object({
+      prompt: z.string(),
+      response: z.string(),
+      model: z.string(),
+      sources: z.array(z.object({ url: z.string(), title: z.string().nullable() })),
+    })
+  ),
+  /** Oldest first. */
+  contacts: z.array(
+    z.object({
+      /** `calendly`, `email` or `phone`. */
+      type: z.string(),
+      createdAt: z.string(),
+      email: z.string().nullable(),
+      phone: z.string().nullable(),
+      meetingAt: z.string().nullable(),
+      inviteeEmail: z.string().nullable(),
+    })
+  ),
+});
+
+export const ReportPageSchema = pageOf(ReportSchema);
+
+/** What a public report is generated from. */
+export type CreateReportInput = {
+  /** The PromptEye account the report belongs to, and whose quota it spends. */
+  agencyId: string;
+  brand: string;
+  /** Where the finished report is sent. */
+  email: string;
+  /** The brand's domain; a report generated for it in the last 30 days is reused. */
+  website?: string;
+  /** ISO 3166-1 alpha-2. */
+  country?: string;
+  language?: string;
+  reach?: (typeof REPORT_REACH)[number];
+  /** Campaign, kept on the report and in its link. */
+  utm?: string;
+};
+
+export type Report = z.infer<typeof ReportSchema>;
+export type ReportDetail = z.infer<typeof ReportDetailSchema>;
+export type ReportReach = (typeof REPORT_REACH)[number];
 
 export const UpdateProjectRequestSchema = z.object({
   name: z.string().min(1).max(120).optional(),

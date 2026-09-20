@@ -43,10 +43,23 @@ Every one of these calls the PromptEye API.
 | `list_prompt_groups` | `GET /v1/projects/{projectId}/prompt-groups` |
 | `list_prompt_suggestions` | `GET /v1/projects/{projectId}/prompt-suggestions` |
 | `add_prompts` | `POST /v1/projects/{projectId}/prompts` |
+| `create_report` | `POST /v1/reports` — **public, no key**, identified by `agencyId` |
+| `list_reports` | `GET /v1/reports` |
+| `get_report` | `GET /v1/reports/{reportId}` |
 | `list_sources` | `GET /v1/projects/{projectId}/sources` |
 | `list_competitors` | `GET /v1/projects/{projectId}/competitors` |
 
 Periods default to the last 30 days and are capped at 366.
+
+### Public reports
+
+Next to tracking sits PromptEye's lead magnet, sold to agencies white-label: a prospect fills in
+a form, gets a visibility report branded as the agency, and becomes a lead. `create_report`
+generates one — it is the **only call that sends no API key**, because that endpoint is public
+and books the report to the account named by `agencyId`, spending that account's quota. A report
+for the same domain within 30 days is re-sent rather than rebuilt, and the tool says which
+happened. `list_reports` and `get_report` read them back with the key, including every request to
+be contacted from the report page.
 
 `list_prompt_suggestions` is the way to add prompts: PromptEye generates them from real
 demand and from how people actually put questions to assistants. `add_prompts` tracks

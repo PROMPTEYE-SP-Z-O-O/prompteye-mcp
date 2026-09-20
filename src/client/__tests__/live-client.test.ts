@@ -28,6 +28,7 @@ const LIVE_PROMPT = {
   createdAt: "2026-08-14T11:02:47.000Z",
   aiTraffic: 1900,
   businessPriority: "high",
+  businessPriorityReason: null,
   metrics: { visibility: 66.7, reachIndex: 61, averagePosition: 2.1 },
   change: { visibility: 8.3, reachIndex: 6, averagePosition: -0.4 },
 };

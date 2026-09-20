@@ -9,6 +9,12 @@ export type Query = Record<string, string | number | undefined>;
 export interface RequestOptions {
   /** Aborts the request. Replaces the client's timeout when given. */
   signal?: AbortSignal;
+  /**
+   * Whether to send the API key. Defaults to true; set false for the endpoints
+   * documented as public, so a key is never handed to a call that has no use
+   * for it.
+   */
+  auth?: boolean;
 }
 
 export interface HttpClientConfig {
@@ -40,6 +46,9 @@ export interface SendRequest<T> {
   options?: RequestOptions;
 }
 
+/** The validated body, and the status that carried it. */
+export type Answered<T> = { data: T; status: number };
+
 export type HttpMethodWithBody = <T>(
   path: string,
   body: unknown,
@@ -50,24 +59,46 @@ export type HttpMethodWithBody = <T>(
 export class HttpClient {
   constructor(private readonly config: HttpClientConfig) {}
 
-  get<T>(
+  async get<T>(
     path: string,
     schema: Schema<T>,
     options: RequestOptions & { query?: Query } = {}
   ): Promise<T> {
-    return this.send({ method: "GET", path: `${path}${queryString(options.query)}`, schema, options });
+    const { data } = await this.send({
+      method: "GET",
+      path: `${path}${queryString(options.query)}`,
+      schema,
+      options,
+    });
+    return data;
   }
 
-  post: HttpMethodWithBody = (path, body, schema, options) =>
-    this.send({ method: "POST", path, schema, body, options });
+  post: HttpMethodWithBody = async (path, body, schema, options) =>
+    (await this.send({ method: "POST", path, schema, body, options })).data;
 
-  patch: HttpMethodWithBody = (path, body, schema, options) =>
-    this.send({ method: "PATCH", path, schema, body, options });
+  patch: HttpMethodWithBody = async (path, body, schema, options) =>
+    (await this.send({ method: "PATCH", path, schema, body, options })).data;
 
-  put: HttpMethodWithBody = (path, body, schema, options) =>
-    this.send({ method: "PUT", path, schema, body, options });
+  put: HttpMethodWithBody = async (path, body, schema, options) =>
+    (await this.send({ method: "PUT", path, schema, body, options })).data;
 
-  private async send<T>({ method, path, schema, body, options = {} }: SendRequest<T>): Promise<T> {
+  /** Like {@link post}, for the endpoints whose status carries meaning of its own. */
+  postAnswered<T>(
+    path: string,
+    body: unknown,
+    schema: Schema<T>,
+    options?: RequestOptions
+  ): Promise<Answered<T>> {
+    return this.send({ method: "POST", path, schema, body, options });
+  }
+
+  private async send<T>({
+    method,
+    path,
+    schema,
+    body,
+    options = {},
+  }: SendRequest<T>): Promise<Answered<T>> {
     const hasBody = body !== undefined;
     const response = await this.config.fetch(`${this.config.baseUrl}${path}`, {
       method,
@@ -75,7 +106,7 @@ export class HttpClient {
         Accept: "application/json",
         ...(hasBody ? { "Content-Type": "application/json" } : {}),
         ...this.config.headers,
-        Authorization: `Bearer ${this.config.token}`,
+        ...(options.auth === false ? {} : { Authorization: `Bearer ${this.config.token}` }),
       },
       body: hasBody ? JSON.stringify(body) : undefined,
       signal: options.signal ?? AbortSignal.timeout(this.config.timeoutMs),
@@ -83,6 +114,6 @@ export class HttpClient {
     const responseBody: unknown = await response.json().catch(() => undefined);
 
     if (!response.ok) throw new PromptEyeApiError(response.status, responseBody);
-    return schema.parse(responseBody);
+    return { data: schema.parse(responseBody), status: response.status };
   }
 }
