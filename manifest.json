@@ -5,7 +5,9 @@
   "version": "1.0.15",
   "description": "See how a brand stands inside the answers AI assistants give — the prompts it is tracked on, the brands answering alongside it and the pages they cite.",
   "long_description": "PromptEye tracks how often AI assistants name a brand when they answer buying questions. Pick a project — one brand tracked in one market — then work with the prompts it is tracked on, see which brands answer alongside it and which pages the assistants lean on.\n\nAccount, projects, prompts, prompt groups, categories, prompt suggestions, cited domains and competitors come from PromptEye. An API key and the API URL are required — both are at https://app.prompteye.com/integrations.",
-  "author": "PromptEye",
+  "author": {
+    "name": "PromptEye"
+  },
   "homepage": "https://prompteye.com",
   "documentation": "https://api.prompteye.com",
   "license": "MIT",
@@ -87,7 +89,14 @@
     { "name": "update_knowledge_base", "description": "Describe the brand better in the knowledge base" },
     { "name": "update_prompt", "description": "Pause, resume, file or re-prioritise a prompt" },
     { "name": "list_competitor_exclusions", "description": "Read which brands are kept out of competitor rankings" },
-    { "name": "set_competitor_exclusions", "description": "Set which brands are kept out of competitor rankings" }
+    { "name": "set_competitor_exclusions", "description": "Set which brands are kept out of competitor rankings" },
+    { "name": "get_google_status", "description": "Whether Search Console and Analytics are bound to the project" },
+    { "name": "get_search_performance", "description": "Clicks, impressions and position in ordinary Google results" },
+    { "name": "get_ai_traffic", "description": "Sessions Google Analytics attributes to AI assistants" },
+    { "name": "list_bot_visits", "description": "The requests AI and search bots made to the site" },
+    { "name": "count_bot_visits", "description": "Those requests counted by bot, path, status, day or category" },
+    { "name": "list_crawls", "description": "Which bot has fetched which page, since tracking began" },
+    { "name": "get_sitemap", "description": "The connected sitemap and the addresses it lists" }
   ],
   "compatibility": {
     "platforms": ["darwin", "win32"],
