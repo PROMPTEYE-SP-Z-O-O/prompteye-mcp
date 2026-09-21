@@ -2,6 +2,9 @@ import type { ModelKey, Page, ResolvedRange } from "../schemas/common.js";
 import type { BrandPresence } from "../schemas/prompteye.js";
 import type {
   Account,
+  AnalyticsPage,
+  AnalyticsSource,
+  AnalyticsSummary,
   Answer,
   Breakdown,
   Category,
@@ -11,6 +14,7 @@ import type {
   CompetitorExclusion,
   CreateProjectInput,
   CreateReportInput,
+  GoogleStatus,
   KnowledgeBase,
   List,
   NewPrompt,
@@ -23,6 +27,9 @@ import type {
   PromptSuggestion,
   Report,
   ReportDetail,
+  SearchPage,
+  SearchQuery,
+  SearchSummary,
   UpdateKnowledgeBaseInput,
   UpdateProjectInput,
   UpdatePromptInput,
@@ -55,6 +62,18 @@ export type PromptQuery = ResolvedRange & PageQuery & { groupId?: string; catego
 export type PromptGroupQuery = ResolvedRange & PageQuery;
 
 export type SuggestionQuery = { groupId?: string };
+
+/** A Search Console ranking: the period, and how many rows to rank. */
+export type SearchRankingQuery = ResolvedRange & { limit?: number };
+
+/**
+ * Narrows a reading of the AI traffic to one assistant, matched without regard
+ * to case against the referrer: `openai` also matches chatgpt, `anthropic`
+ * matches claude, `google` matches gemini, `microsoft` matches copilot and bing.
+ */
+export type AiTrafficQuery = ResolvedRange & { assistant?: string };
+
+export type AiTrafficRankingQuery = AiTrafficQuery & { limit?: number };
 
 /**
  * Every call the MCP server makes against PromptEye.
@@ -94,6 +113,20 @@ export interface PromptEyeClient {
   createReport(input: CreateReportInput): Promise<{ report: Report; reused: boolean }>;
   listReports(query: PageQuery): Promise<Page<Report>>;
   getReport(reportId: string): Promise<ReportDetail>;
+
+  /**
+   * What Google reports for the project's own site, which is a different
+   * measurement from anything above: visibility counts answers that named the
+   * brand, this counts people who arrived. `getGoogleStatus` says whether
+   * either integration is bound — without it, zeros are ambiguous.
+   */
+  getGoogleStatus(projectId: string): Promise<GoogleStatus>;
+  getSearchSummary(projectId: string, query: ResolvedRange): Promise<SearchSummary>;
+  listSearchQueries(projectId: string, query: SearchRankingQuery): Promise<Page<SearchQuery>>;
+  listSearchPages(projectId: string, query: SearchRankingQuery): Promise<Page<SearchPage>>;
+  getAiTrafficSummary(projectId: string, query: AiTrafficQuery): Promise<AnalyticsSummary>;
+  listAiTrafficSources(projectId: string, query: AiTrafficRankingQuery): Promise<Page<AnalyticsSource>>;
+  listAiTrafficPages(projectId: string, query: AiTrafficRankingQuery): Promise<Page<AnalyticsPage>>;
 
   listAnswers(projectId: string, query: AnswerQuery): Promise<Page<Answer>>;
   listSources(projectId: string, query: SourceQuery): Promise<Page<CitedDomain>>;

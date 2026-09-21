@@ -1,10 +1,14 @@
 import type { HttpClient, RequestOptions } from "./http.js";
 import {
   AccountSchema,
+  AnalyticsPagePageSchema,
+  AnalyticsSourcePageSchema,
+  AnalyticsSummarySchema,
   CategoryListSchema,
   CitedDomainPageSchema,
   CompetitorExclusionListSchema,
   CompetitorPageSchema,
+  GoogleStatusSchema,
   KnowledgeBaseSchema,
   NewPromptListSchema,
   ProjectListSchema,
@@ -17,13 +21,20 @@ import {
   ReportDetailSchema,
   ReportPageSchema,
   ReportSchema,
+  SearchPagePageSchema,
+  SearchQueryPageSchema,
+  SearchSummarySchema,
   type Account,
+  type AnalyticsPage,
+  type AnalyticsSource,
+  type AnalyticsSummary,
   type Category,
   type CitedDomain,
   type Competitor,
   type CompetitorExclusion,
   type CreateProjectInput,
   type CreateReportInput,
+  type GoogleStatus,
   type Report,
   type ReportDetail,
   type KnowledgeBase,
@@ -37,6 +48,9 @@ import {
   type PromptInput,
   type PromptSettings,
   type PromptSuggestion,
+  type SearchPage,
+  type SearchQuery,
+  type SearchSummary,
   type UpdateKnowledgeBaseInput,
   type UpdateProjectInput,
   type UpdatePromptInput,
@@ -278,6 +292,112 @@ export class PromptSuggestionsResource {
     options?: RequestOptions
   ): Promise<List<PromptSuggestion>> {
     return this.http.get(`${projectPath(projectId)}/prompt-suggestions`, PromptSuggestionListSchema, {
+      ...options,
+      query: params,
+    });
+  }
+}
+
+/** A Search Console ranking: the period, and how many rows to rank. */
+export type SearchRankingParams = DateRange & { limit?: number };
+
+/**
+ * Narrows a reading of the AI traffic to one assistant. It is matched without
+ * regard to case against the referrer, as the app's AI traffic screen filters
+ * it: `openai` also matches chatgpt, `anthropic` matches claude, `google`
+ * matches gemini and `microsoft` matches copilot and bing.
+ *
+ * Not the `vendor` of the bot endpoints: that one is a closed list of the
+ * companies running crawlers, and the two do not take the same values.
+ */
+export type AiTrafficParams = DateRange & { assistant?: string };
+
+export type AiTrafficRankingParams = AiTrafficParams & { limit?: number };
+
+/**
+ * What Google reports for the project's site: Search Console clicks and
+ * impressions, and the Google Analytics sessions that came from an AI
+ * assistant. Both are bound to the project in the PromptEye app.
+ */
+export class GoogleResource {
+  constructor(private readonly http: HttpClient) {}
+
+  private path(projectId: string, rest: string): string {
+    return `${projectPath(projectId)}/traffic/google${rest}`;
+  }
+
+  /**
+   * `GET /v1/projects/{projectId}/traffic/google/status` — whether either integration
+   * is bound, and how its last sync went.
+   *
+   * Worth calling before the rest: a project with nothing bound answers the
+   * other calls with zeros and empty lists, which reads exactly like a site
+   * nobody visits.
+   */
+  status(projectId: string, options?: RequestOptions): Promise<GoogleStatus> {
+    return this.http.get(this.path(projectId, "/status"), GoogleStatusSchema, options);
+  }
+
+  /** `GET /v1/projects/{projectId}/traffic/google/search` — the period's totals and its daily timeline. */
+  search(projectId: string, params: DateRange = {}, options?: RequestOptions): Promise<SearchSummary> {
+    return this.http.get(this.path(projectId, "/search"), SearchSummarySchema, { ...options, query: params });
+  }
+
+  /** `GET /v1/projects/{projectId}/traffic/google/search/queries` — the phrases of the period, most clicked first. */
+  searchQueries(
+    projectId: string,
+    params: SearchRankingParams = {},
+    options?: RequestOptions
+  ): Promise<Page<SearchQuery>> {
+    return this.http.get(this.path(projectId, "/search/queries"), SearchQueryPageSchema, {
+      ...options,
+      query: params,
+    });
+  }
+
+  /** `GET /v1/projects/{projectId}/traffic/google/search/pages` — the pages of the period, most clicked first. */
+  searchPages(
+    projectId: string,
+    params: SearchRankingParams = {},
+    options?: RequestOptions
+  ): Promise<Page<SearchPage>> {
+    return this.http.get(this.path(projectId, "/search/pages"), SearchPagePageSchema, {
+      ...options,
+      query: params,
+    });
+  }
+
+  /** `GET /v1/projects/{projectId}/traffic/google/analytics` — the sessions Analytics attributes to AI assistants. */
+  analytics(
+    projectId: string,
+    params: AiTrafficParams = {},
+    options?: RequestOptions
+  ): Promise<AnalyticsSummary> {
+    return this.http.get(this.path(projectId, "/analytics"), AnalyticsSummarySchema, {
+      ...options,
+      query: params,
+    });
+  }
+
+  /** `GET /v1/projects/{projectId}/traffic/google/analytics/sources` — the assistants behind those sessions. */
+  analyticsSources(
+    projectId: string,
+    params: AiTrafficRankingParams = {},
+    options?: RequestOptions
+  ): Promise<Page<AnalyticsSource>> {
+    return this.http.get(this.path(projectId, "/analytics/sources"), AnalyticsSourcePageSchema, {
+      ...options,
+      query: params,
+    });
+  }
+
+  /** `GET /v1/projects/{projectId}/traffic/google/analytics/pages` — the pages those sessions landed on. */
+  analyticsPages(
+    projectId: string,
+    params: AiTrafficRankingParams = {},
+    options?: RequestOptions
+  ): Promise<Page<AnalyticsPage>> {
+    return this.http.get(this.path(projectId, "/analytics/pages"), AnalyticsPagePageSchema, {
       ...options,
       query: params,
     });

@@ -10,7 +10,9 @@ export const AI_TRAFFIC =
   "aiTraffic is the demand behind a prompt: PromptEye expands the question into the phrasings people " +
   "actually use for it, weighs each one by how much of the question it carries, and adds up how much " +
   "demand they attract per month. It is a property of the prompt, not a measurement of a period, and " +
-  "is null when nothing could be measured for it.";
+  "is null when nothing could be measured for it. It is not what get_ai_traffic reports: that tool " +
+  "counts sessions that actually reached the site from an assistant, while this counts the demand " +
+  "behind the question.";
 
 export const BUSINESS_PRIORITY =
   "businessPriority is how much the project should bet on a prompt: the average of how close to a " +
@@ -71,3 +73,22 @@ export const PROMPT_GENERATION =
   "phrases them the way people actually put questions to AI assistants, then proposes each one with " +
   "the gap in the funnel it fills, the demand behind it, how close to a purchase it is asked and how " +
   "well it fits the brand. list_prompt_suggestions returns those, ready to be accepted.";
+
+/** What Google's own figures are, and what they are not, for the tools that report them. */
+export const GOOGLE_DATA =
+  "Google's figures answer a different question from everything else here: visibility counts the " +
+  "answers that named the brand, and this counts the people who then arrived. Search Console covers " +
+  "ordinary Google results — ctr is a rate between 0 and 1, and position counts from 1, so lower is " +
+  "better. AI traffic is Google Analytics sessions whose referrer was recognised as an assistant, " +
+  "which undercounts by design: an assistant that names the brand without linking it sends nobody, " +
+  "and somebody who reads an answer and then types the domain arrives as direct traffic. Read a " +
+  "rise here as people acting on the answers, never as how often the brand is named. Mind the two " +
+  "senses of the phrase: the aiTraffic field on a prompt is the demand behind that question, while " +
+  "get_ai_traffic counts sessions that reached the site.";
+
+/** Why zeros from the Google tools are ambiguous, for the tools that can return them. */
+export const GOOGLE_BINDING =
+  "Both integrations are bound to the project in the PromptEye app. A project with nothing bound " +
+  "answers with zeros and empty lists, which reads exactly like a site nobody visits — so these " +
+  "tools check get_google_status themselves before reporting an empty period, and say which of the " +
+  "two it was.";

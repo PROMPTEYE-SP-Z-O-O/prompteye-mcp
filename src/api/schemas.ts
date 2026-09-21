@@ -45,7 +45,11 @@ export const AccountSchema = z.object({
   models: z.array(z.string()),
   /** How often the prompts are asked. */
   scanFrequency: z.string(),
-  /** When the next run starts, RFC 3339 in UTC. */
+  /**
+   * When the next run *starts*, RFC 3339 in UTC — not when it has finished.
+   * Asking every prompt on every assistant takes tens of minutes, so the
+   * figures keep moving for a while after this time passes.
+   */
   nextScanAt: z.string(),
 });
 
@@ -401,3 +405,115 @@ export type PromptSettings = z.infer<typeof PromptSettingsSchema>;
 export type PromptGroup = z.infer<typeof PromptGroupSchema>;
 export type PromptSuggestion = z.infer<typeof PromptSuggestionSchema>;
 export type NewPrompt = z.infer<typeof NewPromptSchema>;
+
+/*
+ * Google: what Google itself reports for the project's site — Search Console
+ * clicks and impressions, and the Google Analytics sessions that arrived from
+ * an AI assistant. None of it is a PromptEye measurement: it counts people who
+ * reached the site, where visibility counts answers that named the brand.
+ */
+
+/** How the last pull from Google went. `failedSince` stays null while it is healthy. */
+export const GoogleSyncSchema = z.object({
+  lastSyncedAt: z.string().nullable(),
+  /** When the failures started, so a stale figure can be told from a fresh one. */
+  failedSince: z.string().nullable(),
+  error: z.string().nullable(),
+});
+
+export const SearchConsoleStatusSchema = z.object({
+  connected: z.boolean(),
+  /** The property as Google names it, e.g. `sc-domain:example.com`. Null until one is bound. */
+  siteUrl: z.string().nullable(),
+  /** What the bound account may read, e.g. `siteOwner`. */
+  permissionLevel: z.string().nullable(),
+  sync: GoogleSyncSchema.nullable(),
+});
+
+export const AnalyticsStatusSchema = z.object({
+  connected: z.boolean(),
+  propertyId: z.string().nullable(),
+  propertyName: z.string().nullable(),
+  accountName: z.string().nullable(),
+  sync: GoogleSyncSchema.nullable(),
+});
+
+/**
+ * Whether the project has any Google data at all.
+ *
+ * Read this before the rest: a project with nothing bound answers the other
+ * Google endpoints with zeros and empty lists, which is not the same answer as
+ * a site nobody visits.
+ */
+export const GoogleStatusSchema = z.object({
+  searchConsole: SearchConsoleStatusSchema,
+  analytics: AnalyticsStatusSchema,
+});
+
+/** One day of the Search Console timeline. */
+export const SearchTimelinePointSchema = z.object({
+  date: z.string(),
+  clicks: z.number(),
+  impressions: z.number(),
+});
+
+/** The figures every Search Console row carries, whatever it is a row of. */
+const searchFigures = {
+  clicks: z.number(),
+  impressions: z.number(),
+  /** Clicks over impressions, 0 to 1 — a rate, not a percentage. */
+  ctr: z.number(),
+  /** Average position in the results, counting from 1. Lower is better. */
+  position: z.number(),
+};
+
+export const SearchSummarySchema = z.object({
+  ...searchFigures,
+  timeline: z.array(SearchTimelinePointSchema),
+});
+
+export const SearchQuerySchema = z.object({ query: z.string(), ...searchFigures });
+export const SearchPageSchema = z.object({ page: z.string(), ...searchFigures });
+
+/** Only the sessions whose referrer was recognised as an AI assistant are counted. */
+export const AnalyticsSummarySchema = z.object({
+  sessions: z.number(),
+  engagedSessions: z.number(),
+  /** Engaged sessions over sessions, 0 to 1. */
+  engagementRate: z.number(),
+  /** Seconds. */
+  averageSessionDuration: z.number(),
+  /** The conversions the property marks as key events. */
+  keyEvents: z.number(),
+});
+
+export const AnalyticsSourceSchema = z.object({
+  /** The referrer as Analytics recorded it, e.g. `chatgpt.com`. */
+  source: z.string(),
+  sessions: z.number(),
+  keyEvents: z.number(),
+});
+
+export const AnalyticsPageSchema = z.object({
+  /** The landing page the session started on, as a path. */
+  page: z.string(),
+  sessions: z.number(),
+  keyEvents: z.number(),
+});
+
+export const SearchQueryPageSchema = pageOf(SearchQuerySchema);
+export const SearchPagePageSchema = pageOf(SearchPageSchema);
+export const AnalyticsSourcePageSchema = pageOf(AnalyticsSourceSchema);
+export const AnalyticsPagePageSchema = pageOf(AnalyticsPageSchema);
+
+export type GoogleSync = z.infer<typeof GoogleSyncSchema>;
+export type SearchConsoleStatus = z.infer<typeof SearchConsoleStatusSchema>;
+export type AnalyticsStatus = z.infer<typeof AnalyticsStatusSchema>;
+export type GoogleStatus = z.infer<typeof GoogleStatusSchema>;
+export type SearchTimelinePoint = z.infer<typeof SearchTimelinePointSchema>;
+export type SearchSummary = z.infer<typeof SearchSummarySchema>;
+export type SearchQuery = z.infer<typeof SearchQuerySchema>;
+export type SearchPage = z.infer<typeof SearchPageSchema>;
+export type AnalyticsSummary = z.infer<typeof AnalyticsSummarySchema>;
+export type AnalyticsSource = z.infer<typeof AnalyticsSourceSchema>;
+export type AnalyticsPage = z.infer<typeof AnalyticsPageSchema>;

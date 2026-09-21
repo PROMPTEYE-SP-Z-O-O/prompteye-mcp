@@ -204,7 +204,7 @@ export function registerGettingStartedTools(server: McpServer, { client, session
           `Account ${account.email} on the ${account.plan?.name ?? "unknown"} plan: ` +
             `${account.promptCount} of ${account.promptLimit} prompt(s) tracked, asked on ` +
             `${account.models.join(", ") || "no assistants"} ${account.scanFrequency}. ` +
-            `Next run ${account.nextScanAt}.`,
+            `Next run starts ${account.nextScanAt} and takes tens of minutes to finish.`,
           standing.project
             ? `Working on ${standing.project.name} — ${standing.project.brand} (${standing.project.domain}) in ${standing.project.country}.`
             : `${standing.projectCount} project(s) reachable, none selected yet.`,

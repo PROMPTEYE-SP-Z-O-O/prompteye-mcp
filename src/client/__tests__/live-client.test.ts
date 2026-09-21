@@ -54,6 +54,70 @@ const LIVE_COMPETITOR = {
   citationShare: 10,
 };
 
+const LIVE_GOOGLE_STATUS = {
+  searchConsole: {
+    connected: true,
+    siteUrl: "sc-domain:acme.example",
+    permissionLevel: "siteOwner",
+    sync: { lastSyncedAt: "2026-09-20T04:12:31.000Z", failedSince: null, error: null },
+  },
+  analytics: { connected: false, propertyId: null, propertyName: null, accountName: null, sync: null },
+};
+
+const LIVE_SEARCH = {
+  clicks: 320,
+  impressions: 8400,
+  ctr: 0.0381,
+  position: 8.4,
+  timeline: [{ date: "2026-09-19", clicks: 11, impressions: 290 }],
+};
+
+const LIVE_SEARCH_QUERY = {
+  query: "best crm for agencies",
+  clicks: 42,
+  impressions: 910,
+  ctr: 0.0462,
+  position: 6.1,
+};
+
+const LIVE_SEARCH_PAGE = {
+  page: "https://acme.example/pricing",
+  clicks: 31,
+  impressions: 960,
+  ctr: 0.0323,
+  position: 5.4,
+};
+
+const LIVE_ANALYTICS = {
+  sessions: 120,
+  engagedSessions: 84,
+  engagementRate: 0.7,
+  averageSessionDuration: 96.4,
+  keyEvents: 9,
+};
+
+const LIVE_ANALYTICS_SOURCE = { source: "chatgpt.com", sessions: 78, keyEvents: 6 };
+const LIVE_ANALYTICS_PAGE = { page: "/pricing", sessions: 22, keyEvents: 3 };
+
+/**
+ * The Google endpoints, matched on the segment after `/google/` and tried
+ * before the rest: `/traffic/google/analytics/sources` ends exactly like `/sources`.
+ */
+function googleBody(pathname: string): unknown {
+  const endpoint = pathname.split("/google/")[1];
+  if (endpoint === undefined) return undefined;
+
+  return {
+    status: LIVE_GOOGLE_STATUS,
+    search: LIVE_SEARCH,
+    "search/queries": { data: [LIVE_SEARCH_QUERY], nextCursor: null },
+    "search/pages": { data: [LIVE_SEARCH_PAGE], nextCursor: null },
+    analytics: LIVE_ANALYTICS,
+    "analytics/sources": { data: [LIVE_ANALYTICS_SOURCE], nextCursor: null },
+    "analytics/pages": { data: [LIVE_ANALYTICS_PAGE], nextCursor: null },
+  }[endpoint];
+}
+
 const RANGE = { startDate: "2026-08-16", endDate: "2026-09-15" };
 
 type Call = { path: string; method: string; body: unknown };
@@ -106,7 +170,8 @@ function liveClient() {
     }
 
     const body =
-      pathname === "/v1/projects"
+      googleBody(pathname) ??
+      (pathname === "/v1/projects"
         ? { data: [LIVE_PROJECT] }
         : pathname === `/v1/projects/${LIVE_PROJECT.id}`
           ? LIVE_PROJECT
@@ -131,7 +196,7 @@ function liveClient() {
                             ...LIVE_PROMPT,
                             byModel: [{ model: "gpt", metrics: { visibility: 100, averagePosition: 2 } }],
                           }
-                        : undefined;
+                        : undefined);
 
     return body === undefined
       ? new Response(JSON.stringify({ error: { code: "not_found", message: "No endpoint matches this path." } }), {
@@ -256,6 +321,49 @@ describe("createLiveClient", () => {
     expect(answers.data.length).toBeGreaterThan(0);
     expect(quality.role.distribution.length).toBeGreaterThan(0);
     expect(calls).toEqual([]);
+  });
+
+  it("reads Google's own figures for the project's site", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.getGoogleStatus(LIVE_PROJECT.id)).resolves.toEqual(LIVE_GOOGLE_STATUS);
+    await expect(client.getSearchSummary(LIVE_PROJECT.id, RANGE)).resolves.toEqual(LIVE_SEARCH);
+    await expect(
+      client.getAiTrafficSummary(LIVE_PROJECT.id, { ...RANGE, assistant: "openai" })
+    ).resolves.toEqual(LIVE_ANALYTICS);
+
+    expect(calls.map((call) => call.path)).toEqual([
+      `/v1/projects/${LIVE_PROJECT.id}/traffic/google/status`,
+      `/v1/projects/${LIVE_PROJECT.id}/traffic/google/search?startDate=2026-08-16&endDate=2026-09-15`,
+      `/v1/projects/${LIVE_PROJECT.id}/traffic/google/analytics?startDate=2026-08-16&endDate=2026-09-15&assistant=openai`,
+    ]);
+  });
+
+  it("ranks Search Console rows and the AI sessions apart", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.listSearchQueries(LIVE_PROJECT.id, { ...RANGE, limit: 5 })).resolves.toEqual({
+      data: [LIVE_SEARCH_QUERY],
+      nextCursor: null,
+    });
+    await expect(client.listSearchPages(LIVE_PROJECT.id, RANGE)).resolves.toEqual({
+      data: [LIVE_SEARCH_PAGE],
+      nextCursor: null,
+    });
+    await expect(
+      client.listAiTrafficSources(LIVE_PROJECT.id, { ...RANGE, assistant: "anthropic", limit: 5 })
+    ).resolves.toEqual({ data: [LIVE_ANALYTICS_SOURCE], nextCursor: null });
+    await expect(client.listAiTrafficPages(LIVE_PROJECT.id, RANGE)).resolves.toEqual({
+      data: [LIVE_ANALYTICS_PAGE],
+      nextCursor: null,
+    });
+
+    expect(calls.map((call) => call.path)).toEqual([
+      `/v1/projects/${LIVE_PROJECT.id}/traffic/google/search/queries?startDate=2026-08-16&endDate=2026-09-15&limit=5`,
+      `/v1/projects/${LIVE_PROJECT.id}/traffic/google/search/pages?startDate=2026-08-16&endDate=2026-09-15`,
+      `/v1/projects/${LIVE_PROJECT.id}/traffic/google/analytics/sources?startDate=2026-08-16&endDate=2026-09-15&assistant=anthropic&limit=5`,
+      `/v1/projects/${LIVE_PROJECT.id}/traffic/google/analytics/pages?startDate=2026-08-16&endDate=2026-09-15`,
+    ]);
   });
 
   it("lets the session select the only project the key reaches", async () => {

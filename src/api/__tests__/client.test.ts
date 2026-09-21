@@ -290,4 +290,45 @@ describe("PromptEyeApi", () => {
       expect(calls[0].url).toBe(`${BASE_URL}/v1/reports/r%201`);
     });
   });
+
+  describe("google", () => {
+    it("reads a project with nothing bound", async () => {
+      const status = {
+        searchConsole: { connected: false, siteUrl: null, permissionLevel: null, sync: null },
+        analytics: {
+          connected: true,
+          propertyId: "412345678",
+          propertyName: "example.com",
+          accountName: "Example",
+          sync: { lastSyncedAt: null, failedSince: "2026-09-18T04:00:00.000Z", error: "permission_denied" },
+        },
+      };
+      const { api, calls } = stubFetch(json(200, status));
+
+      await expect(api.google.status("p1")).resolves.toEqual(status);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/traffic/google/status`);
+    });
+
+    it("sends the period to the Search Console summary", async () => {
+      const summary = { clicks: 0, impressions: 0, ctr: 0, position: 0, timeline: [] };
+      const { api, calls } = stubFetch(json(200, summary));
+
+      await expect(
+        api.google.search("p1", { startDate: "2026-08-16", endDate: "2026-09-15" })
+      ).resolves.toEqual(summary);
+      expect(calls[0].url).toBe(
+        `${BASE_URL}/v1/projects/p1/traffic/google/search?startDate=2026-08-16&endDate=2026-09-15`
+      );
+    });
+
+    it("narrows the AI sessions to one assistant", async () => {
+      const { api, calls } = stubFetch(json(200, { data: [], nextCursor: null }));
+
+      await api.google.analyticsSources("p1", { assistant: "openai", limit: 10 });
+
+      expect(calls[0].url).toBe(
+        `${BASE_URL}/v1/projects/p1/traffic/google/analytics/sources?assistant=openai&limit=10`
+      );
+    });
+  });
 });

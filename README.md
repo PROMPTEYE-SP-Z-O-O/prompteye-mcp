@@ -49,8 +49,24 @@ Every one of these calls the PromptEye API.
 | `get_report` | `GET /v1/reports/{reportId}` |
 | `list_sources` | `GET /v1/projects/{projectId}/sources` |
 | `list_competitors` | `GET /v1/projects/{projectId}/competitors` |
+| `get_google_status` | `GET /v1/projects/{projectId}/traffic/google/status` |
+| `get_search_performance` | `GET /v1/projects/{projectId}/traffic/google/search`, `…/search/queries`, `…/search/pages` |
+| `get_ai_traffic` | `GET /v1/projects/{projectId}/traffic/google/analytics`, `…/analytics/sources`, `…/analytics/pages` |
 
 Periods default to the last 30 days and are capped at 366.
+
+### Google's own figures
+
+`get_search_performance` and `get_ai_traffic` report the period's totals, and `by` ranks it
+instead: `query` or `page` for Search Console, `source` or `page` for the sessions Analytics
+attributes to AI assistants. One tool per pair of endpoints rather than one per endpoint, so the
+tool list stays readable.
+
+These count people who arrived, where visibility counts answers that named the brand — and they
+undercount by design, since an assistant that names a brand without linking it sends nobody. Both
+integrations are bound to the project in the PromptEye app, and a project with nothing bound
+answers with zeros and empty lists, which reads exactly like a site nobody visits. So an empty
+reading makes one extra call to `…/traffic/google/status` and says which of the two it was.
 
 ### Public reports
 
@@ -75,7 +91,7 @@ requires `confirmBypassPromptIntelligence: true`.
 
 ### The tools that are switched off
 
-Visibility, answers and citation quality have no endpoint yet. Their
+Visibility, answers and citation quality are not wired to the API yet. Their
 tools, their sample data in `src/fixtures/` and the widget are still in the repository but
 are **not registered**, so no client can call them and nothing reports a figure that was
 never measured. The switch is one constant:

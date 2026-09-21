@@ -3,6 +3,7 @@ import {
   AccountResource,
   CategoriesResource,
   CompetitorsResource,
+  GoogleResource,
   KnowledgeBaseResource,
   ProjectsResource,
   PromptGroupsResource,
@@ -46,6 +47,7 @@ export class PromptEyeApi {
   readonly sources: SourcesResource;
   readonly competitors: CompetitorsResource;
   readonly reports: ReportsResource;
+  readonly google: GoogleResource;
 
   constructor(options: PromptEyeApiOptions) {
     if (!options.token?.trim()) throw new TypeError("token is required.");
@@ -69,5 +71,6 @@ export class PromptEyeApi {
     this.sources = new SourcesResource(http);
     this.competitors = new CompetitorsResource(http);
     this.reports = new ReportsResource(http);
+    this.google = new GoogleResource(http);
   }
 }

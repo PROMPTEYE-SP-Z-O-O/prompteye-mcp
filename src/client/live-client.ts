@@ -23,7 +23,14 @@ type LiveMethod =
   | "replaceCompetitorExclusions"
   | "createReport"
   | "listReports"
-  | "getReport";
+  | "getReport"
+  | "getGoogleStatus"
+  | "getSearchSummary"
+  | "listSearchQueries"
+  | "listSearchPages"
+  | "getAiTrafficSummary"
+  | "listAiTrafficSources"
+  | "listAiTrafficPages";
 
 /** What is left for the sample data to answer, until the API grows those endpoints too. */
 export type FallbackClient = Omit<PromptEyeClient, LiveMethod>;
@@ -57,5 +64,12 @@ export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): P
     listCompetitors: (projectId, query) => api.competitors.list(projectId, query),
     listCompetitorExclusions: (projectId) => api.competitors.listExclusions(projectId),
     replaceCompetitorExclusions: (projectId, exclusions) => api.competitors.replaceExclusions(projectId, exclusions),
+    getGoogleStatus: (projectId) => api.google.status(projectId),
+    getSearchSummary: (projectId, query) => api.google.search(projectId, query),
+    listSearchQueries: (projectId, query) => api.google.searchQueries(projectId, query),
+    listSearchPages: (projectId, query) => api.google.searchPages(projectId, query),
+    getAiTrafficSummary: (projectId, query) => api.google.analytics(projectId, query),
+    listAiTrafficSources: (projectId, query) => api.google.analyticsSources(projectId, query),
+    listAiTrafficPages: (projectId, query) => api.google.analyticsPages(projectId, query),
   };
 }
