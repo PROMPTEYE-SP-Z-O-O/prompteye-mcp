@@ -4,7 +4,7 @@ import { paginationShape } from "../schemas/common.js";
 import { REPORT_REACH, ReportDetailSchema, ReportSchema } from "../schemas/prompteye.js";
 import type { Report } from "../schemas/prompteye.js";
 import { PUBLIC_REPORTS } from "./glossary.js";
-import { READ_ONLY, WRITES, fail, handled, morePages, num, ok, type ToolContext } from "./result.js";
+import { READ_ONLY, WRITES, handled, morePages, num, ok, type ToolContext } from "./result.js";
 
 const line = (report: Report): string =>
   `- ${report.brand}${report.domain ? ` (${report.domain})` : ""} — ${report.status}` +
@@ -13,7 +13,7 @@ const line = (report: Report): string =>
   `${report.contactCount > 0 ? `, ${report.contactCount} contact request(s)` : ""}` +
   `${report.projectId ? ", converted to a project" : ""} [id: ${report.id}]`;
 
-export function registerReportTools(server: McpServer, { client }: ToolContext): void {
+export function registerReportTools(server: McpServer, { client, baseUrl }: ToolContext): void {
   server.registerTool(
     "create_report",
     {
@@ -22,10 +22,12 @@ export function registerReportTools(server: McpServer, { client }: ToolContext):
         "Generates the free visibility report an agency hands to a prospect, and emails it to the " +
         "address given. " +
         PUBLIC_REPORTS +
-        "\n\nThis is the one call that does not use the API key: the endpoint is public, and the " +
-        "report is booked to the account named by `agencyId`, whose lead-magnet quota it spends. Ask " +
-        "the user for that id rather than guessing — for their own agency it is the account id that " +
-        "get_account reports.\n\n" +
+        "\n\nThe report is booked to the account the configured API key belongs to, and spends that " +
+        "account's lead-magnet quota. Nothing has to be asked for or passed in: the account's own id " +
+        "is what the public endpoint calls `agencyId`, and this tool reads it from the account " +
+        "itself. The call to PromptEye is the one that carries no API key — the endpoint is public, " +
+        "which is what lets an agency's website post to it straight from a form. Reach for " +
+        "get_report_integration when the question is how to wire that form up.\n\n" +
         "A report for the same domain and account generated in the last 30 days is not built again; " +
         "it is sent to the address once more, and the result says which of the two happened. A new " +
         "one comes back as `processing` with no score — the figures land minutes later, so read them " +
@@ -34,14 +36,6 @@ export function registerReportTools(server: McpServer, { client }: ToolContext):
       inputSchema: {
         brand: z.string().min(1).max(200).describe("The brand the report is about."),
         email: z.string().min(3).describe("Where the finished report is sent. The prospect's address."),
-        agencyId: z
-          .string()
-          .min(1)
-          .optional()
-          .describe(
-            "The PromptEye account the report belongs to and is billed to. Required by the API — " +
-              "ask the user if it is not known; get_account reports it for their own account."
-          ),
         website: z
           .string()
           .min(3)
@@ -65,17 +59,11 @@ export function registerReportTools(server: McpServer, { client }: ToolContext):
       },
       outputSchema: ReportSchema.extend({ reused: z.boolean() }).shape,
     },
-    async ({ agencyId, ...input }) =>
+    async (input) =>
       handled(async () => {
-        if (!agencyId) {
-          return fail(
-            "agencyId is missing, and the report cannot be generated without it. It names the " +
-              "PromptEye account the report belongs to and whose lead-magnet quota it spends. Ask the " +
-              "user which account to book it to; if it is their own, call get_account and use the id " +
-              "it reports."
-          );
-        }
-
+        // The account behind the key is the agency the report is booked to; the
+        // public endpoint takes that id in the body because it has no key to read it from.
+        const { id: agencyId } = await client.getAccount();
         const { report, reused } = await client.createReport({ agencyId, ...input });
 
         return ok(
@@ -90,6 +78,94 @@ export function registerReportTools(server: McpServer, { client }: ToolContext):
             `Report id: ${report.id}`,
           ].join("\n"),
           { ...report, reused }
+        );
+      })
+  );
+
+  server.registerTool(
+    "get_report_integration",
+    {
+      title: "How to wire a website into public reports",
+      description:
+        "Everything a developer needs to post a form on the agency's own site straight to public " +
+        "reports: the agency id, the endpoint, a filled-in example body, a cURL line and the request " +
+        "typed out. " +
+        PUBLIC_REPORTS +
+        "\n\nCall this whenever the question is how to set up, configure or integrate public " +
+        "reports, what the agency id is or where to find it, or what to hand a developer — and hand " +
+        "the answer over as the example, rather than describing it. The agency id is simply the id " +
+        "of the account this API key belongs to; it is what the public endpoint identifies the " +
+        "account by, since the call carries no key. That is also why the snippet is safe in a " +
+        "browser, and why the PromptEye API key must never be put in it.",
+      annotations: READ_ONLY,
+      inputSchema: {},
+      outputSchema: {
+        agencyId: z.string(),
+        endpoint: z.string(),
+        method: z.string(),
+        exampleBody: z.record(z.string()),
+        curl: z.string(),
+        typescript: z.string(),
+      },
+    },
+    async () =>
+      handled(async () => {
+        const { id: agencyId, email } = await client.getAccount();
+        const endpoint = `${baseUrl.replace(/\/+$/, "")}/v1/reports`;
+        const exampleBody = {
+          brand: "Example Corp",
+          email: "client@example.com",
+          agencyId,
+          website: "example.com",
+          country: "pl",
+          language: "pl",
+          reach: "national",
+          utm: "example-campaign",
+        };
+        const curl =
+          `curl -X POST ${endpoint} \\\n` +
+          `  -H 'Content-Type: application/json' \\\n` +
+          `  -d '${JSON.stringify(exampleBody)}'`;
+        const typescript = [
+          'type Reach = "local" | "regional" | "national";',
+          "",
+          "type PublicReportRequest = {",
+          "  brand: string;     // required — the brand the report is about",
+          "  email: string;     // required — where the finished report is sent",
+          "  agencyId: string;  // required — the account the report is booked to",
+          "  website?: string;  // domain without protocol; a report made for it in the last 30 days is reused",
+          "  country?: string;  // ISO 3166-1 alpha-2, e.g. pl",
+          "  language?: string; // two-letter code",
+          "  reach?: Reach;     // defaults to national",
+          "  utm?: string;      // campaign the lead came from, kept on the report and in its link",
+          "};",
+        ].join("\n");
+
+        return ok(
+          [
+            `Agency id: ${agencyId}`,
+            `It is the id of the account this API key belongs to (${email}), and the whole of what ` +
+              "the endpoint needs to know whose report it is and whose quota to spend. Pass it as " +
+              "`agencyId` in every request.",
+            "",
+            `Endpoint: POST ${endpoint}`,
+            "Public: no Authorization header, no API key. Never put the PromptEye API key in a page " +
+              "or form a browser can read — the agency id is what belongs there instead.",
+            "",
+            "Body:",
+            JSON.stringify(exampleBody, null, 2),
+            "",
+            "cURL:",
+            curl,
+            "",
+            "TypeScript:",
+            typescript,
+            "",
+            "The response comes back with the report still processing and no score; the finished " +
+              "page is emailed to the address given, and every report the form produces is read back " +
+              "here with list_reports and get_report.",
+          ].join("\n"),
+          { agencyId, endpoint, method: "POST", exampleBody, curl, typescript }
         );
       })
   );

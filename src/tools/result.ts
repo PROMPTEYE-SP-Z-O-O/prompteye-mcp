@@ -25,6 +25,12 @@ export const WRITES = {
 export type ToolContext = {
   client: PromptEyeClient;
   session: ProjectSession;
+  /**
+   * The API root the client talks to. Tools that hand out a request for
+   * somebody else to make — the public reports endpoint an agency's own site
+   * posts to — need the URL in the text they return.
+   */
+  baseUrl: string;
 };
 
 /**

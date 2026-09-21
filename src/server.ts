@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { createClient, serverName, serverVersion } from "./config.js";
+import { createClient, requireSettings, serverName, serverVersion } from "./config.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
 import { registerPromptWorkflows } from "./prompts.js";
 import { ProjectSession } from "./session.js";
@@ -64,7 +64,8 @@ export function createMcpServer(): McpServer {
   );
 
   const client = createClient();
-  const context: ToolContext = { client, session: new ProjectSession(client) };
+  const { baseUrl } = requireSettings();
+  const context: ToolContext = { client, session: new ProjectSession(client), baseUrl };
   const toolServer = withoutOutputSchemas(server);
 
   // First, so a host reading the tool list meets the orientation tool before the rest.

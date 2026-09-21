@@ -231,7 +231,8 @@ export class CompetitorsResource {
  * The public reports an agency hands out as a free sample, and the leads they turn into.
  *
  * Creating one is the odd call in this client: the endpoint is public, so it
- * carries no key and identifies the account by `agencyId` instead.
+ * carries no key and identifies the account by `agencyId` instead — the id
+ * `GET /v1/me` reports for the account the key belongs to.
  */
 export class ReportsResource {
   constructor(private readonly http: HttpClient) {}

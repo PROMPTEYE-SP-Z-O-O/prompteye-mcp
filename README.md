@@ -44,6 +44,7 @@ Every one of these calls the PromptEye API.
 | `list_prompt_suggestions` | `GET /v1/projects/{projectId}/prompt-suggestions` |
 | `add_prompts` | `POST /v1/projects/{projectId}/prompts` |
 | `create_report` | `POST /v1/reports` — **public, no key**, identified by `agencyId` |
+| `get_report_integration` | `GET /v1/me` — the agency id and endpoint to post a form to |
 | `list_reports` | `GET /v1/reports` |
 | `get_report` | `GET /v1/reports/{reportId}` |
 | `list_sources` | `GET /v1/projects/{projectId}/sources` |
@@ -56,10 +57,16 @@ Periods default to the last 30 days and are capped at 366.
 Next to tracking sits PromptEye's lead magnet, sold to agencies white-label: a prospect fills in
 a form, gets a visibility report branded as the agency, and becomes a lead. `create_report`
 generates one — it is the **only call that sends no API key**, because that endpoint is public
-and books the report to the account named by `agencyId`, spending that account's quota. A report
-for the same domain within 30 days is re-sent rather than rebuilt, and the tool says which
-happened. `list_reports` and `get_report` read them back with the key, including every request to
-be contacted from the report page.
+and books the report to the account named by `agencyId`, spending that account's quota. That id is
+the id of the account the configured key belongs to, so nothing is asked for: `create_report`
+reads it from the account itself. A report for the same domain within 30 days is re-sent rather
+than rebuilt, and the tool says which happened. `list_reports` and `get_report` read them back
+with the key, including every request to be contacted from the report page.
+
+`get_report_integration` answers the other half of it — how an agency posts its own form straight
+to the endpoint. It returns the agency id, `POST {base URL}/v1/reports`, a filled-in example body,
+a cURL line and the request typed out, ready to hand to a developer. The snippet carries no API
+key, which is what makes it safe in a browser.
 
 `list_prompt_suggestions` is the way to add prompts: PromptEye generates them from real
 demand and from how people actually put questions to assistants. `add_prompts` tracks
