@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "prompteye",
   "display_name": "PromptEye",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "description": "See how a brand stands inside the answers AI assistants give — the prompts it is tracked on, the brands answering alongside it and the pages they cite.",
   "long_description": "PromptEye tracks how often AI assistants name a brand when they answer buying questions. Pick a project — one brand tracked in one market — then work with the prompts it is tracked on, see which brands answer alongside it and which pages the assistants lean on.\n\nAccount, projects, prompts, prompt groups, categories, prompt suggestions, cited domains and competitors come from PromptEye. An API key and the API URL are required — both are at https://app.prompteye.com/integrations.",
   "author": {
