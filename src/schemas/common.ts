@@ -25,6 +25,9 @@ export const MAX_LIMIT = 200;
 export const DEFAULT_LIMIT = 50;
 export const MAX_RANGE_DAYS = 366;
 
+/** The bot traffic endpoints read a month at a time, not a year. */
+export const MAX_TRAFFIC_RANGE_DAYS = 31;
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a date as YYYY-MM-DD.");
 
@@ -70,21 +73,28 @@ const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 /**
  * Applies the same defaults and bounds the API applies, so a tool rejects an
  * impossible period before it costs a round trip.
+ *
+ * `maxDays` is the bound of the endpoint being called: a year for the
+ * measurements, {@link MAX_TRAFFIC_RANGE_DAYS} for the bot traffic.
  */
-export function resolveDateRange(range: DateRange): ResolvedRange {
+export function resolveDateRange(range: DateRange, maxDays = MAX_RANGE_DAYS): ResolvedRange {
   const endDate = range.endDate ?? toIsoDate(new Date());
   const startDate =
-    range.startDate ?? toIsoDate(new Date(Date.parse(endDate) - 30 * DAY_MS));
+    range.startDate ?? toIsoDate(new Date(Date.parse(endDate) - Math.min(30, maxDays - 1) * DAY_MS));
 
   if (startDate > endDate) {
     throw new RangeError("startDate must not be after endDate.");
   }
-  if (Date.parse(endDate) - Date.parse(startDate) > MAX_RANGE_DAYS * DAY_MS) {
-    throw new RangeError(`The period must not be longer than ${MAX_RANGE_DAYS} days.`);
+  if (Date.parse(endDate) - Date.parse(startDate) > maxDays * DAY_MS) {
+    throw new RangeError(`The period must not be longer than ${maxDays} days.`);
   }
 
   return { startDate, endDate };
 }
+
+/** The same, bounded the way the bot traffic endpoints are. */
+export const resolveTrafficRange = (range: DateRange): ResolvedRange =>
+  resolveDateRange(range, MAX_TRAFFIC_RANGE_DAYS);
 
 /** A page of entries, as every listing endpoint answers it. */
 export type Page<T> = {

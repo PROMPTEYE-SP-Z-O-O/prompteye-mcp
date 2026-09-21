@@ -30,6 +30,12 @@ import type {
   SearchPage,
   SearchQuery,
   SearchSummary,
+  TrafficCountPage,
+  TrafficCrawl,
+  TrafficEvent,
+  TrafficGroup,
+  TrafficKind,
+  TrafficSitemapPage,
   UpdateKnowledgeBaseInput,
   UpdateProjectInput,
   UpdatePromptInput,
@@ -74,6 +80,23 @@ export type SearchRankingQuery = ResolvedRange & { limit?: number };
 export type AiTrafficQuery = ResolvedRange & { assistant?: string };
 
 export type AiTrafficRankingQuery = AiTrafficQuery & { limit?: number };
+
+/**
+ * Narrows a reading of the bot traffic. `vendor` is the company running the
+ * crawler, from a closed list — not the `assistant` of the Google endpoints.
+ */
+export type BotTrafficFilters = {
+  kind?: TrafficKind;
+  vendor?: string;
+  botId?: string;
+  status?: string;
+  path?: string;
+};
+
+export type BotVisitQuery = ResolvedRange & BotTrafficFilters & PageQuery;
+export type BotCountQuery = ResolvedRange & BotTrafficFilters & { groupBy: TrafficGroup; limit?: number };
+export type CrawlQuery = PageQuery & Omit<BotTrafficFilters, "status">;
+export type SitemapQuery = PageQuery & { active?: "true" | "false" };
 
 /**
  * Every call the MCP server makes against PromptEye.
@@ -127,6 +150,16 @@ export interface PromptEyeClient {
   getAiTrafficSummary(projectId: string, query: AiTrafficQuery): Promise<AnalyticsSummary>;
   listAiTrafficSources(projectId: string, query: AiTrafficRankingQuery): Promise<Page<AnalyticsSource>>;
   listAiTrafficPages(projectId: string, query: AiTrafficRankingQuery): Promise<Page<AnalyticsPage>>;
+
+  /**
+   * What bots did on the site. Read alongside the Google figures: these count
+   * the machines that read the pages, those the people who then arrived.
+   */
+  listBotVisits(projectId: string, query: BotVisitQuery): Promise<Page<TrafficEvent>>;
+  countBotVisits(projectId: string, query: BotCountQuery): Promise<TrafficCountPage>;
+  listCrawls(projectId: string, query: CrawlQuery): Promise<Page<TrafficCrawl>>;
+  /** Takes no period: the sitemap is a standing inventory. */
+  getSitemap(projectId: string, query: SitemapQuery): Promise<TrafficSitemapPage>;
 
   listAnswers(projectId: string, query: AnswerQuery): Promise<Page<Answer>>;
   listSources(projectId: string, query: SourceQuery): Promise<Page<CitedDomain>>;

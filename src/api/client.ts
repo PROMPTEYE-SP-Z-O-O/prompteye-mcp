@@ -11,6 +11,7 @@ import {
   PromptSuggestionsResource,
   ReportsResource,
   SourcesResource,
+  TrafficResource,
 } from "./resources.js";
 
 export const DEFAULT_TIMEOUT_MS = 30_000;
@@ -48,6 +49,7 @@ export class PromptEyeApi {
   readonly competitors: CompetitorsResource;
   readonly reports: ReportsResource;
   readonly google: GoogleResource;
+  readonly traffic: TrafficResource;
 
   constructor(options: PromptEyeApiOptions) {
     if (!options.token?.trim()) throw new TypeError("token is required.");
@@ -72,5 +74,6 @@ export class PromptEyeApi {
     this.competitors = new CompetitorsResource(http);
     this.reports = new ReportsResource(http);
     this.google = new GoogleResource(http);
+    this.traffic = new TrafficResource(http);
   }
 }

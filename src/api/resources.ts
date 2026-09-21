@@ -24,6 +24,10 @@ import {
   SearchPagePageSchema,
   SearchQueryPageSchema,
   SearchSummarySchema,
+  TrafficCountPageSchema,
+  TrafficCrawlPageSchema,
+  TrafficEventPageSchema,
+  TrafficSitemapPageSchema,
   type Account,
   type AnalyticsPage,
   type AnalyticsSource,
@@ -51,6 +55,12 @@ import {
   type SearchPage,
   type SearchQuery,
   type SearchSummary,
+  type TrafficCountPage,
+  type TrafficCrawl,
+  type TrafficEvent,
+  type TrafficGroup,
+  type TrafficKind,
+  type TrafficSitemapPage,
   type UpdateKnowledgeBaseInput,
   type UpdateProjectInput,
   type UpdatePromptInput,
@@ -398,6 +408,109 @@ export class GoogleResource {
     options?: RequestOptions
   ): Promise<Page<AnalyticsPage>> {
     return this.http.get(this.path(projectId, "/analytics/pages"), AnalyticsPagePageSchema, {
+      ...options,
+      query: params,
+    });
+  }
+}
+
+/** The period a traffic reading covers. The API caps it at 31 days, not a year. */
+export const MAX_TRAFFIC_DAYS = 31;
+
+/**
+ * Narrows a reading of the bot traffic. `vendor` is the company running the
+ * crawler and comes from a closed list — not the `assistant` of the Google
+ * endpoints, which is matched against a referrer.
+ */
+export type TrafficFilters = DateRange & {
+  kind?: TrafficKind;
+  vendor?: string;
+  botId?: string;
+  /** An exact code, or a class such as `4xx`. */
+  status?: string;
+  /** One exact path, without the domain and starting with `/`. */
+  path?: string;
+};
+
+export type TrafficEventParams = TrafficFilters & Pagination;
+export type TrafficCountParams = TrafficFilters & { groupBy: TrafficGroup; limit?: number };
+export type TrafficCrawlParams = Pagination & {
+  kind?: TrafficKind;
+  vendor?: string;
+  botId?: string;
+  path?: string;
+};
+export type TrafficSitemapParams = Pagination & { active?: "true" | "false" };
+
+/**
+ * What bots did on the tracked site. Where the Google endpoints count the
+ * people who arrived, these count the machines that read the pages first.
+ */
+export class TrafficResource {
+  constructor(private readonly http: HttpClient) {}
+
+  private path(projectId: string, rest: string): string {
+    return `${projectPath(projectId)}/traffic${rest}`;
+  }
+
+  /**
+   * `GET /v1/projects/{projectId}/traffic/events` — the requests of a period,
+   * newest first.
+   *
+   * Only the newest 4 000 requests of the period are searched, so a filter
+   * that matches rarely can come back short of what the period held.
+   */
+  events(
+    projectId: string,
+    params: TrafficEventParams = {},
+    options?: RequestOptions
+  ): Promise<Page<TrafficEvent>> {
+    return this.http.get(this.path(projectId, "/events"), TrafficEventPageSchema, {
+      ...options,
+      query: params,
+    });
+  }
+
+  /**
+   * `GET /v1/projects/{projectId}/traffic/events/count` — the same requests
+   * counted by bot, path, status, day or category.
+   *
+   * Ranked rather than paged: the `limit` largest groups come back, and
+   * `partial` says whether the period held more than could be read.
+   */
+  countEvents(
+    projectId: string,
+    params: TrafficCountParams,
+    options?: RequestOptions
+  ): Promise<TrafficCountPage> {
+    return this.http.get(this.path(projectId, "/events/count"), TrafficCountPageSchema, {
+      ...options,
+      query: params,
+    });
+  }
+
+  /**
+   * `GET /v1/projects/{projectId}/traffic/crawls` — one row per path and bot,
+   * covering everything since tracking began rather than a period.
+   */
+  crawls(
+    projectId: string,
+    params: TrafficCrawlParams = {},
+    options?: RequestOptions
+  ): Promise<Page<TrafficCrawl>> {
+    return this.http.get(this.path(projectId, "/crawls"), TrafficCrawlPageSchema, {
+      ...options,
+      query: params,
+    });
+  }
+
+  /** `GET /v1/projects/{projectId}/traffic/sitemap` — the connected sitemap and its addresses. */
+  sitemap(
+    projectId: string,
+    params: TrafficSitemapParams = {},
+    options?: RequestOptions
+  ): Promise<TrafficSitemapPage> {
+    return this.http.get(this.path(projectId, "/sitemap"), TrafficSitemapPageSchema, {
       ...options,
       query: params,
     });

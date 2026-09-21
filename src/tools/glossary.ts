@@ -89,6 +89,21 @@ export const GOOGLE_DATA =
 /** Why zeros from the Google tools are ambiguous, for the tools that can return them. */
 export const GOOGLE_BINDING =
   "Both integrations are bound to the project in the PromptEye app. A project with nothing bound " +
-  "answers with zeros and empty lists, which reads exactly like a site nobody visits — so these " +
-  "tools check get_google_status themselves before reporting an empty period, and say which of the " +
-  "two it was.";
+  "answers with zeros and empty lists, which reads exactly like a site nobody visits — so call " +
+  "get_google_status before reporting a zero as a finding, and say which of the two it was.";
+
+/** What the bot traffic is, for the tools that report it. */
+export const BOT_TRAFFIC =
+  "A bot visit is a machine fetching a page, not a person reading one. It is the supply side of " +
+  "visibility: an assistant can only quote a page its bot was able to fetch, so this says whether " +
+  "the site is reachable and readable to them at all. It is a different measurement from being " +
+  "named in an answer (list_prompts, list_competitors), from being cited as a source " +
+  "(list_sources), and from somebody arriving afterwards (get_ai_traffic). `kind=ai` is the " +
+  "assistants; `kind=seo` is classic search engines and SEO tools.";
+
+/** Why a bot request may not be the bot it claims, for the tools that count them. */
+export const VERIFIED =
+  "A request carries the name of the bot in its User-Agent, which is free text anybody can send, " +
+  "so each one is marked `verified` or not. The API has no filter for it and counts cannot be " +
+  "split by it, so any total here includes requests that only claimed to be that bot. Report a " +
+  "count as an upper bound and say so; never present it as measured reach without the caveat.";

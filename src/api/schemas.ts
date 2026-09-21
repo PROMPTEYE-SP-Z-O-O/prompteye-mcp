@@ -517,3 +517,113 @@ export type SearchPage = z.infer<typeof SearchPageSchema>;
 export type AnalyticsSummary = z.infer<typeof AnalyticsSummarySchema>;
 export type AnalyticsSource = z.infer<typeof AnalyticsSourceSchema>;
 export type AnalyticsPage = z.infer<typeof AnalyticsPageSchema>;
+
+/*
+ * Traffic: the requests bots made to the tracked site, and the pages they came
+ * for. The supply side of visibility — an assistant can only quote a page its
+ * bot was able to fetch.
+ */
+
+export const TRAFFIC_KINDS = ["ai", "seo"] as const;
+export const TRAFFIC_CATEGORIES = ["agent", "assistant", "search"] as const;
+export const TRAFFIC_GROUPS = ["bot", "path", "status", "day", "category"] as const;
+
+export const TrafficKindSchema = z.enum(TRAFFIC_KINDS);
+export const TrafficCategorySchema = z.enum(TRAFFIC_CATEGORIES);
+export const TrafficGroupSchema = z.enum(TRAFFIC_GROUPS);
+
+export const TrafficEventSchema = z.object({
+  id: z.string(),
+  at: z.string(),
+  botId: z.string(),
+  name: z.string(),
+  vendor: z.string(),
+  botType: z.string(),
+  kind: TrafficKindSchema,
+  category: TrafficCategorySchema,
+  path: z.string(),
+  statusCode: z.number().nullable(),
+  redirectLocation: z.string().nullable(),
+  responseTimeMs: z.number().nullable(),
+  country: z.string().nullable(),
+  referer: z.string().nullable(),
+  /**
+   * Whether the origin checked out as the bot it claims to be. A `User-Agent`
+   * is free text anybody can send, so an unverified request is a claim rather
+   * than reach. The API has no filter for it: read it, never quietly drop it.
+   */
+  verified: z.boolean(),
+});
+
+export const TrafficCountSchema = z.object({
+  /** A bot id, a path, a status code (`unknown` when none was reported), a UTC day or a category. */
+  key: z.string(),
+  /** A display name, set for bots and null for the other groupings. */
+  label: z.string().nullable(),
+  count: z.number(),
+  uniquePaths: z.number(),
+  lastAt: z.string(),
+});
+
+export const TrafficCountPageSchema = z.object({
+  data: z.array(TrafficCountSchema),
+  /** Always null: the answer is ranked, not paged. */
+  nextCursor: z.string().nullable(),
+  /** The period held more requests than could be read, so only the newest are counted. */
+  partial: z.boolean(),
+});
+
+export const TrafficCrawlSchema = z.object({
+  path: z.string(),
+  botId: z.string(),
+  name: z.string(),
+  vendor: z.string(),
+  botType: z.string(),
+  kind: TrafficKindSchema,
+  firstVisitAt: z.string(),
+  lastVisitAt: z.string(),
+  /** Since tracking began, not over a period. */
+  visitCount: z.number(),
+  lastStatusCode: z.number().nullable(),
+});
+
+export const TrafficSitemapUrlSchema = z.object({
+  url: z.string(),
+  /** The same form the other traffic endpoints use, so the two can be joined. */
+  path: z.string(),
+  lastModified: z.string().nullable(),
+  firstSeenAt: z.string(),
+  lastSeenAt: z.string(),
+  /** Whether the sitemap still lists it. */
+  active: z.boolean(),
+});
+
+export const TrafficSitemapStateSchema = z.object({
+  url: z.string(),
+  status: z.enum(["active", "syncing", "error"]),
+  lastSyncedAt: z.string().nullable(),
+  nextSyncAt: z.string(),
+  urlCount: z.number(),
+  error: z.string().nullable(),
+});
+
+export const TrafficSitemapPageSchema = z.object({
+  /** Null when no sitemap is connected; `data` is then empty. */
+  sitemap: TrafficSitemapStateSchema.nullable(),
+  data: z.array(TrafficSitemapUrlSchema),
+  nextCursor: z.string().nullable(),
+});
+
+export const TrafficEventPageSchema = pageOf(TrafficEventSchema);
+export const TrafficCrawlPageSchema = pageOf(TrafficCrawlSchema);
+
+export type TrafficKind = z.infer<typeof TrafficKindSchema>;
+export type TrafficCategory = z.infer<typeof TrafficCategorySchema>;
+export type TrafficGroup = z.infer<typeof TrafficGroupSchema>;
+export type TrafficEvent = z.infer<typeof TrafficEventSchema>;
+export type TrafficCount = z.infer<typeof TrafficCountSchema>;
+export type TrafficCountPage = z.infer<typeof TrafficCountPageSchema>;
+export type TrafficCrawl = z.infer<typeof TrafficCrawlSchema>;
+export type TrafficSitemapUrl = z.infer<typeof TrafficSitemapUrlSchema>;
+export type TrafficSitemapState = z.infer<typeof TrafficSitemapStateSchema>;
+export type TrafficSitemapPage = z.infer<typeof TrafficSitemapPageSchema>;

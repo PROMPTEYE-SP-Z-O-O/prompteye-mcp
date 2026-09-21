@@ -1,6 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { PromptEyeClient } from "../client/prompteye-client.js";
 import { MAX_LIMIT, dateRangeShape, resolveDateRange } from "../schemas/common.js";
 import {
   AnalyticsPageSchema,
@@ -12,7 +11,6 @@ import {
   SearchSummarySchema,
   type AnalyticsPage,
   type AnalyticsSource,
-  type GoogleSync,
   type SearchPage,
   type SearchQuery,
 } from "../schemas/prompteye.js";
@@ -50,37 +48,6 @@ const assistantShape = {
 /** A rate between 0 and 1, as the percentage a reader expects. */
 const rate = (value: number): string => `${(value * 100).toFixed(2)}%`;
 
-/** How a failing sync reads, so a stale figure is never passed off as a fresh one. */
-const staleness = (sync: GoogleSync | null): string =>
-  sync?.failedSince
-    ? ` Syncing has been failing since ${sync.failedSince}${sync.error ? ` (${sync.error})` : ""}, so these figures are stale.`
-    : "";
-
-/**
- * Zeros from these endpoints are ambiguous: a project with nothing bound
- * answers exactly like a site nobody visits. So when a reading comes back
- * empty, ask status and say which of the two it was.
- *
- * A status call that fails takes nothing down — the empty reading still stands.
- */
-async function explainEmpty(
-  client: PromptEyeClient,
-  projectId: string,
-  integration: "searchConsole" | "analytics"
-): Promise<string> {
-  const name = integration === "searchConsole" ? "Search Console" : "Google Analytics";
-
-  try {
-    const bound = (await client.getGoogleStatus(projectId))[integration];
-
-    return bound.connected
-      ? `\n\n${name} is connected, so this is a period with nothing in it rather than a missing integration.${staleness(bound.sync)}`
-      : `\n\n${name} is not connected to this project, so there is nothing to report rather than nothing to show. Bind it in the PromptEye app.`;
-  } catch {
-    return `\n\nWhether ${name} is connected could not be read, so an empty period and a missing integration cannot be told apart here.`;
-  }
-}
-
 /** The label a Search Console row is ranked under, whichever axis it came from. */
 const searchLabel = (row: SearchQuery | SearchPage): string =>
   "query" in row ? `"${row.query}"` : row.page;
@@ -107,25 +74,20 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
       handled(async () => {
         const project = await session.require();
         const status = await client.getGoogleStatus(project.id);
-
         const { searchConsole, analytics } = status;
+
         const lines = [
           `Google data for ${project.name} — ${project.brand} (${project.domain}):`,
-          searchConsole.connected
-            ? `Search Console: ${searchConsole.siteUrl ?? "a property"}` +
-              `${searchConsole.permissionLevel ? ` as ${searchConsole.permissionLevel}` : ""}, ` +
-              `last synced ${searchConsole.sync?.lastSyncedAt ?? "never"}.${staleness(searchConsole.sync)}`
-            : "Search Console: not connected — get_search_performance can only answer with zeros.",
-          analytics.connected
-            ? `Analytics: ${analytics.propertyName ?? analytics.propertyId ?? "a property"}` +
-              `${analytics.accountName ? ` on ${analytics.accountName}` : ""}, ` +
-              `last synced ${analytics.sync?.lastSyncedAt ?? "never"}.${staleness(analytics.sync)}`
-            : "Analytics: not connected — get_ai_traffic can only answer with zeros.",
+          `Search Console: connected ${searchConsole.connected}, site ${searchConsole.siteUrl ?? "none"}, ` +
+            `permission ${searchConsole.permissionLevel ?? "none"}, last synced ` +
+            `${searchConsole.sync?.lastSyncedAt ?? "never"}, failing since ` +
+            `${searchConsole.sync?.failedSince ?? "not failing"}${searchConsole.sync?.error ? ` (${searchConsole.sync.error})` : ""}.`,
+          `Analytics: connected ${analytics.connected}, property ` +
+            `${analytics.propertyName ?? analytics.propertyId ?? "none"}, account ` +
+            `${analytics.accountName ?? "none"}, last synced ${analytics.sync?.lastSyncedAt ?? "never"}, ` +
+            `failing since ${analytics.sync?.failedSince ?? "not failing"}` +
+            `${analytics.sync?.error ? ` (${analytics.sync.error})` : ""}.`,
         ];
-
-        if (!searchConsole.connected || !analytics.connected) {
-          lines.push("", "Both are bound to the project in the PromptEye app, not from here.");
-        }
 
         return ok(lines.join("\n"), status);
       })
@@ -142,7 +104,9 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
         "the site with, `page` for the pages Google sends them to. A ranking is built by adding the " +
         "period up, so it answers with the strongest entries rather than a list to walk to the end " +
         "of — raise `limit` to see further down.\n\n" +
-        GOOGLE_DATA,
+        GOOGLE_DATA +
+        "\n\n" +
+        GOOGLE_BINDING,
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
@@ -172,8 +136,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
             `${project.domain} in Google Search, ${period}:\n` +
             `${summary.clicks} click(s) from ${summary.impressions} impression(s) — ` +
             `CTR ${rate(summary.ctr)}, average position ${summary.position}.\n` +
-            `${summary.timeline.length} day(s) of the timeline are in the structured output.` +
-            (summary.impressions === 0 ? await explainEmpty(client, project.id, "searchConsole") : "");
+            `${summary.timeline.length} day(s) of the timeline are in the structured output.`;
 
           return ok(text, { ...range, by: null, summary, data: null, nextCursor: null });
         }
@@ -194,11 +157,8 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
             : `Pages Google sends visitors to on ${project.domain}`;
 
         return ok(
-          (page.data.length === 0
-            ? `Google Search recorded nothing for ${project.domain} between ${range.startDate} and ${range.endDate}.` +
-              (await explainEmpty(client, project.id, "searchConsole"))
-            : `${heading}, ${period}, most clicked first:\n${lines.join("\n")}` +
-              morePages(page.nextCursor)),
+          `${heading}, ${period}, most clicked first (${page.data.length}):\n${lines.join("\n")}` +
+            morePages(page.nextCursor),
           { ...range, by: args.by, summary: null, ...page }
         );
       })
@@ -216,7 +176,9 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
         "the visitors, `page` for the pages they land on. `assistant` narrows any of the three to one " +
         "assistant. A ranking answers with the strongest entries rather than a list to walk to the " +
         "end of.\n\n" +
-        GOOGLE_DATA,
+        GOOGLE_DATA +
+        "\n\n" +
+        GOOGLE_BINDING,
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
@@ -250,8 +212,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
             `Visits to ${project.domain} from AI assistants${only}, ${period}:\n` +
             `${summary.sessions} session(s), ${summary.engagedSessions} engaged ` +
             `(${rate(summary.engagementRate)}), average ${summary.averageSessionDuration}s, ` +
-            `${summary.keyEvents} key event(s).` +
-            (summary.sessions === 0 ? await explainEmpty(client, project.id, "analytics") : "");
+            `${summary.keyEvents} key event(s).`;
 
           return ok(text, { ...common, by: null, summary, data: null, nextCursor: null });
         }
@@ -271,11 +232,8 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
             : `Pages AI visitors land on at ${project.domain}${only}`;
 
         return ok(
-          (page.data.length === 0
-            ? `No AI sessions${only} were recorded for ${project.domain} between ${range.startDate} and ${range.endDate}.` +
-              (await explainEmpty(client, project.id, "analytics"))
-            : `${heading}, ${period}, most sessions first:\n${lines.join("\n")}` +
-              morePages(page.nextCursor)),
+          `${heading}, ${period}, most sessions first (${page.data.length}):\n${lines.join("\n")}` +
+            morePages(page.nextCursor),
           { ...common, by: args.by, summary: null, ...page }
         );
       })

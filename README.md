@@ -52,8 +52,25 @@ Every one of these calls the PromptEye API.
 | `get_google_status` | `GET /v1/projects/{projectId}/traffic/google/status` |
 | `get_search_performance` | `GET /v1/projects/{projectId}/traffic/google/search`, `…/search/queries`, `…/search/pages` |
 | `get_ai_traffic` | `GET /v1/projects/{projectId}/traffic/google/analytics`, `…/analytics/sources`, `…/analytics/pages` |
+| `list_bot_visits` | `GET /v1/projects/{projectId}/traffic/events` |
+| `count_bot_visits` | `GET /v1/projects/{projectId}/traffic/events/count` |
+| `list_crawls` | `GET /v1/projects/{projectId}/traffic/crawls` |
+| `get_sitemap` | `GET /v1/projects/{projectId}/traffic/sitemap` |
 
-Periods default to the last 30 days and are capped at 366.
+Periods default to the last 30 days and are capped at 366 — except the bot traffic, which the API
+reads a month at a time, so `list_bot_visits` and `count_bot_visits` cap theirs at 31 days.
+
+### The bot traffic
+
+One tool per endpoint: `list_bot_visits` is the evidence, `count_bot_visits` the totals the API
+computed, `list_crawls` what each bot has ever fetched, `get_sitemap` what the site offers for
+reading. Paths in the last two are in the same form, so comparing them is the caller's job — the
+tools do not join anything.
+
+Every request carries `verified`, which says whether the origin checked out as the bot it names. A
+`User-Agent` is free text and the API has no filter for it, so `list_bot_visits` prints the flag on
+every row and both descriptions say a count is an upper bound. No tool drops a row or adjusts a
+figure on its own.
 
 ### Google's own figures
 

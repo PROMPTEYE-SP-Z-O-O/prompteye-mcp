@@ -30,7 +30,11 @@ type LiveMethod =
   | "listSearchPages"
   | "getAiTrafficSummary"
   | "listAiTrafficSources"
-  | "listAiTrafficPages";
+  | "listAiTrafficPages"
+  | "listBotVisits"
+  | "countBotVisits"
+  | "listCrawls"
+  | "getSitemap";
 
 /** What is left for the sample data to answer, until the API grows those endpoints too. */
 export type FallbackClient = Omit<PromptEyeClient, LiveMethod>;
@@ -71,5 +75,9 @@ export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): P
     getAiTrafficSummary: (projectId, query) => api.google.analytics(projectId, query),
     listAiTrafficSources: (projectId, query) => api.google.analyticsSources(projectId, query),
     listAiTrafficPages: (projectId, query) => api.google.analyticsPages(projectId, query),
+    listBotVisits: (projectId, query) => api.traffic.events(projectId, query),
+    countBotVisits: (projectId, query) => api.traffic.countEvents(projectId, query),
+    listCrawls: (projectId, query) => api.traffic.crawls(projectId, query),
+    getSitemap: (projectId, query) => api.traffic.sitemap(projectId, query),
   };
 }

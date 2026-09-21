@@ -291,6 +291,82 @@ describe("PromptEyeApi", () => {
     });
   });
 
+  describe("traffic", () => {
+    it("sends every bot filter the API takes", async () => {
+      const { api, calls } = stubFetch(json(200, { data: [], nextCursor: null }));
+
+      await api.traffic.events("p1", {
+        startDate: "2026-08-16",
+        endDate: "2026-09-15",
+        kind: "ai",
+        vendor: "OpenAI",
+        botId: "chatgpt-user",
+        status: "4xx",
+        path: "/pricing",
+        limit: 20,
+        cursor: "50",
+      });
+
+      expect(calls[0].url).toBe(
+        `${BASE_URL}/v1/projects/p1/traffic/events?startDate=2026-08-16&endDate=2026-09-15` +
+          "&kind=ai&vendor=OpenAI&botId=chatgpt-user&status=4xx&path=%2Fpricing&limit=20&cursor=50"
+      );
+    });
+
+    it("reads a count with its partial flag", async () => {
+      const counts = {
+        data: [
+          {
+            key: "chatgpt-user",
+            label: "ChatGPT-User",
+            count: 412,
+            uniquePaths: 38,
+            lastAt: "2026-09-20T14:03:12.000Z",
+          },
+        ],
+        nextCursor: null,
+        partial: true,
+      };
+      const { api, calls } = stubFetch(json(200, counts));
+
+      await expect(api.traffic.countEvents("p1", { groupBy: "bot", kind: "ai" })).resolves.toEqual(counts);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/traffic/events/count?groupBy=bot&kind=ai`);
+    });
+
+    it("reads a sitemap that was never connected", async () => {
+      const { api, calls } = stubFetch(json(200, { sitemap: null, data: [], nextCursor: null }));
+
+      await expect(api.traffic.sitemap("p1", { active: "true" })).resolves.toEqual({
+        sitemap: null,
+        data: [],
+        nextCursor: null,
+      });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/traffic/sitemap?active=true`);
+    });
+
+    it("reads the crawl rows of one path", async () => {
+      const crawl = {
+        path: "/pricing",
+        botId: "googlebot",
+        name: "Googlebot",
+        vendor: "Google",
+        botType: "search-engine",
+        kind: "seo",
+        firstVisitAt: "2026-07-02T03:11:09.000Z",
+        lastVisitAt: "2026-09-20T02:40:51.000Z",
+        visitCount: 27,
+        lastStatusCode: 200,
+      };
+      const { api, calls } = stubFetch(json(200, { data: [crawl], nextCursor: null }));
+
+      await expect(api.traffic.crawls("p1", { path: "/pricing" })).resolves.toEqual({
+        data: [crawl],
+        nextCursor: null,
+      });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/traffic/crawls?path=%2Fpricing`);
+    });
+  });
+
   describe("google", () => {
     it("reads a project with nothing bound", async () => {
       const status = {
