@@ -86,6 +86,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "over the period and how it moved against the period before. Every measurement PromptEye " +
         "reports is taken on the answers to these prompts, so this is where to look for which " +
         "questions carry the brand and which do not. Paused prompts are listed too, newest first.\n\n" +
+        "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         `${VISIBILITY}\n\n${AI_TRAFFIC}\n\n${BUSINESS_PRIORITY}`,
       annotations: READ_ONLY,
       inputSchema: {
@@ -138,6 +139,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "One prompt of the active project, with its visibility broken down per assistant — only the " +
         "assistants that actually answered are listed. Call this to see which assistant is carrying a " +
         "prompt and which is dropping the brand from it.\n\n" +
+        "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         `${VISIBILITY}\n\n${AI_TRAFFIC}\n\n${BUSINESS_PRIORITY}`,
       annotations: READ_ONLY,
       inputSchema: {
@@ -181,6 +183,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "queries — with the visibility of each group over the period. A group is the unit a strategy " +
         "is judged by. Use a group id to narrow list_prompts. Ungrouped prompts have no row here; " +
         "they show up in list_prompts with groupId null.\n\n" +
+        "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         "aiTrafficTotal adds up the demand behind the prompts of the group that are still being asked, " +
         "so a paused prompt contributes nothing.",
       annotations: READ_ONLY,

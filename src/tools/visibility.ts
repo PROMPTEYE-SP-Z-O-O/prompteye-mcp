@@ -28,6 +28,7 @@ export function registerVisibilityTools(server: McpServer, { client, session }: 
         "The headline visibility figures for the active project over a period, and how they moved " +
         "against the period before it. This is the tool to call for 'how visible are we' — use " +
         "get_visibility_timeseries only when the individual measurements behind the number are needed.\n\n" +
+        "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         "Pass `by` to split the same figures along an axis: `day` for a trend line, `model` to compare " +
         "assistants, `prompt` to rank the prompts carrying the brand.",
       annotations: READ_ONLY,

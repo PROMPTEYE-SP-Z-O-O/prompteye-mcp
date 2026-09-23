@@ -19,6 +19,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
         "Every brand the assistants named on the active project's prompts, measured the same way the " +
         "project's own brand is and ranked by share of voice. Call this for 'who are we losing to' " +
         "and for how a market splits between brands.\n\n" +
+        "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         `${SHARE_OF_VOICE}\n\n${VISIBILITY}\n\n` +
         "The ranking answers with the strongest brands rather than a list to walk to the end of, so " +
         "raise `limit` to see further down. `model` narrows it to one assistant, which is how to tell " +
