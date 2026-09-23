@@ -7,6 +7,8 @@ export const API_ERROR_MESSAGES: Record<string, string> = {
   not_found: "The resource does not exist, or the API key does not reach it.",
   method_not_allowed: "The endpoint does not accept this method.",
   project_already_exists: "The workspace already tracks this brand in this market.",
+  project_metrics_rebuilding:
+    "Historical visibility metrics are being rebuilt after a brand definition change. The rebuild may take up to an hour. The project settings were saved, but aggregate reads such as list_competitors and list_prompt_groups may be temporarily unavailable. Tell the user the metrics are rebuilding, do not treat this as a failed project update, and retry the read later instead of repeatedly retrying now.",
   unsupported_media_type: "The request body is not JSON.",
   payload_too_large: "The request body is too large.",
   rate_limited: "Too many requests for this API key.",

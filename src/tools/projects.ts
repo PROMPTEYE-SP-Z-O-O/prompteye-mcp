@@ -6,7 +6,7 @@ import { PROMPT_GENERATION } from "./glossary.js";
 import { READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
 
 const describe = (project: Project): string =>
-  `${project.name} — brand ${project.brand} (${project.domain}) tracked in ${project.country}, ` +
+  `${project.name} — label ${project.label ?? "—"}, brand ${project.brand} (${project.domain}) tracked in ${project.country}, ` +
   `access ${project.accessRole} [id: ${project.id}]`;
 
 export function registerProjectTools(server: McpServer, { client, session }: ToolContext): void {
@@ -18,7 +18,10 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         "Every project the API key reaches, newest first, with the access the key has to each. A " +
         "project is one brand tracked in one market, and it is the root of everything else PromptEye " +
         "measures. Call this first, then select_project, before asking about visibility, competitors, " +
-        "prompts or sources.",
+        "prompts or sources. Each row includes its label, brand/name and domain; use these fields together " +
+        "to identify a project. Projects with different labels are distinct: do not call them duplicates " +
+        "based only on similar brand names. When unsure which one the user means, ask using the labels " +
+        "and domains shown, and use the project id to select the confirmed one.",
       annotations: READ_ONLY,
       inputSchema: {},
       outputSchema: { data: z.array(ProjectSchema) },
@@ -175,7 +178,10 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         "alternative brand spellings, and alternative domains.\n\n" +
         "Note: alternativeBrandNames and alternativeDomains are replaced as a whole rather than appended to, " +
         "so pass the complete list. Neither the brand name nor the market country can be changed here because " +
-        "historical measurements depend on them (a different brand/market is a separate project).",
+        "historical measurements depend on them (a different brand/market is a separate project).\n\n" +
+        "Before changing alternativeBrandNames, warn the user that historical visibility metrics will be rebuilt. " +
+        "The rebuild may take up to an hour. During that time, aggregated reads such as list_competitors and " +
+        "list_prompt_groups may be temporarily unavailable.",
       annotations: WRITES,
       inputSchema: {
         name: z.string().min(1).max(120).optional().describe("Display name of the project. Defaults to the brand name."),
@@ -186,7 +192,9 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
           .max(20)
           .optional()
           .describe(
-            "Other spellings that count as naming the brand. Replaces the existing list."
+            "Other spellings that count as naming the brand. Replaces the existing list and triggers a rebuild " +
+              "of historical visibility metrics that may take up to an hour; warn the user that aggregate reads " +
+              "may be temporarily unavailable during the rebuild."
           ),
         alternativeDomains: z
           .array(z.string().min(3).max(253))
