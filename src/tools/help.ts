@@ -12,7 +12,9 @@ export function registerHelpTools(server: McpServer, help: HelpCenter = new Help
         "PromptEye's own knowledge base (https://research.prompteye.com/help, index at " +
         "https://research.prompteye.com/help/index.md): guides on how the product works. Call this FIRST whenever the " +
         "user asks how something in PromptEye works, what a setting, score or feature means, how to " +
-        "connect or configure something, or how to do something in the app — public reports, the report " +
+        "connect or configure something, how to do something in the app — or reports a problem or " +
+        "something unexpected, such as getting the same report again, a report with no score or an " +
+        "email that did not arrive, which the guides usually explain — public reports, the report " +
         "score, leads, projects made from reports, connecting a form, notifications, branding. Do not " +
         "answer those from memory. Pick the article whose title fits, then read it with " +
         "read_help_article.\n\n" +
