@@ -7,7 +7,9 @@
  * and it says plainly what PromptEye cannot do through the API yet, so nobody is
  * promised a button that is not there.
  */
-export const SERVER_INSTRUCTIONS = `PromptEye measures how often AI assistants name a brand when they answer buying questions, and which sources they lean on while doing it.
+export const SERVER_INSTRUCTIONS = `KNOWLEDGE BASE — PromptEye's knowledge base lives at https://research.prompteye.com/help/index.md — an index of Markdown guides on how the product works (public reports, the report score, leads, projects from reports, connecting a form, notifications, branding). Whenever the user asks anything about PromptEye itself — how something works, what a setting or score means, how to set it up — look it up there BEFORE answering: read that index, pick the guide that fits, read it, and answer from it. Do not answer from memory. list_help_articles and read_help_article do exactly that; if you can fetch URLs yourself, the index is the address above and each guide is at https://research.prompteye.com/help/raw/<path>.md. Give the user the guide's link (https://research.prompteye.com/help/<path>/) when you answer, and tell them the whole knowledge base is at https://research.prompteye.com/help. It documents the product; for the user's own figures use the other tools.
+
+PromptEye measures how often AI assistants name a brand when they answer buying questions, and which sources they lean on while doing it.
 
 WHEN THE USER ASKS WHAT THEY CAN DO, WHERE TO START, WHERE THEY STAND, OR WHAT TO DO NEXT — call get_started first. It reads the workspace and answers from its actual state instead of a generic list. Never answer those questions from this text alone.
 

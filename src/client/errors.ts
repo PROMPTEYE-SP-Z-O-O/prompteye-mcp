@@ -1,4 +1,5 @@
 import { PromptEyeApiError } from "../api/index.js";
+import { HelpError } from "../help/help.js";
 
 /** Raised when a tool needs an active project and the session has none. */
 export class NoActiveProjectError extends Error {
@@ -20,7 +21,9 @@ export function toolMessageFor(error: unknown): string | undefined {
     ].join("\n");
   }
 
-  if (error instanceof NoActiveProjectError || error instanceof RangeError) return error.message;
+  if (error instanceof NoActiveProjectError || error instanceof RangeError || error instanceof HelpError) {
+    return error.message;
+  }
 
   return undefined;
 }

@@ -232,6 +232,12 @@ export function registerGettingStartedTools(server: McpServer, { client, session
         lines.push("", "What to do next:", ...steps.map((step, index) => `${index + 1}. ${step}`));
         lines.push(
           "",
+          "Help center: guides on how PromptEye works are at https://research.prompteye.com/help — " +
+            "list_help_articles and read_help_article read them, so use those for any 'how does X work' " +
+            "question, and point the user to that address."
+        );
+        lines.push(
+          "",
           "Done in the PromptEye app, not here: accepting a suggestion, deleting a prompt, and " +
             "converting a report into a tracked project. Prompt generation cannot be triggered through " +
             "the API. What can be done here: update_knowledge_base for the brand description, and " +

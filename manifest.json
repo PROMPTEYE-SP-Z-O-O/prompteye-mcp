@@ -67,6 +67,8 @@
   ],
   "tools": [
     { "name": "get_started", "description": "Where the workspace stands and what to do next" },
+    { "name": "list_help_articles", "description": "The PromptEye help center: guides on how the product works" },
+    { "name": "read_help_article", "description": "Reads one help guide, to answer how PromptEye works" },
     { "name": "get_account", "description": "Who the key belongs to, which plan, how many prompts" },
     { "name": "list_projects", "description": "Every project the key reaches" },
     { "name": "select_project", "description": "Makes one project the active one" },
