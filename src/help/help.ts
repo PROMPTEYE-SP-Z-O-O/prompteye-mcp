@@ -12,6 +12,7 @@
 export const HELP_BASE_URL = "https://research.prompteye.com";
 
 const INDEX_PATH = "/help/index.md";
+const FULL_KNOWLEDGE_BASE_PATH = "/help/llms-full.txt";
 const INDEX_TTL_MS = 10 * 60 * 1000;
 
 /** Raised for a help center failure the model can act on: a refused path or an unreachable page. */
@@ -69,6 +70,7 @@ export class HelpCenter {
   private readonly fetcher: Fetcher;
   private readonly now: () => number;
   private cache: { at: number; articles: HelpArticle[] } | null = null;
+  private fullCache: { at: number; markdown: string } | null = null;
 
   constructor({ baseUrl = HELP_BASE_URL, fetcher = (url) => fetch(url), now = Date.now }: HelpCenterOptions = {}) {
     this.baseUrl = baseUrl;
@@ -87,6 +89,15 @@ export class HelpCenter {
     const articles = parseHelpIndex(await this.read(INDEX_PATH), this.baseUrl);
     this.cache = { at: this.now(), articles };
     return articles;
+  }
+
+  /** The complete help corpus, intended for hosts that need to search across all guides. */
+  async fullKnowledgeBase(): Promise<string> {
+    if (this.fullCache && this.now() - this.fullCache.at < INDEX_TTL_MS) return this.fullCache.markdown;
+
+    const markdown = await this.read(FULL_KNOWLEDGE_BASE_PATH);
+    this.fullCache = { at: this.now(), markdown };
+    return markdown;
   }
 
   async article(path: string): Promise<string> {

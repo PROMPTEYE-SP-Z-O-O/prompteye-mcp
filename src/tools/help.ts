@@ -5,6 +5,32 @@ import { READ_ONLY, handled, ok } from "./result.js";
 
 export function registerHelpTools(server: McpServer, help: HelpCenter = new HelpCenter()): void {
   server.registerTool(
+    "read_full_help_knowledge_base",
+    {
+      title: "Read the complete PromptEye help knowledge base",
+      description:
+        "Returns the complete PromptEye Help corpus as one text file: " +
+        "https://research.prompteye.com/help/llms-full.txt. Use this as the source of truth for " +
+        "questions about how PromptEye works. For each question, search and check the relevant " +
+        "article or articles in the full corpus before answering. Do not conclude that something is " +
+        "undocumented from the index, a search snippet or an incomplete excerpt. If the full corpus " +
+        "cannot be read or does not answer the question, say so. Answer in the user's language, cite " +
+        "the relevant article title, and do not invent behavior beyond what it documents.",
+      annotations: READ_ONLY,
+      inputSchema: {},
+      outputSchema: { source: z.string(), markdown: z.string() },
+    },
+    async () =>
+      handled(async () => {
+        const markdown = await help.fullKnowledgeBase();
+        return ok(markdown, {
+          source: "https://research.prompteye.com/help/llms-full.txt",
+          markdown,
+        });
+      })
+  );
+
+  server.registerTool(
     "list_help_articles",
     {
       title: "List the PromptEye help articles",

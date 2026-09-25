@@ -1,6 +1,6 @@
 {
   "name": "prompteye-mcp",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "description": "MCP server for PromptEye — how visible a brand is inside the answers AI assistants give",
   "type": "module",
   "main": "dist/index.js",

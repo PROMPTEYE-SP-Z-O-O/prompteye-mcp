@@ -23,11 +23,12 @@ not answer it. Three things answer it instead:
   the project, whether the brand description exists, how many prompts are tracked, how many were
   never named and how many suggestions are waiting, then names the first rung that is missing.
 - **The help center** (`src/help/`, `src/tools/help.ts`) is PromptEye's knowledge base of guides
-  on how the product works, read from `https://research.prompteye.com/help/index.md`. The server
-  instructions and `get_started` tell the model it exists; `list_help_articles` and
-  `read_help_article` let it look a question up there instead of answering from memory, and give the
-  user the link to the guide used. The host is fixed in `src/help/help.ts`, and `read_help_article`
-  only accepts Markdown paths under `/help/raw/` on it.
+  on how the product works. Its complete corpus is `https://research.prompteye.com/help/llms-full.txt`;
+  `read_full_help_knowledge_base` exposes it to hosts, while `list_help_articles` and
+  `read_help_article` locate and retrieve individual Markdown guides. Server instructions tell the
+  model to check relevant articles in the full corpus before answering, cite their titles and avoid
+  guessing. The host is fixed in `src/help/help.ts`, and `read_help_article` only accepts Markdown
+  paths under `/help/raw/` on it.
 - **Prompts** (`src/prompts.ts`) are the workflows, surfaced by hosts as slash commands:
   `visibility_review`, `what_to_track_next`, `own_the_narrative` and `onboard_brand`.
 
