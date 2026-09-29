@@ -7,6 +7,7 @@ import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
 import { registerGettingStartedTools } from "./tools/getting-started.js";
 import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
+import { registerContentTools } from "./tools/content.js";
 import { registerHelpTools } from "./tools/help.js";
 import { registerGoogleTools } from "./tools/google.js";
 import { registerTrafficTools } from "./tools/traffic.js";
@@ -85,6 +86,7 @@ export function createMcpServer(): McpServer {
     "The prompts a project is tracked on, with the visibility each earned in the period"
   );
   registerPromptTools(toolServer, context);
+  registerContentTools(toolServer, context);
 
   // Each page is registered next to the tool that renders it.
   registerWidget(

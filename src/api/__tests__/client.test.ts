@@ -407,4 +407,69 @@ describe("PromptEyeApi", () => {
       );
     });
   });
+
+  describe("content briefs", () => {
+    const processing = {
+      id: "b1",
+      status: "processing",
+      projectId: "p1",
+      trackerId: "t1",
+      prompt: "best CRM for small teams",
+      error: null,
+      title: null,
+      originalTitle: null,
+      fanoutSource: null,
+      phrasesForArticle: null,
+      separateArticles: null,
+      outline: null,
+      requestedAt: "2026-09-28T09:24:11.000Z",
+      readyAt: null,
+    };
+
+    it("orders a brief with the key and the body the API takes", async () => {
+      const { api, calls } = stubFetch(json(201, processing));
+
+      const brief = await api.contentBriefs.create({ projectId: "p1", prompt: processing.prompt, trackerId: "t1" });
+
+      expect(brief.status).toBe("processing");
+      expect(brief).not.toHaveProperty("originalTitle");
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/content/briefs`);
+      expect(calls[0].init.method).toBe("POST");
+      expect((calls[0].init.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`);
+      expect(JSON.parse(calls[0].init.body as string)).toEqual({
+        projectId: "p1",
+        prompt: processing.prompt,
+        trackerId: "t1",
+      });
+    });
+
+    it("reads a ready brief by id", async () => {
+      const ready = {
+        ...processing,
+        status: "ready",
+        title: "Best CRM for Small Teams in 2026",
+        phrasesForArticle: [{ keyword: "crm pricing", type: "comparison", confidence: 0.82 }],
+        separateArticles: [
+          { keyword: "crm for freelancers", articleTitle: null, type: "segment", confidence: 0.7, reason: "segment", priority: 2 },
+        ],
+        outline: [
+          { level: "H2", text: "What does a CRM cost?", annotation: null, sourcePhrases: null, includesBrand: false, faqQuestions: null, origin: null },
+        ],
+        readyAt: "2026-09-28T09:26:48.000Z",
+      };
+      const { api, calls } = stubFetch(json(200, ready));
+
+      const brief = await api.contentBriefs.get("b 1");
+
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/content/briefs/b%201`);
+      expect(brief.title).toBe(ready.title);
+      expect(brief.outline?.[0]).toEqual({
+        level: "H2",
+        text: "What does a CRM cost?",
+        annotation: null,
+        includesBrand: false,
+        faqQuestions: null,
+      });
+    });
+  });
 });

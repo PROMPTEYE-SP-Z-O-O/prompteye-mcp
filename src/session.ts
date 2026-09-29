@@ -11,6 +11,7 @@ import type { Project } from "./schemas/prompteye.js";
  */
 export class ProjectSession {
   private active: Project | undefined;
+  private readonly briefed = new Set<string>();
 
   constructor(private readonly client: PromptEyeClient) {}
 
@@ -18,6 +19,20 @@ export class ProjectSession {
   async select(projectId: string): Promise<Project> {
     this.active = await this.client.getProject(projectId);
     return this.active;
+  }
+
+  /**
+   * Records that an article brief was ordered for `projectId` in this session.
+   * The API has no listing of briefs, so this is how get_started knows the
+   * content step was taken and the next one is waiting for the run.
+   */
+  noteBrief(projectId: string): void {
+    this.briefed.add(projectId);
+  }
+
+  /** Whether an article brief was ordered for `projectId` in this session. */
+  hasBrief(projectId: string): boolean {
+    return this.briefed.has(projectId);
   }
 
   /** The active project, or undefined when nothing has been selected yet. */
