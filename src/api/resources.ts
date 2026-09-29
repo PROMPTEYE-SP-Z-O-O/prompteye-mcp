@@ -8,6 +8,7 @@ import {
   CitedDomainPageSchema,
   CompetitorExclusionListSchema,
   CompetitorPageSchema,
+  FeedbackSchema,
   GoogleStatusSchema,
   KnowledgeBaseSchema,
   NewPromptListSchema,
@@ -36,8 +37,10 @@ import {
   type CitedDomain,
   type Competitor,
   type CompetitorExclusion,
+  type CreateFeedbackInput,
   type CreateProjectInput,
   type CreateReportInput,
+  type Feedback,
   type GoogleStatus,
   type Report,
   type ReportDetail,
@@ -514,5 +517,13 @@ export class TrafficResource {
       ...options,
       query: params,
     });
+  }
+}
+
+export class FeedbackResource {
+  constructor(private readonly http: HttpClient) {}
+
+  create(input: CreateFeedbackInput, options?: RequestOptions): Promise<Feedback> {
+    return this.http.post("/v1/feedback", input, FeedbackSchema, options);
   }
 }

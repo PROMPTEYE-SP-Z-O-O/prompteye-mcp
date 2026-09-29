@@ -627,3 +627,16 @@ export type TrafficCrawl = z.infer<typeof TrafficCrawlSchema>;
 export type TrafficSitemapUrl = z.infer<typeof TrafficSitemapUrlSchema>;
 export type TrafficSitemapState = z.infer<typeof TrafficSitemapStateSchema>;
 export type TrafficSitemapPage = z.infer<typeof TrafficSitemapPageSchema>;
+
+export const FeedbackSchema = z.object({
+  id: z.string(),
+  receivedAt: z.string(),
+});
+
+export type CreateFeedbackInput = {
+  need: string;
+  attemptedAction: string;
+  projectId?: string;
+};
+
+export type Feedback = z.infer<typeof FeedbackSchema>;

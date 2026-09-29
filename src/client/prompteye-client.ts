@@ -12,8 +12,10 @@ import type {
   CitedDomain,
   Competitor,
   CompetitorExclusion,
+  CreateFeedbackInput,
   CreateProjectInput,
   CreateReportInput,
+  Feedback,
   GoogleStatus,
   KnowledgeBase,
   List,
@@ -136,6 +138,8 @@ export interface PromptEyeClient {
   createReport(input: CreateReportInput): Promise<{ report: Report; reused: boolean }>;
   listReports(query: PageQuery): Promise<Page<Report>>;
   getReport(reportId: string): Promise<ReportDetail>;
+
+  reportMissingCapability(input: CreateFeedbackInput): Promise<Feedback>;
 
   /**
    * What Google reports for the project's own site, which is a different
