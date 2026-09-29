@@ -5,7 +5,6 @@ import { ContentBriefSchema, type ContentBrief } from "../schemas/prompteye.js";
 import { whatNext } from "./journey.js";
 import { READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
 
-/** The brief as the model relays it: the title, the outline, and what deserves its own article. */
 function renderBrief(brief: ContentBrief): string {
   const head = `Brief for "${brief.prompt}" [id: ${brief.id}] — ${brief.status}.`;
 

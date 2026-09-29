@@ -40,7 +40,6 @@ const standing = (overrides: Partial<Standing> = {}): Standing => ({
 const prompt = (visibility: number | null, status = "active"): Prompt =>
   ({ id: `t${visibility}`, prompt: "q", status, metrics: { visibility, reachIndex: null, averagePosition: null } }) as Prompt;
 
-/** A client answering only what readStanding asks for. */
 function clientWith({ knowledgeBase = "Acme sells CRM.", prompts = [] as Prompt[] } = {}): PromptEyeClient {
   return {
     getAccount: async () => ACCOUNT,

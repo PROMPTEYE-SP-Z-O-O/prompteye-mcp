@@ -2,19 +2,10 @@ import { resolveDateRange } from "../schemas/common.js";
 import type { Account, List, Project } from "../schemas/prompteye.js";
 import type { ToolContext } from "./result.js";
 
-/**
- * The order PromptEye works in, one phase at a time: a project, the brand
- * description everything is written from, the prompts, articles written to be
- * quoted for them, the wait for the first run, and then its results.
- *
- * A host that reads `phase` can walk the user through the product one step at
- * a time instead of handing over a list of everything at once.
- */
 export const PHASES = ["project", "knowledge_base", "prompts", "content", "waiting", "results"] as const;
 
 export type Phase = (typeof PHASES)[number];
 
-/** The lead pipeline, or null when this account cannot read reports at all. */
 export type Reports = {
   total: number;
   more: boolean;
@@ -23,7 +14,6 @@ export type Reports = {
   unconverted: number;
 };
 
-/** The state the answer is built from, so the model reports facts rather than guesses. */
 export type Standing = {
   account: Account;
   project: Project | null;
@@ -31,24 +21,16 @@ export type Standing = {
   knowledgeBase: boolean;
   prompts: number;
   more: boolean;
-  /** Prompts not paused, so asked on the next run. */
   asked: number;
-  /** Prompts that carry a figure in the period: something has been measured. */
   measured: number;
   neverNamed: number;
-  /** Prompts still asked that have no figure yet. Paused prompts are not waiting for anything. */
   awaitingFirstRun: number;
   groups: number;
   suggestions: number;
-  /** Whether an article brief was ordered for the project in this session. */
   briefed: boolean;
   reports: Reports | null;
 };
 
-/**
- * Reads the workspace. `active` is the project to report on; null reports on
- * the account alone. `projects` saves a second listing when the caller already has one.
- */
 export async function readStanding(
   { client, session }: ToolContext,
   active: Project | null,
@@ -73,7 +55,6 @@ export async function readStanding(
     reports: null,
   };
 
-  // An account that cannot reach reports still deserves the rest of the answer.
   if (reports) {
     try {
       const list = await client.listReports({ limit: 200 });
@@ -113,26 +94,19 @@ export async function readStanding(
   return standing;
 }
 
-/** Where the prompts, articles and runs have got to, the knowledge base aside. */
 function trackingPhase(standing: Standing): Phase {
   if (standing.asked === 0) return "prompts";
 
-  // Nothing measured yet: articles can be written while the first run is pending.
   if (standing.measured === 0) return standing.briefed ? "waiting" : "content";
   return "results";
 }
 
-/**
- * The first phase that is not done yet. A missing knowledge base comes first
- * even on a project that is already measured: it is the highest-leverage fix.
- */
 export function phaseOf(standing: Standing): Phase {
   if (!standing.project) return "project";
   if (!standing.knowledgeBase) return "knowledge_base";
   return trackingPhase(standing);
 }
 
-/** Whether each phase is behind the project, read from the state rather than from the order. */
 function isDone(standing: Standing, phase: Phase): boolean {
   switch (phase) {
     case "project":
@@ -153,7 +127,6 @@ function isDone(standing: Standing, phase: Phase): boolean {
 const firstRun = (account: Account): string =>
   `The next run starts ${account.nextScanAt} and takes tens of minutes to finish; the first figures arrive after it.`;
 
-/** What the current phase asks for, first step first. */
 function phaseSteps(standing: Standing, phase: Phase): string[] {
   switch (phase) {
     case "project":
@@ -226,11 +199,6 @@ function phaseSteps(standing: Standing, phase: Phase): string[] {
   }
 }
 
-/**
- * What to do next: the current phase's steps, with the lead pipeline around
- * them. A prospect waiting to be contacted jumps the queue: it is the only
- * thing here that goes cold while nobody looks at it.
- */
 export function nextSteps(standing: Standing, phase: Phase = phaseOf(standing)): string[] {
   const steps: string[] = [];
 
@@ -242,7 +210,6 @@ export function nextSteps(standing: Standing, phase: Phase = phaseOf(standing)):
 
   steps.push(...phaseSteps(standing, phase));
 
-  // A measured project with a blank knowledge base keeps the rest of its work in view.
   if (phase === "knowledge_base" && standing.prompts > 0) steps.push(...phaseSteps(standing, trackingPhase(standing)));
 
   if (standing.reports && standing.reports.unconverted > 0) {
@@ -254,19 +221,12 @@ export function nextSteps(standing: Standing, phase: Phase = phaseOf(standing)):
   return steps;
 }
 
-/** One line for the phase list: ✓ what is done, → where the project is. */
 export function renderPhases(standing: Standing, phase: Phase = phaseOf(standing)): string {
   return PHASES.map((name) => (name === phase ? `→ ${name}` : isDone(standing, name) ? `✓ ${name}` : name)).join(
     " · "
   );
 }
 
-/**
- * The closing paragraph of a tool that moved the project along: which phase it
- * is in now, and the first thing that phase asks for. The write already
- * happened, so a failure to read the state drops the paragraph rather than the
- * result.
- */
 export async function whatNext(context: ToolContext, project: Project): Promise<string> {
   try {
     const standing = await readStanding(context, project, { reports: false });

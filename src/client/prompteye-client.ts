@@ -139,7 +139,6 @@ export interface PromptEyeClient {
   listReports(query: PageQuery): Promise<Page<Report>>;
   getReport(reportId: string): Promise<ReportDetail>;
 
-  /** Article outlines for one prompt: ordered at once, written in the background, then polled. */
   createContentBrief(input: CreateContentBriefInput): Promise<ContentBrief>;
   getContentBrief(briefId: string): Promise<ContentBrief>;
 

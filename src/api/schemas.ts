@@ -238,27 +238,17 @@ export const ReportSchema = z.object({
   url: z.string(),
 });
 
-/**
- * A content brief: the title and H2/H3 outline of an article written to be
- * quoted for one prompt. Requested as `processing`, then `ready` or `error`.
- */
 export const ContentBriefSchema = z.object({
   id: z.string(),
-  /** `processing`, `ready` or `error`. */
   status: z.string(),
   projectId: z.string(),
-  /** The tracked prompt it is linked to, or `null` when requested for free text. */
   trackerId: z.string().nullable(),
   prompt: z.string(),
-  /** Why generation failed; `null` unless `status` is `error`. */
   error: z.string().nullable(),
-  /** `null` until `ready`, like everything below. */
   title: z.string().nullable(),
-  /** The phrases people ask around the prompt that this article covers. */
   phrasesForArticle: z
     .array(z.object({ keyword: z.string(), type: z.string(), confidence: z.number() }))
     .nullable(),
-  /** Phrases that deserve an article of their own, 1 the most worthwhile. */
   separateArticles: z
     .array(
       z.object({
@@ -272,11 +262,9 @@ export const ContentBriefSchema = z.object({
   outline: z
     .array(
       z.object({
-        /** `H2` or `H3`. */
         level: z.string(),
         text: z.string(),
         annotation: z.string().nullable(),
-        /** The one section required to name the brand. */
         includesBrand: z.boolean(),
         faqQuestions: z.array(z.string()).nullable(),
       })
@@ -350,9 +338,7 @@ export type ReportReach = (typeof REPORT_REACH)[number];
 
 export type CreateContentBriefInput = {
   projectId: string;
-  /** The question the article should be quoted for. */
   prompt: string;
-  /** Links the brief to a tracked prompt. */
   trackerId?: string;
 };
 

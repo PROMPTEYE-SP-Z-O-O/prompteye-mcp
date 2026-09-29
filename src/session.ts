@@ -21,16 +21,10 @@ export class ProjectSession {
     return this.active;
   }
 
-  /**
-   * Records that an article brief was ordered for `projectId` in this session.
-   * The API has no listing of briefs, so this is how get_started knows the
-   * content step was taken and the next one is waiting for the run.
-   */
   noteBrief(projectId: string): void {
     this.briefed.add(projectId);
   }
 
-  /** Whether an article brief was ordered for `projectId` in this session. */
   hasBrief(projectId: string): boolean {
     return this.briefed.has(projectId);
   }
