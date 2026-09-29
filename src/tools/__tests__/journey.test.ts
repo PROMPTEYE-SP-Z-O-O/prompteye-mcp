@@ -26,6 +26,8 @@ const standing = (overrides: Partial<Standing> = {}): Standing => ({
   knowledgeBase: true,
   prompts: 3,
   more: false,
+  asked: 3,
+  measured: 3,
   neverNamed: 0,
   awaitingFirstRun: 0,
   groups: 1,
@@ -35,8 +37,8 @@ const standing = (overrides: Partial<Standing> = {}): Standing => ({
   ...overrides,
 });
 
-const prompt = (visibility: number | null): Prompt =>
-  ({ id: `t${visibility}`, prompt: "q", metrics: { visibility, reachIndex: null, averagePosition: null } }) as Prompt;
+const prompt = (visibility: number | null, status = "active"): Prompt =>
+  ({ id: `t${visibility}`, prompt: "q", status, metrics: { visibility, reachIndex: null, averagePosition: null } }) as Prompt;
 
 /** A client answering only what readStanding asks for. */
 function clientWith({ knowledgeBase = "Acme sells CRM.", prompts = [] as Prompt[] } = {}): PromptEyeClient {
@@ -63,10 +65,15 @@ describe("phaseOf", () => {
   it("walks the phases in order", () => {
     expect(phaseOf(standing({ project: null, projectCount: 0 }))).toBe("project");
     expect(phaseOf(standing({ knowledgeBase: false }))).toBe("knowledge_base");
-    expect(phaseOf(standing({ prompts: 0 }))).toBe("prompts");
-    expect(phaseOf(standing({ awaitingFirstRun: 3 }))).toBe("content");
-    expect(phaseOf(standing({ awaitingFirstRun: 3, briefed: true }))).toBe("waiting");
-    expect(phaseOf(standing({ awaitingFirstRun: 1 }))).toBe("results");
+    expect(phaseOf(standing({ prompts: 0, asked: 0, measured: 0 }))).toBe("prompts");
+    expect(phaseOf(standing({ measured: 0, awaitingFirstRun: 3 }))).toBe("content");
+    expect(phaseOf(standing({ measured: 0, awaitingFirstRun: 3, briefed: true }))).toBe("waiting");
+    expect(phaseOf(standing({ measured: 2, awaitingFirstRun: 1 }))).toBe("results");
+  });
+
+  it("sends a project whose prompts are all paused back to prompts, not to waiting", () => {
+    expect(phaseOf(standing({ asked: 0, measured: 3 }))).toBe("prompts");
+    expect(nextSteps(standing({ asked: 0, measured: 3 }))[0]).toMatch(/All 3 prompt\(s\) are paused/);
   });
 
   it("asks for the knowledge base before prompts even when prompts exist", () => {
@@ -76,20 +83,26 @@ describe("phaseOf", () => {
 
 describe("nextSteps", () => {
   it("says suggestions come from the app when there are none", () => {
-    const [step] = nextSteps(standing({ prompts: 0, suggestions: 0 }));
+    const [step] = nextSteps(standing({ prompts: 0, asked: 0, measured: 0, suggestions: 0 }));
     expect(step).toMatch(/no suggestions/);
     expect(step).toMatch(/PromptEye app/);
   });
 
   it("points at the suggestions when there are some", () => {
-    const [step] = nextSteps(standing({ prompts: 0, suggestions: 4 }));
+    const [step] = nextSteps(standing({ prompts: 0, asked: 0, measured: 0, suggestions: 4 }));
     expect(step).toMatch(/4 suggestion\(s\)/);
   });
 
   it("offers articles and names the next run while nothing is measured", () => {
-    const steps = nextSteps(standing({ awaitingFirstRun: 3 }));
+    const steps = nextSteps(standing({ measured: 0, awaitingFirstRun: 3 }));
     expect(steps[0]).toMatch(/create_content_brief/);
     expect(steps[1]).toMatch(ACCOUNT.nextScanAt);
+  });
+
+  it("keeps a measured project's work in view while the knowledge base is missing", () => {
+    const steps = nextSteps(standing({ knowledgeBase: false, neverNamed: 2 }));
+    expect(steps[0]).toMatch(/Fill in the knowledge base/);
+    expect(steps.some((step) => /2 prompt\(s\) that were never named/.test(step))).toBe(true);
   });
 
   it("puts a waiting lead first", () => {
@@ -102,8 +115,14 @@ describe("nextSteps", () => {
 
 describe("renderPhases", () => {
   it("marks what is done and where the project is", () => {
-    expect(renderPhases("prompts")).toBe(
+    expect(renderPhases(standing({ prompts: 0, asked: 0, measured: 0 }))).toBe(
       "✓ project · ✓ knowledge_base · → prompts · content · waiting · results"
+    );
+  });
+
+  it("reads done-ness from the state, not from the order", () => {
+    expect(renderPhases(standing({ knowledgeBase: false }))).toBe(
+      "✓ project · → knowledge_base · ✓ prompts · ✓ content · ✓ waiting · results"
     );
   });
 });
@@ -117,6 +136,14 @@ describe("readStanding", () => {
     expect(read.prompts).toBe(3);
     expect(read.awaitingFirstRun).toBe(1);
     expect(read.neverNamed).toBe(1);
+  });
+
+  it("does not count a paused prompt as waiting for its first run", async () => {
+    const read = await readStanding(contextWith(clientWith({ prompts: [prompt(null, "paused"), prompt(40)] })), PROJECT);
+
+    expect(read.asked).toBe(1);
+    expect(read.awaitingFirstRun).toBe(0);
+    expect(phaseOf(read)).toBe("results");
   });
 
   it("treats a blank knowledge base as missing", async () => {

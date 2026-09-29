@@ -91,7 +91,7 @@ export function registerGettingStartedTools(server: McpServer, context: ToolCont
           );
         }
 
-        lines.push("", `Phase: ${renderPhases(phase)}`);
+        lines.push("", `Phase: ${renderPhases(standing, phase)}`);
         lines.push("", "What to do next:", ...steps.map((step, index) => `${index + 1}. ${step}`));
         lines.push(
           "",
