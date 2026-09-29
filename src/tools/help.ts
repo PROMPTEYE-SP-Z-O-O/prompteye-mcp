@@ -10,7 +10,7 @@ export function registerHelpTools(server: McpServer, help: HelpCenter = new Help
       title: "Read the complete PromptEye help knowledge base",
       description:
         "Returns the complete PromptEye Help corpus as one text file: " +
-        "https://research.prompteye.com/help/llms-full.txt. Use this as the source of truth for " +
+        "https://app.prompteye.com/help/llms-full.txt. Use this as the source of truth for " +
         "questions about how PromptEye works. For each question, search and check the relevant " +
         "article or articles in the full corpus before answering. Do not conclude that something is " +
         "undocumented from the index, a search snippet or an incomplete excerpt. If the full corpus " +
@@ -24,7 +24,7 @@ export function registerHelpTools(server: McpServer, help: HelpCenter = new Help
       handled(async () => {
         const markdown = await help.fullKnowledgeBase();
         return ok(markdown, {
-          source: "https://research.prompteye.com/help/llms-full.txt",
+          source: "https://app.prompteye.com/help/llms-full.txt",
           markdown,
         });
       })
@@ -35,8 +35,8 @@ export function registerHelpTools(server: McpServer, help: HelpCenter = new Help
     {
       title: "List the PromptEye help articles",
       description:
-        "PromptEye's own knowledge base (https://research.prompteye.com/help, index at " +
-        "https://research.prompteye.com/help/index.md): guides on how the product works. Call this FIRST whenever the " +
+        "PromptEye's own knowledge base (https://app.prompteye.com/help, index at " +
+        "https://app.prompteye.com/help/index.md): guides on how the product works. Call this FIRST whenever the " +
         "user asks how something in PromptEye works, what a setting, score or feature means, how to " +
         "connect or configure something, how to do something in the app — or reports a problem or " +
         "something unexpected, such as getting the same report again, a report with no score or an " +

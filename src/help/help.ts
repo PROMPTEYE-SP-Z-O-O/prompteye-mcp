@@ -8,8 +8,8 @@
  * and not from memory.
  */
 
-/** Fixed on purpose: the help center is read from research, whatever API the key points at. */
-export const HELP_BASE_URL = "https://research.prompteye.com";
+/** Fixed on purpose: the help center is read from production, whatever API the key points at. */
+export const HELP_BASE_URL = "https://app.prompteye.com";
 
 const INDEX_PATH = "/help/index.md";
 const FULL_KNOWLEDGE_BASE_PATH = "/help/llms-full.txt";

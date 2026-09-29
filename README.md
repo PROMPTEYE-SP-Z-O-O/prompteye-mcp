@@ -23,7 +23,7 @@ not answer it. Three things answer it instead:
   the project, whether the brand description exists, how many prompts are tracked, how many were
   never named and how many suggestions are waiting, then names the first rung that is missing.
 - **The help center** (`src/help/`, `src/tools/help.ts`) is PromptEye's knowledge base of guides
-  on how the product works. Its complete corpus is `https://research.prompteye.com/help/llms-full.txt`;
+  on how the product works. Its complete corpus is `https://app.prompteye.com/help/llms-full.txt`;
   `read_full_help_knowledge_base` exposes it to hosts, while `list_help_articles` and
   `read_help_article` locate and retrieve individual Markdown guides. Server instructions tell the
   model to check relevant articles in the full corpus before answering, cite their titles and avoid
