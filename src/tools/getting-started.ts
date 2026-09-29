@@ -232,7 +232,7 @@ export function registerGettingStartedTools(server: McpServer, { client, session
         lines.push("", "What to do next:", ...steps.map((step, index) => `${index + 1}. ${step}`));
         lines.push(
           "",
-          "Help center: guides on how PromptEye works are at https://research.prompteye.com/help — " +
+          "Help center: guides on how PromptEye works are at https://app.prompteye.com/help — " +
             "list_help_articles and read_help_article read them, so use those for any 'how does X work' " +
             "question, and point the user to that address."
         );
