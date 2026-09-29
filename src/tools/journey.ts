@@ -107,97 +107,85 @@ export function phaseOf(standing: Standing): Phase {
   return trackingPhase(standing);
 }
 
-function isDone(standing: Standing, phase: Phase): boolean {
-  switch (phase) {
-    case "project":
-      return standing.project !== null;
-    case "knowledge_base":
-      return standing.knowledgeBase;
-    case "prompts":
-      return standing.asked > 0;
-    case "content":
-      return standing.briefed || standing.measured > 0;
-    case "waiting":
-      return standing.measured > 0;
-    case "results":
-      return false;
-  }
-}
+const DONE: Record<Phase, (standing: Standing) => boolean> = {
+  project: (standing) => standing.project !== null,
+  knowledge_base: (standing) => standing.knowledgeBase,
+  prompts: (standing) => standing.asked > 0,
+  content: (standing) => standing.briefed || standing.measured > 0,
+  waiting: (standing) => standing.measured > 0,
+  results: () => false,
+};
 
 const firstRun = (account: Account): string =>
   `The next run starts ${account.nextScanAt} and takes tens of minutes to finish; the first figures arrive after it.`;
 
-function phaseSteps(standing: Standing, phase: Phase): string[] {
-  switch (phase) {
-    case "project":
-      return [
-        standing.projectCount === 0
-          ? "Create the first project with create_project — one brand in one market. Nothing is measured until a project exists."
-          : "Pick which project to work on with select_project; every other tool reports on the active one.",
-      ];
-
-    case "knowledge_base":
-      return [
-        "Fill in the knowledge base. Show the user what the project knows with get_knowledge_base, ask them " +
-          "for what is missing — industry, product category, target audience, ICP, operating area and a " +
-          "description of what the brand does — and save it with update_knowledge_base. Every prompt " +
-          "PromptEye proposes is written from it, so this comes before prompts.",
-      ];
-
-    case "prompts":
-      if (standing.prompts > 0) {
-        return [
-          `All ${standing.prompts} prompt(s) are paused, so the next run asks nothing. Resume the ones worth ` +
-            "tracking with update_prompt, or pick new ones from list_prompt_suggestions.",
-        ];
-      }
-      return [
-        standing.suggestions > 0
-          ? `Pick the first prompts from the ${standing.suggestions} suggestion(s) list_prompt_suggestions returns; accepting them happens in the PromptEye app.`
-          : "PromptEye has no suggestions for this project yet — they are generated inside a prompt group, " +
-            "from the PromptEye app. Start the first prompts there. If the user already has prompts of their " +
-            "own that must be tracked verbatim, add_prompts tracks them, after the user has chosen that.",
-      ];
-
-    case "content":
-      return [
-        "While the first run is pending, order article outlines for the prompts that matter most: " +
-          "create_content_brief with a promptId from list_prompts, highest business priority first. Each " +
-          "brief is the title and H2/H3 structure of an article written to be quoted for that question. " +
-          "Optional — if the user does not publish content, go straight to waiting for the run.",
-        firstRun(standing.account),
-      ];
-
-    case "waiting":
-      return [
-        `Wait for the first measurement. ${firstRun(standing.account)} Call get_started again once it has run.`,
-        "Meanwhile get_content_brief reads the outlines that were ordered.",
-      ];
-
-    case "results": {
-      const steps: string[] = [];
-      if (standing.neverNamed > 0) {
-        steps.push(
-          `Look into the ${standing.neverNamed} prompt(s) that were never named: list_sources shows whose pages ` +
-            "the assistants read instead, list_competitors who they named, and create_content_brief outlines " +
-            "an article to answer that question."
-        );
-      }
-      steps.push(
-        "Read the standing: list_prompts for what each question earns, list_competitors for share of voice, list_sources for the pages behind the answers."
-      );
-      if (standing.suggestions > 0) {
-        steps.push(
-          `Review the ${standing.suggestions} suggestion(s) waiting with list_prompt_suggestions — each says which funnel stage it fills and how well it fits the brand.`
-        );
-      }
-      if (standing.awaitingFirstRun > 0) {
-        steps.push(`${standing.awaitingFirstRun} prompt(s) have not been measured yet — their figures arrive after the next run.`);
-      }
-      return steps;
-    }
+const promptSteps = (standing: Standing): string[] => {
+  if (standing.prompts > 0) {
+    return [
+      `All ${standing.prompts} prompt(s) are paused, so the next run asks nothing. Resume the ones worth ` +
+        "tracking with update_prompt, or pick new ones from list_prompt_suggestions.",
+    ];
   }
-}
+  return [
+    standing.suggestions > 0
+      ? `Pick the first prompts from the ${standing.suggestions} suggestion(s) list_prompt_suggestions returns; accepting them happens in the PromptEye app.`
+      : "PromptEye has no suggestions for this project yet — they are generated inside a prompt group, " +
+        "from the PromptEye app. Start the first prompts there. If the user already has prompts of their " +
+        "own that must be tracked verbatim, add_prompts tracks them, after the user has chosen that.",
+  ];
+};
+
+const resultSteps = (standing: Standing): string[] => {
+  const steps: string[] = [];
+  if (standing.neverNamed > 0) {
+    steps.push(
+      `Look into the ${standing.neverNamed} prompt(s) that were never named: list_sources shows whose pages ` +
+        "the assistants read instead, list_competitors who they named, and create_content_brief outlines " +
+        "an article to answer that question."
+    );
+  }
+  steps.push(
+    "Read the standing: list_prompts for what each question earns, list_competitors for share of voice, list_sources for the pages behind the answers."
+  );
+  if (standing.suggestions > 0) {
+    steps.push(
+      `Review the ${standing.suggestions} suggestion(s) waiting with list_prompt_suggestions — each says which funnel stage it fills and how well it fits the brand.`
+    );
+  }
+  if (standing.awaitingFirstRun > 0) {
+    steps.push(`${standing.awaitingFirstRun} prompt(s) have not been measured yet — their figures arrive after the next run.`);
+  }
+  return steps;
+};
+
+const STEPS: Record<Phase, (standing: Standing) => string[]> = {
+  project: (standing) => [
+    standing.projectCount === 0
+      ? "Create the first project with create_project — one brand in one market. Nothing is measured until a project exists."
+      : "Pick which project to work on with select_project; every other tool reports on the active one.",
+  ],
+  knowledge_base: () => [
+    "Fill in the knowledge base. Show the user what the project knows with get_knowledge_base, ask them " +
+      "for what is missing — industry, product category, target audience, ICP, operating area and a " +
+      "description of what the brand does — and save it with update_knowledge_base. Every prompt " +
+      "PromptEye proposes is written from it, so this comes before prompts.",
+  ],
+  prompts: promptSteps,
+  content: (standing) => [
+    "While the first run is pending, order article outlines for the prompts that matter most: " +
+      "create_content_brief with a promptId from list_prompts, highest business priority first. Each " +
+      "brief is the title and H2/H3 structure of an article written to be quoted for that question. " +
+      "Optional — if the user does not publish content, go straight to waiting for the run.",
+    firstRun(standing.account),
+  ],
+  waiting: (standing) => [
+    `Wait for the first measurement. ${firstRun(standing.account)} Call get_started again once it has run.`,
+    "Meanwhile get_content_brief reads the outlines that were ordered.",
+  ],
+  results: resultSteps,
+};
+
+const phaseSteps = (standing: Standing, phase: Phase): string[] => STEPS[phase](standing);
 
 export function nextSteps(standing: Standing, phase: Phase = phaseOf(standing)): string[] {
   const steps: string[] = [];
@@ -222,7 +210,7 @@ export function nextSteps(standing: Standing, phase: Phase = phaseOf(standing)):
 }
 
 export function renderPhases(standing: Standing, phase: Phase = phaseOf(standing)): string {
-  return PHASES.map((name) => (name === phase ? `→ ${name}` : isDone(standing, name) ? `✓ ${name}` : name)).join(
+  return PHASES.map((name) => (name === phase ? `→ ${name}` : DONE[name](standing) ? `✓ ${name}` : name)).join(
     " · "
   );
 }
