@@ -46,15 +46,21 @@ export const SHARE_OF_VOICE =
   "shareOfVoice is how much of all the naming that happened on the project's prompts went to one " +
   "brand, so the brands in a ranking describe one pie. It answers a different question from " +
   "visibility: visibility is how often a brand was named at all, and every brand can score high at " +
-  "once, while share of voice is what each took from the others. citations and citationShare count " +
-  "how often the brand's own pages were cited as sources, which can diverge from being named — a " +
-  "brand can be recommended without being linked, and linked without being recommended. The " +
+  "once, while share of voice is what each took from the others. citedAnswers counts the answers that " +
+  "cited at least one domain assigned to the brand, its own or an alternative one, each domain at most " +
+  "once per answer, and citationShare is the share of answers carrying sources that did. It is a count " +
+  "of answers, not of sources, so it is not comparable with sourceOccurrences from list_sources, which " +
+  "counts every source on one host. Being cited can diverge from being named — a brand can be " +
+  "recommended without being linked, and linked without being recommended. The " +
   "project's own brand is in the ranking and marked with ownBrand, so it can be read against the rest.";
 
 export const CITED_DOMAINS =
-  "A cited domain is a site an assistant leaned on while answering the project's prompts. citations " +
-  "counts how often it was cited, and share is its slice of every citation made on those prompts, so " +
-  "the domains describe one pie. ownDomain marks the project's own domain and the alternatives " +
+  "A cited domain is a site an assistant leaned on while answering the project's prompts. " +
+  "sourceOccurrences counts every time a page on that exact host appeared among an answer's sources, " +
+  "so one answer citing two of its pages counts twice, and other domains of the same brand are not " +
+  "added in. It is a count of sources, not of answers, so it is not comparable with citedAnswers from " +
+  "list_competitors. share is the domain's slice of every source occurrence on those prompts, so the " +
+  "domains describe one pie. ownDomain marks the project's own domain and the alternatives " +
   "registered with it: a small own share means the assistants are describing the brand from other " +
   "people's pages rather than its own, which is where the story about it is being written.";
 
