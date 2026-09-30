@@ -254,7 +254,7 @@ export class CompetitorsResource {
 
   /**
    * `GET /v1/projects/{projectId}/competitors` — every brand named alongside the
-   * project's own, ranked by visibility, then position. The project's brand is in the list.
+   * project's own, ranked by visibility, then by position. The project's brand is in the list.
    */
   list(projectId: string, params: RankingParams = {}, options?: RequestOptions): Promise<Page<Competitor>> {
     return this.http.get(`${projectPath(projectId)}/competitors`, CompetitorPageSchema, {
