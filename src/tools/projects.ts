@@ -13,7 +13,7 @@ const EXCLUSIONS_POINTER =
   "Brands kept out of competitor rankings are not part of the project payload; read them with " +
   "list_competitor_exclusions and change them with set_competitor_exclusions.";
 
-export const describeProject = (project: Project): string =>
+const describe = (project: Project): string =>
   `${project.name} — label ${project.label ?? "—"}, brand ${project.brand} (${project.domain}) tracked in ${project.country}, ` +
   `access ${project.accessRole} [id: ${project.id}]`;
 
@@ -37,7 +37,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     async () =>
       handled(async () => {
         const list = await client.listProjects();
-        const lines = list.data.map((project) => `- ${describeProject(project)}`);
+        const lines = list.data.map((project) => `- ${describe(project)}`);
 
         return ok(
           list.data.length === 0
@@ -71,7 +71,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         const project = await session.select(projectId);
 
         return ok(
-          `Active project is now ${describeProject(project)}.\n` +
+          `Active project is now ${describe(project)}.\n` +
             "Every following tool call reports on this project until select_project is called again.",
           toProjectOutput(project)
         );
@@ -99,7 +99,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
           );
         }
 
-        return ok(`Active project: ${describeProject(project)}.`, toProjectOutput(project));
+        return ok(`Active project: ${describe(project)}.`, toProjectOutput(project));
       })
   );
 
@@ -176,7 +176,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         await session.select(project.id);
 
         return ok(
-          `Created ${describeProject(project)}.\nIt is now the active project.`,
+          `Created ${describe(project)}.\nIt is now the active project.`,
           toProjectOutput(project)
         );
       })
@@ -224,7 +224,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         const project = await client.updateProject(current.id, args);
         await session.select(project.id);
 
-        return ok(`Updated project ${describeProject(project)}.`, toProjectOutput(project));
+        return ok(`Updated project ${describe(project)}.`, toProjectOutput(project));
       })
   );
 

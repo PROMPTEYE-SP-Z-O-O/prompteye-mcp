@@ -13,8 +13,6 @@ import {
   PromptSettingsSchema,
   PromptSuggestionSchema,
   type Category,
-  type Prompt,
-  type PromptGroup,
   type PromptGroupSettings,
   type PromptSuggestion,
 } from "../schemas/prompteye.js";
@@ -70,18 +68,7 @@ const renderPromptGroupSettings = (heading: string, group: PromptGroupSettings):
     `- Prompts: ${group.promptCount}`,
   ].join("\n");
 
-export const promptLine = (prompt: Prompt): string =>
-  `- "${prompt.prompt}" (${prompt.status}) — visibility ${num(prompt.metrics.visibility, "%")} ` +
-  `(${signed(prompt.change?.visibility ?? null, " pp")}), position ${num(prompt.metrics.averagePosition)}, ` +
-  `priority ${prompt.businessPriority ?? "—"} [id: ${prompt.id}]`;
-
-export const promptGroupLine = (group: PromptGroup): string =>
-  `- ${group.name} (order ${num(group.order)}) — ${group.promptCount} prompt(s), ` +
-  `visibility ${num(group.metrics.visibility, "%")}, position ${num(group.metrics.averagePosition)}, ` +
-  `AI traffic ${num(group.aiTrafficTotal)} [id: ${group.id}]` +
-  (group.description ? `\n  ${group.description}` : "");
-
-export function renderSuggestion(suggestion: PromptSuggestion): string {
+function renderSuggestion(suggestion: PromptSuggestion): string {
   const stage = PURCHASE_INTENT_STAGE[suggestion.purchaseIntentLevel] ?? "unknown stage";
 
   return [
@@ -137,11 +124,18 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         const project = await session.require();
         const page = await client.listPrompts(project.id, args);
 
+        const lines = page.data.map(
+          (prompt) =>
+            `- "${prompt.prompt}" (${prompt.status}) — visibility ${num(prompt.metrics.visibility, "%")} ` +
+            `(${signed(prompt.change?.visibility ?? null, " pp")}), position ${num(prompt.metrics.averagePosition)}, ` +
+            `priority ${prompt.businessPriority ?? "—"} [id: ${prompt.id}]`
+        );
+
         return ok(
           (page.data.length === 0
             ? `${project.name} tracks no prompts matching that.`
             : `${page.data.length} prompt(s) in ${project.name}:\n` +
-              page.data.map(promptLine).join("\n")) + morePages(page.nextCursor),
+              lines.join("\n")) + morePages(page.nextCursor),
           { ...page, projectName: project.name, brand: project.brand }
         );
       })
@@ -213,10 +207,18 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         const project = await session.require();
         const page = await client.listPromptGroups(project.id, args);
 
+        const lines = page.data.map(
+          (group) =>
+            `- ${group.name} (order ${num(group.order)}) — ${group.promptCount} prompt(s), ` +
+            `visibility ${num(group.metrics.visibility, "%")}, position ${num(group.metrics.averagePosition)}, ` +
+            `AI traffic ${num(group.aiTrafficTotal)} [id: ${group.id}]` +
+            (group.description ? `\n  ${group.description}` : "")
+        );
+
         return ok(
           (page.data.length === 0
             ? `${project.name} has no prompt groups.`
-            : `${page.data.length} prompt group(s):\n${page.data.map(promptGroupLine).join("\n")}`) +
+            : `${page.data.length} prompt group(s):\n${lines.join("\n")}`) +
             morePages(page.nextCursor),
           page
         );

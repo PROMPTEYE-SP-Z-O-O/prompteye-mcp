@@ -6,7 +6,7 @@ import type { Report } from "../schemas/prompteye.js";
 import { PUBLIC_REPORTS } from "./glossary.js";
 import { READ_ONLY, WRITES, handled, morePages, num, ok, type ToolContext } from "./result.js";
 
-export const reportLine = (report: Report): string =>
+const line = (report: Report): string =>
   `- ${report.brand}${report.domain ? ` (${report.domain})` : ""} — ${report.status}` +
   `${report.score === null ? "" : `, score ${report.score}%`}` +
   `, lead ${report.leadStatus}` +
@@ -191,7 +191,7 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
         return ok(
           (page.data.length === 0
             ? "This account has generated no public reports."
-            : `${page.data.length} report(s):\n` + page.data.map(reportLine).join("\n")) +
+            : `${page.data.length} report(s):\n` + page.data.map(line).join("\n")) +
             morePages(page.nextCursor),
           page
         );

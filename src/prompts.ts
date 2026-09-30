@@ -151,8 +151,7 @@ export function registerPromptWorkflows(server: McpServer): void {
           "most: create_content_brief with a promptId from list_prompts, then get_content_brief when it " +
           "is ready. This is optional — skip it if the user does not publish content.\n\n" +
           "5. The wait. Nothing is measured until the next run: get_account says when it starts, and it " +
-          "takes tens of minutes. Tell the user when to come back.\n\n" +
-          "Call get_started at the end and check from what it returns that nothing is still missing."
+          "takes tens of minutes. Tell the user when to come back."
       )
   );
 }

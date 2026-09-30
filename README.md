@@ -21,10 +21,6 @@ not answer it. Three things answer it instead:
   call. They lay out the order the product works in — project, brand description, prompts,
   measurement, content — and say plainly what cannot be done through the API, so nobody is
   promised a button that is not there, and nobody is told PromptEye cannot generate content.
-- **`get_started`** answers from the workspace rather than from a brochure: it reads the account,
-  the projects, the active project's knowledge base, prompts, groups and pending suggestions, and
-  the public reports, and hands them over as the API returns them. Its description lays out the
-  order the product works in, and the model works out from the data which step the project is on.
 - **The help center** (`src/help/`, `src/tools/help.ts`) is PromptEye's knowledge base of guides
   on how the product works. Its complete corpus is `https://app.prompteye.com/help/llms-full.txt`;
   `read_full_help_knowledge_base` exposes it to hosts, while `list_help_articles` and
@@ -41,7 +37,6 @@ Every one of these calls the PromptEye API.
 
 | Tool | Endpoint |
 |---|---|
-| `get_started` | several, read together |
 | `get_account` | `GET /v1/me` |
 | `list_projects` | `GET /v1/projects` |
 | `select_project`, `get_active_project` | `GET /v1/projects/{projectId}` |
