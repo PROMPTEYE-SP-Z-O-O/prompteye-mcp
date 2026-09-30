@@ -11,7 +11,7 @@ function render(data) {
   const ownShare = domains
     .filter((domain) => domain.ownDomain)
     .reduce((sum, domain) => sum + (domain.share ?? 0), 0);
-  const total = domains.reduce((sum, domain) => sum + (domain.citations ?? 0), 0);
+  const total = domains.reduce((sum, domain) => sum + (domain.sourceOccurrences ?? 0), 0);
 
   root.innerHTML = `
     <h1>Cited sources${data.brand ? ` · ${esc(data.brand)}` : ""}${data.model ? ` · ${esc(data.model)}` : ""}</h1>
@@ -30,7 +30,7 @@ function render(data) {
           own: domain.ownDomain,
           value: domain.share,
           suffix: "%",
-          note: `· ${domain.citations} cited`,
+          note: `· ${domain.sourceOccurrences} cited`,
         }))
       )}
     </section>`;

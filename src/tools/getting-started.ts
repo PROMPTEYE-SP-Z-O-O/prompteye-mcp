@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { PromptGroupSchema, PromptSchema, PromptSuggestionSchema } from "../schemas/prompteye.js";
 import { PHASES, nextSteps, phaseOf, readStanding, renderPhases } from "./journey.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
 
@@ -33,11 +34,10 @@ export function registerGettingStartedTools(server: McpServer, context: ToolCont
         phase: z.enum(PHASES),
         projectCount: z.number(),
         knowledgeBase: z.boolean(),
-        prompts: z.number(),
-        neverNamed: z.number(),
-        awaitingFirstRun: z.number(),
-        groups: z.number(),
-        suggestions: z.number(),
+        prompts: z.array(PromptSchema),
+        morePrompts: z.boolean(),
+        groups: z.array(PromptGroupSchema),
+        suggestions: z.array(PromptSuggestionSchema),
         reports: z
           .object({
             total: z.number(),
@@ -75,9 +75,9 @@ export function registerGettingStartedTools(server: McpServer, context: ToolCont
         if (standing.project) {
           lines.push(
             `Brand description: ${standing.knowledgeBase ? "written" : "missing"}. ` +
-              `Prompts: ${standing.prompts}${standing.more ? "+" : ""} in ${standing.groups} group(s), ` +
-              `${standing.neverNamed} never named, ${standing.awaitingFirstRun} awaiting a first run. ` +
-              `Suggestions waiting: ${standing.suggestions}.`
+              "The prompts (each with its status and metrics), the groups (each with the API's promptCount) " +
+              "and the pending suggestions are in the structured output exactly as the API returned them — " +
+              `count what you need from there.${standing.more ? " More prompts exist beyond this first page." : ""}`
           );
         }
 
@@ -118,11 +118,10 @@ export function registerGettingStartedTools(server: McpServer, context: ToolCont
           phase,
           projectCount: standing.projectCount,
           knowledgeBase: standing.knowledgeBase,
-          prompts: standing.prompts,
-          neverNamed: standing.neverNamed,
-          awaitingFirstRun: standing.awaitingFirstRun,
-          groups: standing.groups,
-          suggestions: standing.suggestions,
+          prompts: standing.promptList,
+          morePrompts: standing.more,
+          groups: standing.groupList,
+          suggestions: standing.suggestionList,
           reports: standing.reports
             ? {
                 total: standing.reports.total,

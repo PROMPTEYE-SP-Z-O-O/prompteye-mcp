@@ -1,5 +1,5 @@
 import { resolveDateRange } from "../schemas/common.js";
-import type { Account, List, Project } from "../schemas/prompteye.js";
+import type { Account, List, Project, Prompt, PromptGroup, PromptSuggestion } from "../schemas/prompteye.js";
 import type { ToolContext } from "./result.js";
 
 export const PHASES = ["project", "knowledge_base", "prompts", "content", "waiting", "results"] as const;
@@ -27,6 +27,9 @@ export type Standing = {
   awaitingFirstRun: number;
   groups: number;
   suggestions: number;
+  promptList: Prompt[];
+  groupList: PromptGroup[];
+  suggestionList: PromptSuggestion[];
   briefed: boolean;
   reports: Reports | null;
 };
@@ -51,6 +54,9 @@ export async function readStanding(
     awaitingFirstRun: 0,
     groups: 0,
     suggestions: 0,
+    promptList: [],
+    groupList: [],
+    suggestionList: [],
     briefed: active ? session.hasBrief(active.id) : false,
     reports: null,
   };
@@ -89,6 +95,9 @@ export async function readStanding(
     standing.awaitingFirstRun = asked.filter((prompt) => prompt.metrics.visibility === null).length;
     standing.groups = groups.data.length;
     standing.suggestions = suggestions.data.length;
+    standing.promptList = prompts.data;
+    standing.groupList = groups.data;
+    standing.suggestionList = suggestions.data;
   }
 
   return standing;

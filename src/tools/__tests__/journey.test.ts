@@ -32,6 +32,9 @@ const standing = (overrides: Partial<Standing> = {}): Standing => ({
   awaitingFirstRun: 0,
   groups: 1,
   suggestions: 0,
+  promptList: [],
+  groupList: [],
+  suggestionList: [],
   briefed: false,
   reports: null,
   ...overrides,
@@ -143,6 +146,15 @@ describe("readStanding", () => {
     expect(read.asked).toBe(1);
     expect(read.awaitingFirstRun).toBe(0);
     expect(phaseOf(read)).toBe("results");
+  });
+
+  it("hands over the API's prompt, group and suggestion lists untouched", async () => {
+    const prompts = [prompt(null, "paused"), prompt(40)];
+    const read = await readStanding(contextWith(clientWith({ prompts })), PROJECT);
+
+    expect(read.promptList).toBe(prompts);
+    expect(read.groupList).toEqual([]);
+    expect(read.suggestionList).toEqual([]);
   });
 
   it("treats a blank knowledge base as missing", async () => {

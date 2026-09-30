@@ -161,7 +161,7 @@ export const PromptSuggestionSchema = z.object({
 
 export const CitedDomainSchema = z.object({
   domain: z.string(),
-  citations: z.number(),
+  sourceOccurrences: z.number(),
   /** The domain's share of every citation made on the project's prompts. */
   share: z.number(),
   /** Whether it is the project's own domain, or one of its alternatives. */
@@ -176,7 +176,7 @@ export const CompetitorSchema = z.object({
   change: MetricsChangeSchema.nullable(),
   /** How much of the naming this brand took from everyone else. */
   shareOfVoice: z.number().nullable(),
-  citations: z.number().nullable(),
+  citedAnswers: z.number().nullable(),
   citationShare: z.number().nullable(),
 });
 
