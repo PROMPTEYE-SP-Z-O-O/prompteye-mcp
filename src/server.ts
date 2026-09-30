@@ -8,8 +8,10 @@ import { registerAccountTools } from "./tools/account.js";
 import { registerGettingStartedTools } from "./tools/getting-started.js";
 import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
 import { registerContentTools } from "./tools/content.js";
+import { registerFeedbackTools } from "./tools/feedback.js";
 import { registerHelpTools } from "./tools/help.js";
 import { registerGoogleTools } from "./tools/google.js";
+import { registerIntegrationTools } from "./tools/integrations.js";
 import { registerTrafficTools } from "./tools/traffic.js";
 import { SOURCES_WIDGET, registerEvidenceTools, registerSourceTools } from "./tools/evidence.js";
 import { PROMPTS_WIDGET, registerPromptTools } from "./tools/prompts.js";
@@ -86,7 +88,6 @@ export function createMcpServer(): McpServer {
     "The prompts a project is tracked on, with the visibility each earned in the period"
   );
   registerPromptTools(toolServer, context);
-  registerContentTools(toolServer, context);
 
   // Each page is registered next to the tool that renders it.
   registerWidget(
@@ -104,10 +105,13 @@ export function createMcpServer(): McpServer {
     "The brands answering alongside a project's own, ranked by share of voice"
   );
   registerCompetitorTools(toolServer, context);
+  registerContentTools(toolServer, context);
+  registerIntegrationTools(toolServer, context);
   registerGoogleTools(toolServer, context);
   registerTrafficTools(toolServer, context);
   registerReportTools(toolServer, context);
   registerHelpTools(toolServer);
+  registerFeedbackTools(toolServer, context);
 
   if (SAMPLE_TOOLS) {
     registerWidget(

@@ -23,14 +23,14 @@ function render(data) {
       }
     </div>
     <section>
-      <h2>${domains.length} domain(s), ${total} citation(s)</h2>
+      <h2>${domains.length} domain(s), ${total} source occurrence(s)</h2>
       ${rows(
         domains.map((domain) => ({
           name: domain.domain,
           own: domain.ownDomain,
           value: domain.share,
           suffix: "%",
-          note: `· ${domain.sourceOccurrences} cited`,
+          note: `· ${domain.sourceOccurrences} occurrence(s)`,
         }))
       )}
     </section>`;

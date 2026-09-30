@@ -1,10 +1,12 @@
 # prompteye-mcp
 
 An MCP server for [PromptEye](https://prompteye.com) — how visible a brand is inside the
-answers AI assistants give.
+answers AI assistants give, and the content that changes it.
 
 A client picks a project, then works with the prompts it is tracked on: which questions are
-being asked, how they are grouped and filed, and which ones PromptEye suggests adding next.
+being asked, how they are grouped and filed, and which ones PromptEye suggests adding next. For
+the prompts where the brand is weak, it starts content generation, so the whole visibility loop
+is reachable from here: track, generate content, measure.
 
 The server needs the API URL of the deployment and an API key for it. Both are at
 [app.prompteye.com/integrations](https://app.prompteye.com/integrations), and it refuses to
@@ -17,8 +19,8 @@ not answer it. Three things answer it instead:
 
 - **Server instructions** (`src/instructions.ts`) reach the host at connection time, before any
   call. They lay out the order the product works in — project, brand description, prompts,
-  measurement — and say plainly what cannot be done through the API, so nobody is promised a
-  button that is not there.
+  measurement, content — and say plainly what cannot be done through the API, so nobody is
+  promised a button that is not there, and nobody is told PromptEye cannot generate content.
 - **`get_started`** answers from the workspace rather than from a brochure: it reads the account,
   the project, whether the brand description exists, and the prompts, groups and pending
   suggestions as the API lists them — handed over uncounted, so the model tallies what it needs —
@@ -57,6 +59,8 @@ Every one of these calls the PromptEye API.
 | `list_prompt_groups` | `GET /v1/projects/{projectId}/groups` |
 | `list_prompt_suggestions` | `GET /v1/projects/{projectId}/prompt-suggestions` |
 | `add_prompts` | `POST /v1/projects/{projectId}/prompts` |
+| `upsert_prompt_group` | `POST /v1/projects/{projectId}/groups`, or `PATCH …/groups/{groupId}` with a `groupId` |
+| `delete_prompt_group` | `DELETE /v1/projects/{projectId}/groups/{groupId}` — empty groups only |
 | `create_report` | `POST /v1/reports` — **public, no key**, identified by `agencyId` |
 | `get_report_integration` | `GET /v1/me` — the agency id and endpoint to post a form to |
 | `list_reports` | `GET /v1/reports` |
@@ -65,6 +69,7 @@ Every one of these calls the PromptEye API.
 | `get_content_brief` | `GET /v1/content/briefs/{briefId}` |
 | `list_sources` | `GET /v1/projects/{projectId}/sources` |
 | `list_competitors` | `GET /v1/projects/{projectId}/competitors` |
+| `get_integrations_status` | `GET /v1/projects/{projectId}/integrations/status` |
 | `get_google_status` | `GET /v1/projects/{projectId}/traffic/google/status` |
 | `get_search_performance` | `GET /v1/projects/{projectId}/traffic/google/search`, `…/search/queries`, `…/search/pages` |
 | `get_ai_traffic` | `GET /v1/projects/{projectId}/traffic/google/analytics`, `…/analytics/sources`, `…/analytics/pages` |
@@ -72,6 +77,7 @@ Every one of these calls the PromptEye API.
 | `count_bot_visits` | `GET /v1/projects/{projectId}/traffic/events/count` |
 | `list_crawls` | `GET /v1/projects/{projectId}/traffic/crawls` |
 | `get_sitemap` | `GET /v1/projects/{projectId}/traffic/sitemap` |
+| `report_missing_capability` | `POST /v1/feedback` — only after the user agrees to send it |
 
 Periods default to the last 30 days and are capped at 366 — except the bot traffic, which the API
 reads a month at a time, so `list_bot_visits` and `count_bot_visits` cap theirs at 31 days.
@@ -88,6 +94,14 @@ Every request carries `verified`, which says whether the origin checked out as t
 every row and both descriptions say a count is an upper bound. No tool drops a row or adjusts a
 figure on its own.
 
+### Zeros from a missing integration
+
+A project with nothing connected answers the Google and bot traffic endpoints with zeros and empty
+lists, which reads exactly like a site nobody visits. `get_integrations_status` reports Search
+Console, Google Analytics, the bot tracker and the sitemap in one call, and the descriptions of
+`get_search_performance`, `get_ai_traffic`, `list_bot_visits`, `count_bot_visits` and `list_crawls`
+tell the model to read it before reporting a zero as a finding.
+
 ### Google's own figures
 
 `get_search_performance` and `get_ai_traffic` report the period's totals, and `by` ranks it
@@ -100,6 +114,22 @@ undercount by design, since an assistant that names a brand without linking it s
 integrations are bound to the project in the PromptEye app, and a project with nothing bound
 answers with zeros and empty lists, which reads exactly like a site nobody visits. So an empty
 reading makes one extra call to `…/traffic/google/status` and says which of the two it was.
+
+### Content generation
+
+PromptEye generates content as well as measuring visibility, and the two make one loop: track the
+prompts, generate an article for the ones where the brand is weak, then read whether that
+prompt's visibility and citations move.
+
+`create_content_brief` starts it for the active project. It orders a brief — a title and an H2/H3
+outline — for an article that targets one prompt; passing `promptId` links the brief to a tracked
+prompt, which is what later measures the article. The brief comes back `processing`, and
+`get_content_brief` reads it until it is `ready`: the outline, the fan-out phrases it covers and the
+phrases that deserve an article of their own.
+
+The API stops at the brief. Writing the article from it, saving its published URL, requesting
+indexing and following citations are done in the PromptEye app under
+[Content](https://app.prompteye.com/content), and the server instructions say so.
 
 ### Public reports
 
@@ -121,13 +151,6 @@ key, which is what makes it safe in a browser.
 demand and from how people actually put questions to assistants. `add_prompts` tracks
 hand-written prompts instead, skipping that, so it says as much in its own description and
 requires `confirmBypassPromptIntelligence: true`.
-
-### Article outlines
-
-`create_content_brief` orders the title and H2/H3 outline of an article written to be quoted for
-one prompt — a tracked one by `promptId`, or free text by `prompt`. Writing it takes a little
-while, so it answers `processing` with an id and `get_content_brief` is read until it is `ready`.
-Every call orders a new brief; the API does not deduplicate them.
 
 ### The tools that are switched off
 

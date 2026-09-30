@@ -58,7 +58,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
           return (
             `${index + 1}. ${competitor.brand}${mark} — share of voice ${num(competitor.shareOfVoice, "%")}, ` +
             `visibility ${num(competitor.metrics.visibility, "%")} (${signed(competitor.change?.visibility ?? null, " pp")}), ` +
-            `${num(competitor.citedAnswers)} cited answer(s)`
+            `cited in ${num(competitor.citedAnswers)} answer(s)`
           );
         });
 

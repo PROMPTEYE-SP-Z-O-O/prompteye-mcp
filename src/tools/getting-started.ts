@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { PromptGroupSchema, PromptSchema, PromptSuggestionSchema } from "../schemas/prompteye.js";
+import { CONTENT_APP_URL } from "./glossary.js";
 import { PHASES, nextSteps, phaseOf, readStanding, renderPhases } from "./journey.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
 
@@ -19,7 +20,9 @@ export function registerGettingStartedTools(server: McpServer, context: ToolCont
         "next step from what is actually missing, which is more useful than a list of everything this " +
         "server could do. The phases run in order — " + PHASES.join(" → ") + " — so walk the user " +
         "through the current one and call this again once it is done. It also reports what has to be " +
-        "done in the PromptEye app rather than here.",
+        "done in the PromptEye app rather than here. PromptEye covers the full visibility loop — track " +
+        "prompts, generate content for the weak ones, measure the result — so the steps it names " +
+        "include content generation.",
       annotations: READ_ONLY,
       inputSchema: {
         projectId: z
@@ -101,11 +104,12 @@ export function registerGettingStartedTools(server: McpServer, context: ToolCont
         );
         lines.push(
           "",
-          "Done in the PromptEye app, not here: accepting a suggestion, deleting a prompt, and " +
-            "converting a report into a tracked project. Prompt generation cannot be triggered through " +
-            "the API. What can be done here: update_knowledge_base for the brand description, " +
-            "update_prompt to pause a prompt, move it between groups or set its priority, and " +
-            "create_content_brief to outline an article for a prompt."
+          "Done in the PromptEye app, not here: accepting a suggestion, deleting a prompt, " +
+            "converting a report into a tracked project, and writing the article from a content brief " +
+            `(${CONTENT_APP_URL}). Prompt generation cannot be triggered through the API. What can be ` +
+            "done here: update_knowledge_base for the brand description, update_prompt to pause a " +
+            "prompt, move it between groups or set its priority, and create_content_brief to start " +
+            "generating an article for a prompt."
         );
 
         return ok(lines.join("\n"), {

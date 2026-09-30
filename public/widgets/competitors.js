@@ -38,7 +38,7 @@ function render(data) {
           own: brand.ownBrand,
           value: brand.shareOfVoice,
           suffix: "%",
-          note: brand.citedAnswers === null || brand.citedAnswers === undefined ? "" : `· ${brand.citedAnswers} cited`,
+          note: brand.citedAnswers === null || brand.citedAnswers === undefined ? "" : `· cited in ${brand.citedAnswers} answer(s)`,
         }))
       )}
     </section>`;

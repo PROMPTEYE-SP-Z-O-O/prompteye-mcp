@@ -9,13 +9,16 @@ import {
   CompetitorExclusionListSchema,
   CompetitorPageSchema,
   ContentBriefSchema,
+  FeedbackSchema,
   GoogleStatusSchema,
+  IntegrationsStatusSchema,
   KnowledgeBaseSchema,
   NewPromptListSchema,
   ProjectListSchema,
   ProjectSchema,
   PromptDetailSchema,
   PromptGroupPageSchema,
+  PromptGroupSettingsSchema,
   PromptPageSchema,
   PromptSettingsSchema,
   PromptSuggestionListSchema,
@@ -39,9 +42,13 @@ import {
   type CompetitorExclusion,
   type ContentBrief,
   type CreateContentBriefInput,
+  type CreateFeedbackInput,
   type CreateProjectInput,
+  type CreatePromptGroupInput,
   type CreateReportInput,
+  type Feedback,
   type GoogleStatus,
+  type IntegrationsStatus,
   type Report,
   type ReportDetail,
   type KnowledgeBase,
@@ -52,6 +59,7 @@ import {
   type Prompt,
   type PromptDetail,
   type PromptGroup,
+  type PromptGroupSettings,
   type PromptInput,
   type PromptSettings,
   type PromptSuggestion,
@@ -66,10 +74,14 @@ import {
   type TrafficSitemapPage,
   type UpdateKnowledgeBaseInput,
   type UpdateProjectInput,
+  type UpdatePromptGroupInput,
   type UpdatePromptInput,
 } from "./schemas.js";
 
 const projectPath = (projectId: string): string => `/v1/projects/${encodeURIComponent(projectId)}`;
+
+const promptGroupPath = (projectId: string, groupId: string): string =>
+  `${projectPath(projectId)}/groups/${encodeURIComponent(groupId)}`;
 
 /** The period a listing reports on. Defaults to the last 30 days. */
 export type DateRange = { startDate?: string; endDate?: string };
@@ -199,6 +211,23 @@ export class PromptGroupsResource {
       ...options,
       query: params,
     });
+  }
+
+  create(projectId: string, input: CreatePromptGroupInput, options?: RequestOptions): Promise<PromptGroupSettings> {
+    return this.http.post(`${projectPath(projectId)}/groups`, input, PromptGroupSettingsSchema, options);
+  }
+
+  update(
+    projectId: string,
+    groupId: string,
+    input: UpdatePromptGroupInput,
+    options?: RequestOptions
+  ): Promise<PromptGroupSettings> {
+    return this.http.patch(promptGroupPath(projectId, groupId), input, PromptGroupSettingsSchema, options);
+  }
+
+  delete(projectId: string, groupId: string, options?: RequestOptions): Promise<void> {
+    return this.http.delete(promptGroupPath(projectId, groupId), options);
   }
 }
 
@@ -529,5 +558,21 @@ export class TrafficResource {
       ...options,
       query: params,
     });
+  }
+}
+
+export class IntegrationsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  status(projectId: string, options?: RequestOptions): Promise<IntegrationsStatus> {
+    return this.http.get(`${projectPath(projectId)}/integrations/status`, IntegrationsStatusSchema, options);
+  }
+}
+
+export class FeedbackResource {
+  constructor(private readonly http: HttpClient) {}
+
+  create(input: CreateFeedbackInput, options?: RequestOptions): Promise<Feedback> {
+    return this.http.post("/v1/feedback", input, FeedbackSchema, options);
   }
 }

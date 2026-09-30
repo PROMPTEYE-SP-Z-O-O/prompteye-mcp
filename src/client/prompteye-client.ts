@@ -14,9 +14,13 @@ import type {
   CompetitorExclusion,
   ContentBrief,
   CreateContentBriefInput,
+  CreateFeedbackInput,
   CreateProjectInput,
+  CreatePromptGroupInput,
   CreateReportInput,
+  Feedback,
   GoogleStatus,
+  IntegrationsStatus,
   KnowledgeBase,
   List,
   NewPrompt,
@@ -24,6 +28,7 @@ import type {
   Prompt,
   PromptDetail,
   PromptGroup,
+  PromptGroupSettings,
   PromptInput,
   PromptSettings,
   PromptSuggestion,
@@ -40,6 +45,7 @@ import type {
   TrafficSitemapPage,
   UpdateKnowledgeBaseInput,
   UpdateProjectInput,
+  UpdatePromptGroupInput,
   UpdatePromptInput,
   VisibilityRow,
   VisibilitySummary,
@@ -123,6 +129,9 @@ export interface PromptEyeClient {
   addPrompts(projectId: string, prompts: PromptInput[]): Promise<List<NewPrompt>>;
   updatePrompt(projectId: string, promptId: string, input: UpdatePromptInput): Promise<PromptSettings>;
   listPromptGroups(projectId: string, query: PromptGroupQuery): Promise<Page<PromptGroup>>;
+  createPromptGroup(projectId: string, input: CreatePromptGroupInput): Promise<PromptGroupSettings>;
+  updatePromptGroup(projectId: string, groupId: string, input: UpdatePromptGroupInput): Promise<PromptGroupSettings>;
+  deletePromptGroup(projectId: string, groupId: string): Promise<void>;
 
   getVisibilitySummary(projectId: string, query: VisibilitySummaryQuery): Promise<VisibilitySummary>;
   getVisibility(projectId: string, query: VisibilityQuery): Promise<Page<VisibilityRow>>;
@@ -141,6 +150,8 @@ export interface PromptEyeClient {
 
   createContentBrief(input: CreateContentBriefInput): Promise<ContentBrief>;
   getContentBrief(briefId: string): Promise<ContentBrief>;
+
+  reportMissingCapability(input: CreateFeedbackInput): Promise<Feedback>;
 
   /**
    * What Google reports for the project's own site, which is a different
@@ -165,6 +176,7 @@ export interface PromptEyeClient {
   listCrawls(projectId: string, query: CrawlQuery): Promise<Page<TrafficCrawl>>;
   /** Takes no period: the sitemap is a standing inventory. */
   getSitemap(projectId: string, query: SitemapQuery): Promise<TrafficSitemapPage>;
+  getIntegrationsStatus(projectId: string): Promise<IntegrationsStatus>;
 
   listAnswers(projectId: string, query: AnswerQuery): Promise<Page<Answer>>;
   listSources(projectId: string, query: SourceQuery): Promise<Page<CitedDomain>>;
