@@ -61,6 +61,7 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
     const token = readApiKey(req.headers);
     if (!token) return reject(res, REJECTIONS.missingKey);
     res.locals.keyFingerprint = fingerprintOf(token);
+    res.locals.credentials = { token, baseUrl };
     next();
   };
 
@@ -117,14 +118,11 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
   };
 
   const routeSession: Handler = async (req, res) => {
-    const token = readApiKey(req.headers);
-    if (!token) return reject(res, REJECTIONS.missingKey);
-
     const sessionId = firstValue(req.headers, SESSION_HEADER);
-    const fingerprint = res.locals.keyFingerprint;
+    const { credentials, keyFingerprint } = res.locals;
     return sessionId === undefined
-      ? startSession({ token, baseUrl }, fingerprint, req, res)
-      : resumeSession(sessionId, fingerprint, req, res);
+      ? startSession(credentials, keyFingerprint, req, res)
+      : resumeSession(sessionId, keyFingerprint, req, res);
   };
 
   const guarded =
