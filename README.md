@@ -60,6 +60,7 @@ Every one of these calls the PromptEye API.
 | `list_competitors` | `GET /v1/projects/{projectId}/competitors` |
 | `create_content_brief` | `POST /v1/content/briefs` |
 | `get_content_brief` | `GET /v1/content/briefs/{briefId}` |
+| `get_integrations_status` | `GET /v1/projects/{projectId}/integrations/status` |
 | `get_google_status` | `GET /v1/projects/{projectId}/traffic/google/status` |
 | `get_search_performance` | `GET /v1/projects/{projectId}/traffic/google/search`, `…/search/queries`, `…/search/pages` |
 | `get_ai_traffic` | `GET /v1/projects/{projectId}/traffic/google/analytics`, `…/analytics/sources`, `…/analytics/pages` |
@@ -82,6 +83,14 @@ Every request carries `verified`, which says whether the origin checked out as t
 `User-Agent` is free text and the API has no filter for it, so `list_bot_visits` prints the flag on
 every row and both descriptions say a count is an upper bound. No tool drops a row or adjusts a
 figure on its own.
+
+### Zeros from a missing integration
+
+A project with nothing connected answers the Google and bot traffic endpoints with zeros and empty
+lists, which reads exactly like a site nobody visits. `get_integrations_status` reports Search
+Console, Google Analytics, the bot tracker and the sitemap in one call, and the descriptions of
+`get_search_performance`, `get_ai_traffic`, `list_bot_visits`, `count_bot_visits` and `list_crawls`
+tell the model to read it before reporting a zero as a finding.
 
 ### Google's own figures
 

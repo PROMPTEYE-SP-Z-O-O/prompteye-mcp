@@ -98,7 +98,14 @@ export const GOOGLE_BINDING =
   "answers with zeros and empty lists, which reads exactly like a site nobody visits — so call " +
   "get_google_status before reporting a zero as a finding, and say which of the two it was.";
 
-/** What the bot traffic is, for the tools that report it. */
+export const INTEGRATION_STATE =
+  "A project whose integration is not connected answers this with zeros and empty lists, which " +
+  "reads exactly like a site nobody visits. Call get_integrations_status before reporting a zero " +
+  "or an empty list as a finding: it says whether Search Console, Google Analytics, the bot " +
+  "tracker and the sitemap are connected, and a sync that is failing. Not connected means the " +
+  "figures say nothing about the site, never that it had no traffic; say the integration is " +
+  "missing and that it can be connected in the PromptEye app.";
+
 export const BOT_TRAFFIC =
   "A bot visit is a machine fetching a page, not a person reading one. It is the supply side of " +
   "visibility: an assistant can only quote a page its bot was able to fetch, so this says whether " +

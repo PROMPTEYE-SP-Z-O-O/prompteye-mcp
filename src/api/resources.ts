@@ -10,6 +10,7 @@ import {
   CompetitorPageSchema,
   ContentBriefSchema,
   GoogleStatusSchema,
+  IntegrationsStatusSchema,
   KnowledgeBaseSchema,
   NewPromptListSchema,
   ProjectListSchema,
@@ -42,6 +43,7 @@ import {
   type CreateProjectInput,
   type CreateReportInput,
   type GoogleStatus,
+  type IntegrationsStatus,
   type Report,
   type ReportDetail,
   type KnowledgeBase,
@@ -529,5 +531,13 @@ export class TrafficResource {
       ...options,
       query: params,
     });
+  }
+}
+
+export class IntegrationsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  status(projectId: string, options?: RequestOptions): Promise<IntegrationsStatus> {
+    return this.http.get(`${projectPath(projectId)}/integrations/status`, IntegrationsStatusSchema, options);
   }
 }

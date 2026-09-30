@@ -14,7 +14,7 @@ import {
   TrafficKindSchema,
   TrafficSitemapPageSchema,
 } from "../schemas/prompteye.js";
-import { BOT_TRAFFIC, VERIFIED } from "./glossary.js";
+import { BOT_TRAFFIC, INTEGRATION_STATE, VERIFIED } from "./glossary.js";
 import { READ_ONLY, handled, morePages, ok, type ToolContext } from "./result.js";
 
 const trafficRangeShape = {
@@ -90,7 +90,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         "when a page moved. For totals call count_bot_visits instead — paging through this to add " +
         "requests up gives a wrong number, because only the newest 4 000 requests of the period are " +
         "searched and a rarely matching filter comes back short of what the period held.\n\n" +
-        `${BOT_TRAFFIC}\n\n${VERIFIED}`,
+        `${BOT_TRAFFIC}\n\n${VERIFIED}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
       inputSchema: {
         ...trafficRangeShape,
@@ -144,7 +144,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         "The answer is ranked, not paged: the `limit` largest groups come back and there is no cursor. " +
         "`partial` is true when the period held more requests than could be read, so the counts then " +
         "describe the newest ones only.\n\n" +
-        `${BOT_TRAFFIC}\n\n${VERIFIED}`,
+        `${BOT_TRAFFIC}\n\n${VERIFIED}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
       inputSchema: {
         groupBy: TrafficGroupSchema.describe("What to count by."),
@@ -203,7 +203,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         "is a page nothing has ever come for.\n\n" +
         "Only the 3 000 most recently visited rows are searched, unless `path` names one page, which " +
         "reads all of its rows.\n\n" +
-        BOT_TRAFFIC,
+        `${BOT_TRAFFIC}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
       inputSchema: { ...kindShape, ...botShape, ...pathShape, ...paginationShape },
       outputSchema: { data: z.array(TrafficCrawlSchema), nextCursor: z.string().nullable() },

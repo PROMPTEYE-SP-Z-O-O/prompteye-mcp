@@ -36,7 +36,8 @@ type LiveMethod =
   | "listBotVisits"
   | "countBotVisits"
   | "listCrawls"
-  | "getSitemap";
+  | "getSitemap"
+  | "getIntegrationsStatus";
 
 /** What is left for the sample data to answer, until the API grows those endpoints too. */
 export type FallbackClient = Omit<PromptEyeClient, LiveMethod>;
@@ -83,5 +84,6 @@ export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): P
     countBotVisits: (projectId, query) => api.traffic.countEvents(projectId, query),
     listCrawls: (projectId, query) => api.traffic.crawls(projectId, query),
     getSitemap: (projectId, query) => api.traffic.sitemap(projectId, query),
+    getIntegrationsStatus: (projectId) => api.integrations.status(projectId),
   };
 }
