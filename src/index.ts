@@ -1,14 +1,12 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { describeDataSource, requireSettings, serverName } from "./config.js";
-import { createMcpServer } from "./server.js";
+import { describeDataSource, readEnvCredentials, serverName } from "./config.js";
+import { buildToolContext, createMcpServer } from "./server.js";
 
 async function main(): Promise<void> {
-  // Fail here rather than on the first tool call, so a missing setting is
-  // obvious in the host's log. stdout carries the protocol; this goes to stderr.
-  const { baseUrl } = requireSettings();
-  console.error(`${serverName}: ${describeDataSource(baseUrl)}`);
+  const credentials = readEnvCredentials();
+  console.error(`${serverName}: ${describeDataSource(credentials.baseUrl)}`);
 
-  const server = createMcpServer();
+  const server = createMcpServer(buildToolContext(credentials));
   await server.connect(new StdioServerTransport());
   console.error(`${serverName} running on stdio`);
 }

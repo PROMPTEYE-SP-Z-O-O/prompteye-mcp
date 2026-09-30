@@ -8,9 +8,10 @@ being asked, how they are grouped and filed, and which ones PromptEye suggests a
 the prompts where the brand is weak, it starts content generation, so the whole visibility loop
 is reachable from here: track, generate content, measure.
 
-The server needs the API URL of the deployment and an API key for it. Both are at
-[app.prompteye.com/integrations](https://app.prompteye.com/integrations), and it refuses to
-start without them.
+The server needs the API URL of the deployment, and every call needs a PromptEye API key.
+Both are at [app.prompteye.com/integrations](https://app.prompteye.com/integrations). Over
+stdio the key comes from the environment, one key per process; over HTTP each request carries
+its own key, so one hosted server serves many users (see [Hosted / HTTP mode](#hosted--http-mode)).
 
 ## Knowing what to do with it
 
@@ -184,15 +185,83 @@ worth adding only once the server is actually reachable as a ChatGPT connector.
 
 ```bash
 npm install
-cp .env.example .env      # put your key and API URL in it
+cp .env.example .env      # put the API URL in it; the key too, for stdio
 npm run build
 
-npm start                 # stdio — Claude Desktop, Cursor
-npm run start:http        # Streamable HTTP on http://localhost:3000/mcp
+npm start                 # stdio — Claude Desktop, Cursor; key from PROMPTEYE_API_KEY
+npm run start:http        # Streamable HTTP on http://localhost:3000/mcp; key per request
 npm test
 ```
 
+`npm run start:http` needs only `PROMPTEYE_API_BASE_URL` (and `PORT`, optionally). It never
+reads `PROMPTEYE_API_KEY`.
+
 During development, `npm run dev` and `npm run dev:http` watch and reload.
+
+### Hosted / HTTP mode
+
+The HTTP server holds no key of its own. Each request brings the caller's PromptEye API key in
+one of two headers — `Authorization` wins when both are present:
+
+```http
+Authorization: Bearer pe_live_…
+X-PromptEye-Key: pe_live_…
+```
+
+What happens with it:
+
+- **Verified at initialize.** The first request of a session (`initialize`) is answered only
+  after `GET /v1/me` on the PromptEye API accepts the key. A key PromptEye rejects gets `401`
+  with a `WWW-Authenticate: Bearer` challenge; a key PromptEye throttles gets `429` with its
+  `Retry-After`; a PromptEye API that cannot be reached gets `503` with `Retry-After`. A request
+  without a key gets `401` before anything else is looked at, and a request without a session
+  that is not a `POST` gets `405` before the key is looked at.
+- **Sessions are bound to the key.** The `Mcp-Session-Id` the server hands out is usable only
+  with the key that opened it; with any other key it is `404 Session not found`, as if it never
+  existed. Each session has its own `McpServer`, its own API client and its own project
+  selection, so nothing leaks between users. Sessions idle for `MCP_SESSION_IDLE_MINUTES` are
+  closed, and a key holds at most `MCP_MAX_SESSIONS_PER_KEY` at a time — the oldest goes first.
+- **Rate limits.** `MCP_RATE_LIMIT_PER_KEY` requests a minute per key and
+  `MCP_RATE_LIMIT_PER_IP` per client address, answered with `429` and `Retry-After` when
+  exceeded. `MCP_RATE_LIMIT_AUTH_FAILURES` counts the keys PromptEye rejected per client
+  address; past it, every initialize from that address gets `429` until the minute is up, a
+  valid key included, so a script guessing keys stops costing calls to PromptEye. `Retry-After`
+  from the PromptEye API itself is passed on to the model in the tool error text.
+- **Logs** are one JSON line per request on stdout — method, path, status, duration, the
+  JSON-RPC method and the tool name for `tools/call`, and a SHA-256 fingerprint of the key.
+  Never the key, never headers, never arguments. `LOG_LEVEL=error` keeps only failures.
+- **`GET /healthz`** (and `GET /`) answer `{ "status": "ok", "server": { "name", "version" } }`
+  and nothing about the deployment or the sessions.
+
+Pointing a client at it:
+
+```json
+// .cursor/mcp.json
+{
+  "mcpServers": {
+    "prompteye": {
+      "url": "http://localhost:3000/mcp",
+      "headers": { "Authorization": "Bearer pe_live_…" }
+    }
+  }
+}
+```
+
+```bash
+claude mcp add --transport http prompteye http://localhost:3000/mcp \
+  --header "Authorization: Bearer pe_live_…"
+```
+
+Claude.ai and ChatGPT connectors authenticate with OAuth rather than a pasted header; that is
+not in this version, so they cannot use the hosted server yet.
+
+Set `MCP_PUBLIC_HOSTS` to the `Host` values the server is reachable under and
+`MCP_ALLOWED_ORIGINS` to the browser origins allowed to call it; together they are the
+DNS-rebinding protection. Requests without an `Origin` header (Cursor, Claude Code, curl) are
+never affected by the origin list. Behind a reverse proxy, set `MCP_TRUST_PROXY_HOPS` to the
+number of proxies in front of the server (Cloud Run: `1`) so `X-Forwarded-For` is read that
+far and the per-IP limit counts clients rather than the proxy; at the default `0` the header
+is ignored.
 
 ### Claude Desktop
 
@@ -289,11 +358,22 @@ then selected automatically. `create_project` also makes what it created active.
 ```
 src/
   api/                PromptEye API client — no MCP in it, publishable on its own
-  index.ts            stdio entry point
-  index-http.ts       Streamable HTTP entry point, one MCP session per mcp-session-id
-  server.ts           builds one server: session, tools, and the SAMPLE_TOOLS switch
+  index.ts            stdio entry point — key and API URL from the environment
+  index-http.ts       Streamable HTTP entry point — reads the settings, starts the server
+  http/
+    settings.ts       every HTTP setting read from the environment, with its default
+    server.ts         builds the registry, the budgets and the app from the settings, sweeps idle sessions, listens
+    app.ts            the express app: wires the middleware chain — CORS, logging, JSON body, then the /mcp steps
+    steps.ts          the /mcp steps as express handlers: IP limit, POST for new sessions, key required, key limit, error guard
+    mcp.ts            routes a request to its session: verifies the key and starts one at initialize, resumes by Mcp-Session-Id
+    credentials.ts    reads the key from Authorization / X-PromptEye-Key, fingerprints it, verifies it at initialize
+    rejections.ts     every refusal the app answers with — status, JSON-RPC code, message, headers
+    sessions.ts       SessionRegistry — sessions bound to a key, idle sweep, per-key cap
+    rate-limit.ts     RequestBudget — requests per minute, per key and per client address
+    logging.ts        one JSON line per event and per request, never a key or a header
+  server.ts           builds one server from a ToolContext: session, tools, SAMPLE_TOOLS switch
   session.ts          ProjectSession — which project the tools report on
-  config.ts           environment, and the client factory
+  config.ts           environment, credentials, and the client factory
   client/             PromptEyeClient interface; live (API) and fixture implementations
   schemas/            zod mirrors of the models the API does not serve yet
   tools/              one module per group of tools, plus the glossary they quote
@@ -308,13 +388,22 @@ scripts/bundle.mjs    stages dist/, public/ and production deps, then packs the 
 
 ## Environment
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `PROMPTEYE_API_BASE_URL` | required | API root of the deployment |
-| `PROMPTEYE_API_KEY` | required | The API key for that deployment |
-| `MCP_SERVER_NAME` | `prompteye-mcp` | Name reported to clients |
-| `MCP_SERVER_VERSION` | `1.0.0` | Version reported to clients |
-| `PORT` | `3000` | HTTP transport port |
+| Variable | Default | Mode | Purpose |
+|---|---|---|---|
+| `PROMPTEYE_API_BASE_URL` | required | both | API root of the deployment |
+| `PROMPTEYE_API_KEY` | required for stdio | stdio | The API key; HTTP takes it from each request instead |
+| `MCP_SERVER_NAME` | `prompteye-mcp` | both | Name reported to clients |
+| `MCP_SERVER_VERSION` | `1.0.0` | both | Version reported to clients |
+| `PORT` | `3000` | HTTP | Port to listen on |
+| `LOG_LEVEL` | `info` | HTTP | `info` logs every request, `error` only failures |
+| `MCP_SESSION_IDLE_MINUTES` | `30` | HTTP | Sessions idle this long are closed |
+| `MCP_MAX_SESSIONS_PER_KEY` | `20` | HTTP | Open sessions one key may hold; the oldest is closed first |
+| `MCP_RATE_LIMIT_PER_KEY` | `120` | HTTP | Requests a minute per key |
+| `MCP_RATE_LIMIT_PER_IP` | `600` | HTTP | Requests a minute per client address |
+| `MCP_RATE_LIMIT_AUTH_FAILURES` | `10` | HTTP | Rejected keys a minute per client address before its initializes get `429`, valid key or not |
+| `MCP_PUBLIC_HOSTS` | unset | HTTP | Comma-separated `Host` values to accept; unset accepts any |
+| `MCP_ALLOWED_ORIGINS` | unset | HTTP | Comma-separated browser `Origin` values to accept; unset accepts any |
+| `MCP_TRUST_PROXY_HOPS` | `0` | HTTP | Reverse proxies in front of the server whose `X-Forwarded-For` is trusted; `0` ignores it |
 
 Both the API URL and the key are at
 [app.prompteye.com/integrations](https://app.prompteye.com/integrations).
