@@ -129,6 +129,7 @@ export const PromptDetailSchema = PromptSchema.extend({
 export const PromptGroupSchema = z.object({
   id: z.string(),
   name: z.string(),
+  description: z.string().nullable().optional(),
   order: z.number().nullable(),
   /** Paused prompts included. */
   promptCount: z.number(),
@@ -201,6 +202,7 @@ export const PromptSuggestionListSchema = listOf(PromptSuggestionSchema);
 export const NewPromptListSchema = listOf(NewPromptSchema);
 export const PromptPageSchema = pageOf(PromptSchema);
 export const PromptGroupPageSchema = pageOf(PromptGroupSchema);
+export const PromptGroupSettingsSchema = PromptGroupSchema.omit({ aiTrafficTotal: true, metrics: true });
 export const CitedDomainPageSchema = pageOf(CitedDomainSchema);
 export const CompetitorPageSchema = pageOf(CompetitorSchema);
 
@@ -325,6 +327,18 @@ export const UpdatePromptRequestSchema = z.object({
   businessPriorityReason: z.string().max(500).optional(),
 });
 
+export const CreatePromptGroupRequestSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().max(500).optional(),
+  order: z.number().int().min(0).optional(),
+});
+
+export const UpdatePromptGroupRequestSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().max(500).nullable().optional(),
+  order: z.number().int().min(0).optional(),
+});
+
 export const PromptSettingsSchema = z.object({
   id: z.string(),
   prompt: z.string(),
@@ -381,6 +395,8 @@ export type PromptInput = {
 };
 
 export type UpdatePromptInput = z.infer<typeof UpdatePromptRequestSchema>;
+export type CreatePromptGroupInput = z.infer<typeof CreatePromptGroupRequestSchema>;
+export type UpdatePromptGroupInput = z.infer<typeof UpdatePromptGroupRequestSchema>;
 
 export type List<T> = { data: T[] };
 export type Page<T> = { data: T[]; nextCursor: string | null };
@@ -403,6 +419,7 @@ export type Prompt = z.infer<typeof PromptSchema>;
 export type PromptDetail = z.infer<typeof PromptDetailSchema>;
 export type PromptSettings = z.infer<typeof PromptSettingsSchema>;
 export type PromptGroup = z.infer<typeof PromptGroupSchema>;
+export type PromptGroupSettings = z.infer<typeof PromptGroupSettingsSchema>;
 export type PromptSuggestion = z.infer<typeof PromptSuggestionSchema>;
 export type NewPrompt = z.infer<typeof NewPromptSchema>;
 

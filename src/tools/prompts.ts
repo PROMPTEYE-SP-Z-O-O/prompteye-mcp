@@ -8,10 +8,12 @@ import {
   NewPromptSchema,
   PromptDetailSchema,
   PromptGroupSchema,
+  PromptGroupSettingsSchema,
   PromptSchema,
   PromptSettingsSchema,
   PromptSuggestionSchema,
   type Category,
+  type PromptGroupSettings,
   type PromptSuggestion,
 } from "../schemas/prompteye.js";
 import {
@@ -23,7 +25,7 @@ import {
   RELATIVE_VOLUME,
   VISIBILITY,
 } from "./glossary.js";
-import { READ_ONLY, WRITES, handled, morePages, num, ok, signed, type ToolContext } from "./result.js";
+import { DELETES, READ_ONLY, WRITES, fail, handled, morePages, num, ok, signed, type ToolContext } from "./result.js";
 
 const PURCHASE_INTENT_STAGE: Record<number, string> = {
   1: "educational",
@@ -57,6 +59,14 @@ function renderCategoryTree(categories: Category[]): string[] {
     ...(children.get(root.id) ?? []).map((child) => line(child, "  ")),
   ]);
 }
+
+const renderPromptGroupSettings = (heading: string, group: PromptGroupSettings): string =>
+  [
+    `${heading} prompt group "${group.name}" [id: ${group.id}]:`,
+    `- Description: ${group.description ?? "none"}`,
+    `- Order: ${num(group.order)}`,
+    `- Prompts: ${group.promptCount}`,
+  ].join("\n");
 
 function renderSuggestion(suggestion: PromptSuggestion): string {
   const stage = PURCHASE_INTENT_STAGE[suggestion.purchaseIntentLevel] ?? "unknown stage";
@@ -182,7 +192,8 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "How the active project's prompts are grouped — comparison queries, problem queries, brand " +
         "queries — with the visibility of each group over the period. A group is the unit a strategy " +
         "is judged by. Use a group id to narrow list_prompts. Ungrouped prompts have no row here; " +
-        "they show up in list_prompts with groupId null.\n\n" +
+        "they show up in list_prompts with groupId null. upsert_prompt_group renames, describes or " +
+        "reorders a group, and delete_prompt_group removes an empty one.\n\n" +
         "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         "aiTrafficTotal adds up the demand behind the prompts of the group that are still being asked, " +
         "so a paused prompt contributes nothing.",
@@ -198,8 +209,10 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
 
         const lines = page.data.map(
           (group) =>
-            `- ${group.name} — ${group.promptCount} prompt(s), visibility ${num(group.metrics.visibility, "%")}, ` +
-            `position ${num(group.metrics.averagePosition)}, AI traffic ${num(group.aiTrafficTotal)} [id: ${group.id}]`
+            `- ${group.name} (order ${num(group.order)}) — ${group.promptCount} prompt(s), ` +
+            `visibility ${num(group.metrics.visibility, "%")}, position ${num(group.metrics.averagePosition)}, ` +
+            `AI traffic ${num(group.aiTrafficTotal)} [id: ${group.id}]` +
+            (group.description ? `\n  ${group.description}` : "")
         );
 
         return ok(
@@ -209,6 +222,92 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
             morePages(page.nextCursor),
           page
         );
+      })
+  );
+
+  server.registerTool(
+    "upsert_prompt_group",
+    {
+      title: "Create, rename, describe or reorder a prompt group",
+      description:
+        "Creates a prompt group in the active project or, given a groupId, changes the name, description " +
+        "or order of an existing one. Only the fields sent are changed, and the prompts of a group keep " +
+        "their history when it is renamed or moved.\n\n" +
+        "Without groupId a new, empty group is created: name is required, and the group goes after the " +
+        "existing ones unless order says otherwise. Prompts join a group through update_prompt (groupId) " +
+        "or through a matching groupName in add_prompts.",
+      annotations: WRITES,
+      inputSchema: {
+        groupId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Id of the group to change, as list_prompt_groups reports it. Left out, a new group is created."),
+        name: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Name of the group. Required when creating one."),
+        description: z
+          .string()
+          .max(500)
+          .nullable()
+          .optional()
+          .describe("What the group is for. Null clears it."),
+        order: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("Where the group sits in the project's ordering, lowest first."),
+      },
+      outputSchema: PromptGroupSettingsSchema.shape,
+    },
+    async ({ groupId, name, description, order }) =>
+      handled(async () => {
+        const project = await session.require();
+
+        if (groupId !== undefined) {
+          const updated = await client.updatePromptGroup(project.id, groupId, { name, description, order });
+          return ok(renderPromptGroupSettings("Updated", updated), updated);
+        }
+
+        if (name === undefined) {
+          return fail(
+            "A new prompt group needs a name. To change an existing group, pass its groupId from list_prompt_groups."
+          );
+        }
+
+        const created = await client.createPromptGroup(project.id, {
+          name,
+          description: description ?? undefined,
+          order,
+        });
+        return ok(renderPromptGroupSettings("Created", created), created);
+      })
+  );
+
+  server.registerTool(
+    "delete_prompt_group",
+    {
+      title: "Delete an empty prompt group",
+      description:
+        "Deletes one prompt group of the active project, but only when it has no prompts — paused prompts " +
+        "count too. A group that still has prompts is refused: move each of them with update_prompt " +
+        "(groupId of another group, or null to leave it ungrouped) and then delete the group. Deleting " +
+        "cannot be undone.",
+      annotations: DELETES,
+      inputSchema: {
+        groupId: z.string().min(1).describe("Id of the group to delete, as list_prompt_groups reports it."),
+      },
+      outputSchema: { id: z.string() },
+    },
+    async ({ groupId }) =>
+      handled(async () => {
+        const project = await session.require();
+        await client.deletePromptGroup(project.id, groupId);
+
+        return ok(`Deleted the prompt group [id: ${groupId}] from ${project.name}.`, { id: groupId });
       })
   );
 
@@ -290,8 +389,8 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "rather than the way people actually ask assistants will quietly measure nothing — it will sit " +
         "in the project at 0% visibility and look like a brand problem when it is a prompt problem. " +
         "Every prompt also counts against the workspace plan.\n\n" +
-        "Groups are handled by name: a groupName that does not exist yet is created, and one that " +
-        "does is reused, so there is no separate group-creation step.\n\n" +
+        "Groups are handled by name: a groupName that does not exist yet is created after the existing " +
+        "groups, and one that does is reused. upsert_prompt_group renames or describes a group afterwards.\n\n" +
         "Use it only when the user has prompts of their own that must be tracked verbatim — migrating " +
         "from another tool, or a list a client insists on — and has said as much. If the user simply " +
         "wants more prompts, or better coverage, use list_prompt_suggestions instead. When unsure, " +
@@ -315,8 +414,8 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
                 .optional()
                 .describe(
                   "Name of the group the prompt joins. The group is created when it does not exist " +
-                    "yet and reused when it does — there is no separate group-creation step — so " +
-                    "match the spelling reported by list_prompt_groups to land in an existing group. " +
+                    "yet and reused when it does, ignoring case, so match the spelling reported by " +
+                    "list_prompt_groups to land in an existing group. " +
                     "Left out, the prompt is ungrouped and appears in no group's figures."
                 ),
             })

@@ -79,6 +79,8 @@
     { "name": "list_prompts", "description": "The questions being put to the assistants" },
     { "name": "get_prompt", "description": "One prompt, broken down per assistant" },
     { "name": "list_prompt_groups", "description": "How the prompts are grouped" },
+    { "name": "upsert_prompt_group", "description": "Create, rename, describe or reorder a prompt group" },
+    { "name": "delete_prompt_group", "description": "Delete a prompt group that has no prompts" },
     { "name": "list_categories", "description": "The categories prompts are filed under" },
     { "name": "list_prompt_suggestions", "description": "Prompts worth tracking next, and why" },
     { "name": "create_report", "description": "Generates a public visibility report for a brand" },

@@ -42,6 +42,8 @@ const LIVE_GROUP = {
   metrics: { visibility: 58.3, reachIndex: 55, averagePosition: 2.6 },
 };
 
+const LIVE_GROUP_SETTINGS = { id: "g1", name: "Overall", description: null, order: 2, promptCount: 0 };
+
 const LIVE_DOMAIN = { domain: "acme.example", citations: 18, share: 5, ownDomain: true };
 
 const LIVE_COMPETITOR = {
@@ -133,11 +135,17 @@ function liveClient() {
       body: typeof init.body === "string" ? JSON.parse(init.body) : undefined,
     });
 
+    if (init.method === "DELETE") {
+      return new Response(null, { status: 204 });
+    }
+
     if (init.method === "POST") {
       const created =
         pathname === "/v1/projects"
           ? LIVE_PROJECT
-          : { data: [{ id: "p2", prompt: "how much does acme cost", groupName: "Pricing" }] };
+          : pathname.endsWith("/groups")
+            ? LIVE_GROUP_SETTINGS
+            : { data: [{ id: "p2", prompt: "how much does acme cost", groupName: "Pricing" }] };
       return new Response(JSON.stringify(created), { status: 201 });
     }
 
@@ -149,7 +157,9 @@ function liveClient() {
             ? { text: "KB text", updatedAt: null }
             : pathname === `/v1/projects/${LIVE_PROJECT.id}/prompts/${LIVE_PROMPT.id}`
               ? LIVE_PROMPT
-              : undefined;
+              : pathname === `/v1/projects/${LIVE_PROJECT.id}/groups/${LIVE_GROUP_SETTINGS.id}`
+                ? { ...LIVE_GROUP_SETTINGS, name: "Overall queries" }
+                : undefined;
       return patched === undefined
         ? new Response(JSON.stringify({ error: { code: "not_found", message: "No endpoint matches this path." } }), {
             status: 404,
@@ -181,7 +191,7 @@ function liveClient() {
             ? { data: [{ id: "c1", name: "Pricing", parentId: null, source: "manual" }] }
             : pathname.endsWith("/prompt-suggestions")
               ? { data: [] }
-              : pathname.endsWith("/prompt-groups")
+              : pathname.endsWith("/groups")
                 ? { data: [LIVE_GROUP], nextCursor: null }
                 : pathname.endsWith("/sources")
                   ? { data: [LIVE_DOMAIN], nextCursor: null }
@@ -255,7 +265,7 @@ describe("createLiveClient", () => {
       data: [LIVE_GROUP],
       nextCursor: null,
     });
-    expect(calls[0].path).toBe(`/v1/projects/${LIVE_PROJECT.id}/prompt-groups?startDate=2026-08-16&endDate=2026-09-15`);
+    expect(calls[0].path).toBe(`/v1/projects/${LIVE_PROJECT.id}/groups?startDate=2026-08-16&endDate=2026-09-15`);
   });
 
   it("ranks cited domains, narrowed to one assistant", async () => {
@@ -411,6 +421,32 @@ describe("createLiveClient", () => {
       method: "PATCH",
       body: { status: "paused" },
     });
+  });
+
+  it("creates, renames and deletes a prompt group through the API", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.createPromptGroup(LIVE_PROJECT.id, { name: "Overall" })).resolves.toEqual(
+      LIVE_GROUP_SETTINGS
+    );
+    await expect(
+      client.updatePromptGroup(LIVE_PROJECT.id, LIVE_GROUP_SETTINGS.id, { name: "Overall queries" })
+    ).resolves.toMatchObject({ name: "Overall queries" });
+    await expect(client.deletePromptGroup(LIVE_PROJECT.id, LIVE_GROUP_SETTINGS.id)).resolves.toBeUndefined();
+
+    expect(calls).toEqual([
+      { path: `/v1/projects/${LIVE_PROJECT.id}/groups`, method: "POST", body: { name: "Overall" } },
+      {
+        path: `/v1/projects/${LIVE_PROJECT.id}/groups/${LIVE_GROUP_SETTINGS.id}`,
+        method: "PATCH",
+        body: { name: "Overall queries" },
+      },
+      {
+        path: `/v1/projects/${LIVE_PROJECT.id}/groups/${LIVE_GROUP_SETTINGS.id}`,
+        method: "DELETE",
+        body: undefined,
+      },
+    ]);
   });
 
   it("lists and replaces competitor exclusions", async () => {

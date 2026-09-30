@@ -17,6 +17,9 @@ type LiveMethod =
   | "addPrompts"
   | "updatePrompt"
   | "listPromptGroups"
+  | "createPromptGroup"
+  | "updatePromptGroup"
+  | "deletePromptGroup"
   | "listSources"
   | "listCompetitors"
   | "listCompetitorExclusions"
@@ -61,6 +64,9 @@ export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): P
     addPrompts: (projectId, prompts) => api.prompts.create(projectId, prompts),
     updatePrompt: (projectId, promptId, input) => api.prompts.update(projectId, promptId, input),
     listPromptGroups: (projectId, query) => api.promptGroups.list(projectId, query),
+    createPromptGroup: (projectId, input) => api.promptGroups.create(projectId, input),
+    updatePromptGroup: (projectId, groupId, input) => api.promptGroups.update(projectId, groupId, input),
+    deletePromptGroup: (projectId, groupId) => api.promptGroups.delete(projectId, groupId),
     createReport: (input) => api.reports.create(input),
     listReports: (query) => api.reports.list(query),
     getReport: (reportId) => api.reports.get(reportId),
