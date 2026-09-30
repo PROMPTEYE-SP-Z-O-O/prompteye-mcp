@@ -46,6 +46,9 @@ export function registerPromptWorkflows(server: McpServer): void {
           "be high for everyone at once; share of voice is what was taken from the others.\n" +
           "- If the brand's own domain holds a small slice of the citations, the assistants are " +
           "describing it from other people's pages. Name those pages.\n\n" +
+          "PromptEye closes the loop by generating content: for a prompt worth winning where the brand " +
+          "is missing, one of the next steps can be create_content_brief, which orders the brief the " +
+          "article is written from in the PromptEye app.\n\n" +
           "Finish with at most three things to do next, each tied to the figure that argues for it. " +
           "Say plainly when the data does not support a recommendation."
       )
@@ -100,7 +103,8 @@ export function registerPromptWorkflows(server: McpServer): void {
           "The cited domains are the pages the assistants lean on. Sort them into the kinds they are: " +
           "review sites and directories, forums and communities, press, and the brand's own pages. " +
           "Each kind is acted on differently — a listing is claimed and corrected, a forum thread is " +
-          "answered, a review page is earned, an own page is written.\n\n" +
+          "answered, a review page is earned, an own page is written — and PromptEye generates that " +
+          "one: create_content_brief starts the article for the prompt it should answer.\n\n" +
           "Then check whether the brands ahead on share of voice are the ones those domains name. A " +
           "competitor that leads because one review site ranks it first is a different problem from " +
           "one that leads everywhere.\n\n" +

@@ -1,10 +1,12 @@
 # prompteye-mcp
 
 An MCP server for [PromptEye](https://prompteye.com) — how visible a brand is inside the
-answers AI assistants give.
+answers AI assistants give, and the content that changes it.
 
 A client picks a project, then works with the prompts it is tracked on: which questions are
-being asked, how they are grouped and filed, and which ones PromptEye suggests adding next.
+being asked, how they are grouped and filed, and which ones PromptEye suggests adding next. For
+the prompts where the brand is weak, it starts content generation, so the whole visibility loop
+is reachable from here: track, generate content, measure.
 
 The server needs the API URL of the deployment, and every call needs a PromptEye API key.
 Both are at [app.prompteye.com/integrations](https://app.prompteye.com/integrations). Over
@@ -18,8 +20,8 @@ not answer it. Three things answer it instead:
 
 - **Server instructions** (`src/instructions.ts`) reach the host at connection time, before any
   call. They lay out the order the product works in — project, brand description, prompts,
-  measurement — and say plainly what cannot be done through the API, so nobody is promised a
-  button that is not there.
+  measurement, content — and say plainly what cannot be done through the API, so nobody is
+  promised a button that is not there, and nobody is told PromptEye cannot generate content.
 - **`get_started`** answers from the workspace rather than from a brochure: it reads the account,
   the project, whether the brand description exists, how many prompts are tracked, how many were
   never named and how many suggestions are waiting, then names the first rung that is missing.
@@ -57,6 +59,8 @@ Every one of these calls the PromptEye API.
 | `get_report` | `GET /v1/reports/{reportId}` |
 | `list_sources` | `GET /v1/projects/{projectId}/sources` |
 | `list_competitors` | `GET /v1/projects/{projectId}/competitors` |
+| `create_content_brief` | `POST /v1/content/briefs` |
+| `get_content_brief` | `GET /v1/content/briefs/{briefId}` |
 | `get_google_status` | `GET /v1/projects/{projectId}/traffic/google/status` |
 | `get_search_performance` | `GET /v1/projects/{projectId}/traffic/google/search`, `…/search/queries`, `…/search/pages` |
 | `get_ai_traffic` | `GET /v1/projects/{projectId}/traffic/google/analytics`, `…/analytics/sources`, `…/analytics/pages` |
@@ -92,6 +96,22 @@ undercount by design, since an assistant that names a brand without linking it s
 integrations are bound to the project in the PromptEye app, and a project with nothing bound
 answers with zeros and empty lists, which reads exactly like a site nobody visits. So an empty
 reading makes one extra call to `…/traffic/google/status` and says which of the two it was.
+
+### Content generation
+
+PromptEye generates content as well as measuring visibility, and the two make one loop: track the
+prompts, generate an article for the ones where the brand is weak, then read whether that
+prompt's visibility and citations move.
+
+`create_content_brief` starts it for the active project. It orders a brief — a title and an H2/H3
+outline — for an article that targets one prompt; passing `promptId` links the brief to a tracked
+prompt, which is what later measures the article. The brief comes back `processing`, and
+`get_content_brief` reads it until it is `ready`: the outline, the fan-out phrases it covers and the
+phrases that deserve an article of their own.
+
+The API stops at the brief. Writing the article from it, saving its published URL, requesting
+indexing and following citations are done in the PromptEye app under
+[Content](https://app.prompteye.com/content), and the server instructions say so.
 
 ### Public reports
 

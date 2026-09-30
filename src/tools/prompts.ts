@@ -86,6 +86,9 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "over the period and how it moved against the period before. Every measurement PromptEye " +
         "reports is taken on the answers to these prompts, so this is where to look for which " +
         "questions carry the brand and which do not. Paused prompts are listed too, newest first.\n\n" +
+        "A prompt the brand is rarely or never named on, especially one with a high business priority, " +
+        "is the one to generate content for: create_content_brief with its text and id starts the " +
+        "article, and this listing is where its impact shows up later.\n\n" +
         "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         `${VISIBILITY}\n\n${AI_TRAFFIC}\n\n${BUSINESS_PRIORITY}`,
       annotations: READ_ONLY,
@@ -138,7 +141,8 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
       description:
         "One prompt of the active project, with its visibility broken down per assistant — only the " +
         "assistants that actually answered are listed. Call this to see which assistant is carrying a " +
-        "prompt and which is dropping the brand from it.\n\n" +
+        "prompt and which is dropping the brand from it. When the brand is weak here, " +
+        "create_content_brief starts an article aimed at this prompt.\n\n" +
         "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         `${VISIBILITY}\n\n${AI_TRAFFIC}\n\n${BUSINESS_PRIORITY}`,
       annotations: READ_ONLY,

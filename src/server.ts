@@ -7,6 +7,7 @@ import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
 import { registerGettingStartedTools } from "./tools/getting-started.js";
 import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
+import { registerContentTools } from "./tools/content.js";
 import { registerHelpTools } from "./tools/help.js";
 import { registerGoogleTools } from "./tools/google.js";
 import { registerTrafficTools } from "./tools/traffic.js";
@@ -98,6 +99,7 @@ export function createMcpServer(context: ToolContext): McpServer {
     "The brands answering alongside a project's own, ranked by share of voice"
   );
   registerCompetitorTools(toolServer, context);
+  registerContentTools(toolServer, context);
   registerGoogleTools(toolServer, context);
   registerTrafficTools(toolServer, context);
   registerReportTools(toolServer, context);
