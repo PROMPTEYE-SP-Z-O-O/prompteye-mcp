@@ -1,7 +1,6 @@
 /** The domains the assistants leaned on, ranked by how often they were cited. */
 function render(data) {
   const domains = data?.data ?? [];
-  setContext(data?.startDate ? `${data.startDate} → ${data.endDate}` : "");
 
   if (domains.length === 0) {
     empty("No domains were cited on these prompts in this period.");

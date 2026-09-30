@@ -1,11 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import {
-  MAX_LIMIT,
-  MAX_TRAFFIC_RANGE_DAYS,
-  paginationShape,
-  resolveTrafficRange,
-} from "../schemas/common.js";
+import { MAX_LIMIT, MAX_TRAFFIC_RANGE_DAYS, paginationShape } from "../schemas/common.js";
 import {
   TrafficCountSchema,
   TrafficCrawlSchema,
@@ -105,8 +100,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveTrafficRange(args);
-        const page = await client.listBotVisits(project.id, { ...args, ...range });
+        const page = await client.listBotVisits(project.id, args);
 
         const lines = page.data.map(
           (event) =>
@@ -115,7 +109,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         );
 
         return ok(
-          `Requests to ${project.domain}, ${range.startDate} to ${range.endDate}, newest first ` +
+          `Requests to ${project.domain}, newest first ` +
             `(${page.data.length}):\n${lines.join("\n")}` +
             morePages(page.nextCursor),
           page
@@ -170,8 +164,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveTrafficRange(args);
-        const counts = await client.countBotVisits(project.id, { ...args, ...range });
+        const counts = await client.countBotVisits(project.id, args);
 
         const lines = counts.data.map(
           (row) =>
@@ -180,7 +173,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         );
 
         return ok(
-          `Requests to ${project.domain} by ${args.groupBy}, ${range.startDate} to ${range.endDate}, ` +
+          `Requests to ${project.domain} by ${args.groupBy}, ` +
             `largest first (partial: ${counts.partial}):\n${lines.join("\n")}`,
           counts
         );

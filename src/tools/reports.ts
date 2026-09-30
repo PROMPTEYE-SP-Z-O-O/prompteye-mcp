@@ -187,13 +187,12 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
     async (args) =>
       handled(async () => {
         const page = await client.listReports(args);
-        const waiting = page.data.filter((report) => report.contactCount > 0).length;
 
         return ok(
           (page.data.length === 0
             ? "This account has generated no public reports."
-            : `${page.data.length} report(s)${waiting > 0 ? `, ${waiting} with a contact request` : ""}:\n` +
-              page.data.map(line).join("\n")) + morePages(page.nextCursor),
+            : `${page.data.length} report(s):\n` + page.data.map(line).join("\n")) +
+            morePages(page.nextCursor),
           page
         );
       })

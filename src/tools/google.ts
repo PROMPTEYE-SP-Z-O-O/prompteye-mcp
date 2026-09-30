@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { MAX_LIMIT, dateRangeShape, resolveDateRange } from "../schemas/common.js";
+import { MAX_LIMIT, dateRangeShape } from "../schemas/common.js";
 import {
   AnalyticsPageSchema,
   AnalyticsSourceSchema,
@@ -117,35 +117,31 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
         ...limitShape("entries"),
       },
       outputSchema: {
-        startDate: z.string(),
-        endDate: z.string(),
         by: SearchBreakdownSchema.nullable(),
         summary: SearchSummarySchema.nullable(),
         data: z.array(z.union([SearchQuerySchema, SearchPageSchema])).nullable(),
         nextCursor: z.string().nullable(),
       },
     },
-    async (args) =>
+    async ({ by, limit, ...range }) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const period = `${range.startDate} to ${range.endDate}`;
 
-        if (args.by === undefined) {
+        if (by === undefined) {
           const summary = await client.getSearchSummary(project.id, range);
           const text =
-            `${project.domain} in Google Search, ${period}:\n` +
+            `${project.domain} in Google Search:\n` +
             `${summary.clicks} click(s) from ${summary.impressions} impression(s) — ` +
             `CTR ${rate(summary.ctr)}, average position ${summary.position}.\n` +
             `${summary.timeline.length} day(s) of the timeline are in the structured output.`;
 
-          return ok(text, { ...range, by: null, summary, data: null, nextCursor: null });
+          return ok(text, { by: null, summary, data: null, nextCursor: null });
         }
 
         const page =
-          args.by === "query"
-            ? await client.listSearchQueries(project.id, { ...range, limit: args.limit })
-            : await client.listSearchPages(project.id, { ...range, limit: args.limit });
+          by === "query"
+            ? await client.listSearchQueries(project.id, { ...range, limit })
+            : await client.listSearchPages(project.id, { ...range, limit });
 
         const lines = page.data.map(
           (row) =>
@@ -153,14 +149,14 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
             `CTR ${rate(row.ctr)}, position ${row.position}`
         );
         const heading =
-          args.by === "query"
+          by === "query"
             ? `Phrases people found ${project.domain} with`
             : `Pages Google sends visitors to on ${project.domain}`;
 
         return ok(
-          `${heading}, ${period}, most clicked first (${page.data.length}):\n${lines.join("\n")}` +
+          `${heading}, most clicked first (${page.data.length}):\n${lines.join("\n")}` +
             morePages(page.nextCursor),
-          { ...range, by: args.by, summary: null, ...page }
+          { by, summary: null, ...page }
         );
       })
   );
@@ -190,8 +186,6 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
         ...limitShape("entries"),
       },
       outputSchema: {
-        startDate: z.string(),
-        endDate: z.string(),
         assistant: z.string().nullable(),
         by: AiTrafficBreakdownSchema.nullable(),
         summary: AnalyticsSummarySchema.nullable(),
@@ -199,28 +193,25 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
         nextCursor: z.string().nullable(),
       },
     },
-    async (args) =>
+    async ({ by, limit, assistant, ...range }) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const period = `${range.startDate} to ${range.endDate}`;
-        const only = args.assistant ? ` via ${args.assistant}` : "";
-        const common = { ...range, assistant: args.assistant ?? null };
+        const only = assistant ? ` via ${assistant}` : "";
 
-        if (args.by === undefined) {
-          const summary = await client.getAiTrafficSummary(project.id, { ...range, assistant: args.assistant });
+        if (by === undefined) {
+          const summary = await client.getAiTrafficSummary(project.id, { ...range, assistant });
           const text =
-            `Visits to ${project.domain} from AI assistants${only}, ${period}:\n` +
+            `Visits to ${project.domain} from AI assistants${only}:\n` +
             `${summary.sessions} session(s), ${summary.engagedSessions} engaged ` +
             `(${rate(summary.engagementRate)}), average ${summary.averageSessionDuration}s, ` +
             `${summary.keyEvents} key event(s).`;
 
-          return ok(text, { ...common, by: null, summary, data: null, nextCursor: null });
+          return ok(text, { assistant: assistant ?? null, by: null, summary, data: null, nextCursor: null });
         }
 
-        const query = { ...range, assistant: args.assistant, limit: args.limit };
+        const query = { ...range, assistant, limit };
         const page =
-          args.by === "source"
+          by === "source"
             ? await client.listAiTrafficSources(project.id, query)
             : await client.listAiTrafficPages(project.id, query);
 
@@ -228,14 +219,14 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
           (row) => `- ${trafficLabel(row)} — ${row.sessions} session(s), ${row.keyEvents} key event(s)`
         );
         const heading =
-          args.by === "source"
+          by === "source"
             ? `Assistants that sent visitors to ${project.domain}${only}`
             : `Pages AI visitors land on at ${project.domain}${only}`;
 
         return ok(
-          `${heading}, ${period}, most sessions first (${page.data.length}):\n${lines.join("\n")}` +
+          `${heading}, most sessions first (${page.data.length}):\n${lines.join("\n")}` +
             morePages(page.nextCursor),
-          { ...common, by: args.by, summary: null, ...page }
+          { assistant: assistant ?? null, by, summary: null, ...page }
         );
       })
   );

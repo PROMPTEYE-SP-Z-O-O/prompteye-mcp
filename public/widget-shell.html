@@ -132,19 +132,17 @@
         contextEl.textContent = text ?? "";
       };
 
-      /** A rise in visibility is good; a rise in average position is a slide down the answer. */
-      function delta(value, suffix, higherIsBetter) {
+      function delta(value, suffix) {
         if (value === null || value === undefined) return '<div class="delta flat">no prior period</div>';
-        const better = higherIsBetter ? value > 0 : value < 0;
-        const cls = value === 0 ? "flat" : better ? "up" : "down";
+        const cls = value === 0 ? "flat" : value > 0 ? "up" : "down";
         return `<div class="delta ${cls}">${value > 0 ? "+" : ""}${value}${suffix} vs previous period</div>`;
       }
 
-      function tile(label, value, suffix, change, higherIsBetter) {
+      function tile(label, value, suffix, change) {
         return `<div class="tile">
           <div class="label">${esc(label)}</div>
           <div class="value">${esc(fmt(value, suffix))}</div>
-          ${delta(change, suffix === "%" ? " pp" : "", higherIsBetter)}
+          ${delta(change, suffix === "%" ? " pp" : "")}
         </div>`;
       }
 

@@ -1,4 +1,4 @@
-import { DEFAULT_LIMIT, type Metrics, type ModelKey, type Page } from "../schemas/common.js";
+import { DEFAULT_LIMIT, type DateRange, type Metrics, type ModelKey, type Page } from "../schemas/common.js";
 import type {
   Answer,
   CitationQuality,
@@ -67,14 +67,20 @@ function delta(now: number | null, before: number | null): number | null {
 const byVisibility = (a: { metrics: Metrics }, b: { metrics: Metrics }): number =>
   (b.metrics.visibility ?? -1) - (a.metrics.visibility ?? -1);
 
+const isoDay = (at: number): string => new Date(at).toISOString().slice(0, 10);
+
+function periodOf({ startDate, endDate = isoDay(Date.now()) }: DateRange): { startDate: string; endDate: string } {
+  return { startDate: startDate ?? isoDay(Date.parse(endDate) - 30 * DAY_MS), endDate };
+}
+
 /** The period of the same length ending the day before `startDate`. */
 function previousPeriod(startDate: string, endDate: string): { startDate: string; endDate: string } {
   const span = Date.parse(endDate) - Date.parse(startDate) + DAY_MS;
   const previousEnd = Date.parse(startDate) - DAY_MS;
 
   return {
-    startDate: new Date(previousEnd - span + DAY_MS).toISOString().slice(0, 10),
-    endDate: new Date(previousEnd).toISOString().slice(0, 10),
+    startDate: isoDay(previousEnd - span + DAY_MS),
+    endDate: isoDay(previousEnd),
   };
 }
 
@@ -126,8 +132,9 @@ export function createFixturesClient(): FallbackClient {
       _projectId: string,
       query: VisibilitySummaryQuery
     ): Promise<VisibilitySummary> {
-      const rows = filterRows(fixtures.visibilityRows(query.startDate, query.endDate), query);
-      const before = previousPeriod(query.startDate, query.endDate);
+      const { startDate, endDate } = periodOf(query);
+      const rows = filterRows(fixtures.visibilityRows(startDate, endDate), query);
+      const before = previousPeriod(startDate, endDate);
       const previousRows = filterRows(fixtures.visibilityRows(before.startDate, before.endDate), query);
 
       const totals = metricsOf(rows);
@@ -136,8 +143,8 @@ export function createFixturesClient(): FallbackClient {
       const all = query.by ? buildBreakdown(rows, query.by) : [];
 
       return {
-        startDate: query.startDate,
-        endDate: query.endDate,
+        startDate,
+        endDate,
         models: query.model ? [query.model] : fixtures.trackedModels,
         totals,
         change: {
@@ -152,15 +159,17 @@ export function createFixturesClient(): FallbackClient {
     },
 
     async getVisibility(_projectId: string, query: VisibilityQuery): Promise<Page<VisibilityRow>> {
-      const rows = filterRows(fixtures.visibilityRows(query.startDate, query.endDate), query);
+      const { startDate, endDate } = periodOf(query);
+      const rows = filterRows(fixtures.visibilityRows(startDate, endDate), query);
       return paginate(rows, query);
     },
 
     async listAnswers(_projectId: string, query: AnswerQuery): Promise<Page<Answer>> {
+      const { startDate, endDate } = periodOf(query);
       const matching = fixtures.answers.filter(
         (answer) =>
-          answer.date >= query.startDate &&
-          answer.date <= query.endDate &&
+          answer.date >= startDate &&
+          answer.date <= endDate &&
           (query.model === undefined || answer.model === query.model) &&
           (query.promptId === undefined || answer.promptId === query.promptId) &&
           (query.brand === undefined || answer.brand === query.brand) &&

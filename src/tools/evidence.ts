@@ -1,13 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
-import {
-  MAX_LIMIT,
-  dateRangeShape,
-  modelFilterShape,
-  paginationShape,
-  resolveDateRange,
-} from "../schemas/common.js";
+import { MAX_LIMIT, dateRangeShape, modelFilterShape, paginationShape } from "../schemas/common.js";
 import { AnswerSchema, CitationQualitySchema, CitedDomainSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
@@ -49,8 +43,6 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         nextCursor: z.string().nullable(),
         projectName: z.string(),
         brand: z.string(),
-        startDate: z.string(),
-        endDate: z.string(),
         model: z.string().nullable(),
       },
       _meta: widgetMeta(widgetUri(SOURCES_WIDGET), "Reading the citations…", "Read the citations"),
@@ -58,8 +50,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.listSources(project.id, { ...args, ...range });
+        const page = await client.listSources(project.id, args);
 
         const lines = page.data.map(
           (domain) =>
@@ -69,14 +60,13 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
 
         return ok(
           (page.data.length === 0
-            ? `No domains were cited between ${range.startDate} and ${range.endDate}.`
-            : `Domains cited on ${project.brand}'s prompts, ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`) +
+            ? "No domains were cited."
+            : `Domains cited on ${project.brand}'s prompts:\n${lines.join("\n")}`) +
             morePages(page.nextCursor),
           {
             ...page,
             projectName: project.name,
             brand: project.brand,
-            ...range,
             model: args.model ?? null,
           }
         );
@@ -119,8 +109,7 @@ export function registerEvidenceTools(server: McpServer, { client, session }: To
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.listAnswers(project.id, { ...args, ...range });
+        const page = await client.listAnswers(project.id, args);
 
         const lines = page.data.map((answer) => {
           const cited = answer.sources.map((source) => source.domain).join(", ") || "no sources";
@@ -134,7 +123,7 @@ export function registerEvidenceTools(server: McpServer, { client, session }: To
         return ok(
           sampleData(
             (page.data.length === 0
-              ? `No answers recorded for ${project.brand} between ${range.startDate} and ${range.endDate}.`
+              ? `No answers recorded for ${project.brand}.`
               : `${page.data.length} answer(s):\n${lines.join("\n")}`) + morePages(page.nextCursor)
           ),
           page

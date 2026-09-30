@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { widgetMeta, widgetUri } from "../widgets.js";
-import { dateRangeShape, paginationShape, resolveDateRange } from "../schemas/common.js";
+import { dateRangeShape, paginationShape } from "../schemas/common.js";
 import {
   CategorySchema,
   NewPromptSchema,
@@ -25,7 +25,6 @@ import {
   RELATIVE_VOLUME,
   VISIBILITY,
 } from "./glossary.js";
-import { whatNext } from "./journey.js";
 import { DELETES, READ_ONLY, WRITES, aiTrafficText, fail, handled, morePages, num, ok, signed, type ToolContext } from "./result.js";
 
 const PURCHASE_INTENT_STAGE: Record<number, string> = {
@@ -86,9 +85,7 @@ function renderSuggestion(suggestion: PromptSuggestion): string {
 
 export const PROMPTS_WIDGET = "prompts";
 
-export function registerPromptTools(server: McpServer, context: ToolContext): void {
-  const { client, session } = context;
-
+export function registerPromptTools(server: McpServer, { client, session }: ToolContext): void {
   registerAppTool(
     server,
     "list_prompts",
@@ -119,16 +116,13 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
         nextCursor: z.string().nullable(),
         projectName: z.string(),
         brand: z.string(),
-        startDate: z.string(),
-        endDate: z.string(),
       },
       _meta: widgetMeta(widgetUri(PROMPTS_WIDGET), "Reading the prompts…", "Read the prompts"),
     },
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.listPrompts(project.id, { ...args, ...range });
+        const page = await client.listPrompts(project.id, args);
 
         const lines = page.data.map(
           (prompt) =>
@@ -140,9 +134,9 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
         return ok(
           (page.data.length === 0
             ? `${project.name} tracks no prompts matching that.`
-            : `${page.data.length} prompt(s) in ${project.name}, ${range.startDate} to ${range.endDate}:\n` +
+            : `${page.data.length} prompt(s) in ${project.name}:\n` +
               lines.join("\n")) + morePages(page.nextCursor),
-          { ...page, projectName: project.name, brand: project.brand, ...range }
+          { ...page, projectName: project.name, brand: project.brand }
         );
       })
   );
@@ -168,7 +162,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
     async ({ promptId, ...range }) =>
       handled(async () => {
         const project = await session.require();
-        const prompt = await client.getPrompt(project.id, promptId, resolveDateRange(range));
+        const prompt = await client.getPrompt(project.id, promptId, range);
 
         const perModel = prompt.byModel.map(
           (entry) =>
@@ -211,8 +205,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.listPromptGroups(project.id, { ...args, ...range });
+        const page = await client.listPromptGroups(project.id, args);
 
         const lines = page.data.map(
           (group) =>
@@ -225,7 +218,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
         return ok(
           (page.data.length === 0
             ? `${project.name} has no prompt groups.`
-            : `${page.data.length} prompt group(s), ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`) +
+            : `${page.data.length} prompt group(s):\n${lines.join("\n")}`) +
             morePages(page.nextCursor),
           page
         );
@@ -457,8 +450,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
           `Added ${list.data.length} prompt(s) to ${project.name}:\n${lines.join("\n")}\n\n` +
             "They carry no demand, priority or fit yet — PromptEye computes those, and the first " +
             "figures arrive after the next run. Check list_prompt_suggestions for the prompts it " +
-            "would have proposed instead." +
-            (await whatNext(context, project)),
+            "would have proposed instead.",
           list
         );
       })
