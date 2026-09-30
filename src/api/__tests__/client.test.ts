@@ -229,6 +229,25 @@ describe("PromptEyeApi", () => {
     expect(JSON.parse(calls[0].init.body as string)).toEqual({ exclusions });
   });
 
+  it("posts a missing-capability report with the key", async () => {
+    const feedback = { id: "f1", receivedAt: "2026-09-29T15:40:00.000Z" };
+    const { api, calls } = stubFetch(json(201, feedback));
+
+    const result = await api.feedback.create({
+      need: "Export the prompt list as CSV",
+      attemptedAction: "Exporting prompts for a client deck",
+    });
+
+    expect(result).toEqual(feedback);
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/feedback`);
+    expect(calls[0].init.method).toBe("POST");
+    expect(calls[0].init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}` });
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({
+      need: "Export the prompt list as CSV",
+      attemptedAction: "Exporting prompts for a client deck",
+    });
+  });
+
   describe("public reports", () => {
     const report = {
       id: "r1",

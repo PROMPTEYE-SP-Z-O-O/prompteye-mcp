@@ -8,6 +8,7 @@ import { registerAccountTools } from "./tools/account.js";
 import { registerGettingStartedTools } from "./tools/getting-started.js";
 import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
 import { registerContentTools } from "./tools/content.js";
+import { registerFeedbackTools } from "./tools/feedback.js";
 import { registerHelpTools } from "./tools/help.js";
 import { registerGoogleTools } from "./tools/google.js";
 import { registerIntegrationTools } from "./tools/integrations.js";
@@ -110,6 +111,7 @@ export function createMcpServer(): McpServer {
   registerTrafficTools(toolServer, context);
   registerReportTools(toolServer, context);
   registerHelpTools(toolServer);
+  registerFeedbackTools(toolServer, context);
 
   if (SAMPLE_TOOLS) {
     registerWidget(

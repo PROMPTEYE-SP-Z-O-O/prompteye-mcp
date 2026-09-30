@@ -70,6 +70,7 @@ Every one of these calls the PromptEye API.
 | `count_bot_visits` | `GET /v1/projects/{projectId}/traffic/events/count` |
 | `list_crawls` | `GET /v1/projects/{projectId}/traffic/crawls` |
 | `get_sitemap` | `GET /v1/projects/{projectId}/traffic/sitemap` |
+| `report_missing_capability` | `POST /v1/feedback` — only after the user agrees to send it |
 
 Periods default to the last 30 days and are capped at 366 — except the bot traffic, which the API
 reads a month at a time, so `list_bot_visits` and `count_bot_visits` cap theirs at 31 days.

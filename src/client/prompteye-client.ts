@@ -14,9 +14,11 @@ import type {
   CompetitorExclusion,
   ContentBrief,
   CreateContentBriefInput,
+  CreateFeedbackInput,
   CreateProjectInput,
   CreatePromptGroupInput,
   CreateReportInput,
+  Feedback,
   GoogleStatus,
   IntegrationsStatus,
   KnowledgeBase,
@@ -148,6 +150,8 @@ export interface PromptEyeClient {
 
   createContentBrief(input: CreateContentBriefInput): Promise<ContentBrief>;
   getContentBrief(briefId: string): Promise<ContentBrief>;
+
+  reportMissingCapability(input: CreateFeedbackInput): Promise<Feedback>;
 
   /**
    * What Google reports for the project's own site, which is a different

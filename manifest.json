@@ -103,7 +103,8 @@
     { "name": "list_bot_visits", "description": "The requests AI and search bots made to the site" },
     { "name": "count_bot_visits", "description": "Those requests counted by bot, path, status, day or category" },
     { "name": "list_crawls", "description": "Which bot has fetched which page, since tracking began" },
-    { "name": "get_sitemap", "description": "The connected sitemap and the addresses it lists" }
+    { "name": "get_sitemap", "description": "The connected sitemap and the addresses it lists" },
+    { "name": "report_missing_capability", "description": "Tells the PromptEye team about something the server cannot do, once the user agrees" }
   ],
   "compatibility": {
     "platforms": ["darwin", "win32"],

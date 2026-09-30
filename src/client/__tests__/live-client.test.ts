@@ -152,7 +152,9 @@ function liveClient() {
           ? LIVE_PROJECT
           : pathname.endsWith("/groups")
             ? LIVE_GROUP_SETTINGS
-            : { data: [{ id: "p2", prompt: "how much does acme cost", groupName: "Pricing" }] };
+            : pathname === "/v1/feedback"
+              ? { id: "f1", receivedAt: "2026-09-29T15:40:00.000Z" }
+              : { data: [{ id: "p2", prompt: "how much does acme cost", groupName: "Pricing" }] };
       return new Response(JSON.stringify(created), { status: 201 });
     }
 
@@ -325,6 +327,20 @@ describe("createLiveClient", () => {
       path: `/v1/projects/${LIVE_PROJECT.id}/prompts`,
       method: "POST",
       body: { prompts: [{ prompt: "how much does acme cost", groupName: "Pricing" }] },
+    });
+  });
+
+  it("posts a missing-capability report to the feedback endpoint", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(
+      client.reportMissingCapability({ need: "Export prompts as CSV", attemptedAction: "Exporting prompts" })
+    ).resolves.toEqual({ id: "f1", receivedAt: "2026-09-29T15:40:00.000Z" });
+
+    expect(calls[0]).toEqual({
+      path: "/v1/feedback",
+      method: "POST",
+      body: { need: "Export prompts as CSV", attemptedAction: "Exporting prompts" },
     });
   });
 

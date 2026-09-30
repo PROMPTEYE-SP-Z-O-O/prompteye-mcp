@@ -9,6 +9,7 @@ import {
   CompetitorExclusionListSchema,
   CompetitorPageSchema,
   ContentBriefSchema,
+  FeedbackSchema,
   GoogleStatusSchema,
   IntegrationsStatusSchema,
   KnowledgeBaseSchema,
@@ -41,9 +42,11 @@ import {
   type CompetitorExclusion,
   type ContentBrief,
   type CreateContentBriefInput,
+  type CreateFeedbackInput,
   type CreateProjectInput,
   type CreatePromptGroupInput,
   type CreateReportInput,
+  type Feedback,
   type GoogleStatus,
   type IntegrationsStatus,
   type Report,
@@ -563,5 +566,13 @@ export class IntegrationsResource {
 
   status(projectId: string, options?: RequestOptions): Promise<IntegrationsStatus> {
     return this.http.get(`${projectPath(projectId)}/integrations/status`, IntegrationsStatusSchema, options);
+  }
+}
+
+export class FeedbackResource {
+  constructor(private readonly http: HttpClient) {}
+
+  create(input: CreateFeedbackInput, options?: RequestOptions): Promise<Feedback> {
+    return this.http.post("/v1/feedback", input, FeedbackSchema, options);
   }
 }
