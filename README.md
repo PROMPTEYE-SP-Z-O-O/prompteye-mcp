@@ -206,7 +206,8 @@ What happens with it:
   after `GET /v1/me` on the PromptEye API accepts the key. A key PromptEye rejects gets `401`
   with a `WWW-Authenticate: Bearer` challenge; a key PromptEye throttles gets `429` with its
   `Retry-After`; a PromptEye API that cannot be reached gets `503` with `Retry-After`. A request
-  without a key gets `401` before anything else is looked at.
+  without a key gets `401` before anything else is looked at, and a request without a session
+  that is not a `POST` gets `405` before the key is looked at.
 - **Sessions are bound to the key.** The `Mcp-Session-Id` the server hands out is usable only
   with the key that opened it; with any other key it is `404 Session not found`, as if it never
   existed. Each session has its own `McpServer`, its own API client and its own project
@@ -214,8 +215,10 @@ What happens with it:
   closed, and a key holds at most `MCP_MAX_SESSIONS_PER_KEY` at a time — the oldest goes first.
 - **Rate limits.** `MCP_RATE_LIMIT_PER_KEY` requests a minute per key and
   `MCP_RATE_LIMIT_PER_IP` per client address, answered with `429` and `Retry-After` when
-  exceeded. `Retry-After` from the PromptEye API itself is passed on to the model in the tool
-  error text.
+  exceeded. `MCP_RATE_LIMIT_AUTH_FAILURES` counts the keys PromptEye rejected per client
+  address; past it, every initialize from that address gets `429` until the minute is up, a
+  valid key included, so a script guessing keys stops costing calls to PromptEye. `Retry-After`
+  from the PromptEye API itself is passed on to the model in the tool error text.
 - **Logs** are one JSON line per request on stdout — method, path, status, duration, the
   JSON-RPC method and the tool name for `tools/call`, and a SHA-256 fingerprint of the key.
   Never the key, never headers, never arguments. `LOG_LEVEL=error` keeps only failures.
@@ -384,6 +387,7 @@ scripts/bundle.mjs    stages dist/, public/ and production deps, then packs the 
 | `MCP_MAX_SESSIONS_PER_KEY` | `20` | HTTP | Open sessions one key may hold; the oldest is closed first |
 | `MCP_RATE_LIMIT_PER_KEY` | `120` | HTTP | Requests a minute per key |
 | `MCP_RATE_LIMIT_PER_IP` | `600` | HTTP | Requests a minute per client address |
+| `MCP_RATE_LIMIT_AUTH_FAILURES` | `10` | HTTP | Rejected keys a minute per client address before its initializes get `429`, valid key or not |
 | `MCP_PUBLIC_HOSTS` | unset | HTTP | Comma-separated `Host` values to accept; unset accepts any |
 | `MCP_ALLOWED_ORIGINS` | unset | HTTP | Comma-separated browser `Origin` values to accept; unset accepts any |
 | `MCP_TRUST_PROXY_HOPS` | `0` | HTTP | Reverse proxies in front of the server whose `X-Forwarded-For` is trusted; `0` ignores it |

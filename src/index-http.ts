@@ -34,6 +34,7 @@ function main(): void {
     logger,
     keyBudget: new RequestBudget({ perMinute: numberSetting("MCP_RATE_LIMIT_PER_KEY", 120) }),
     ipBudget: new RequestBudget({ perMinute: numberSetting("MCP_RATE_LIMIT_PER_IP", 600) }),
+    authFailureBudget: new RequestBudget({ perMinute: numberSetting("MCP_RATE_LIMIT_AUTH_FAILURES", 10) }),
     allowedHosts: listSetting("MCP_PUBLIC_HOSTS"),
     allowedOrigins: listSetting("MCP_ALLOWED_ORIGINS"),
     trustProxyHops: numberSetting("MCP_TRUST_PROXY_HOPS", 0),

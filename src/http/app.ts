@@ -17,6 +17,7 @@ export type HttpAppOptions = {
   logger: Logger;
   keyBudget: RequestBudget;
   ipBudget: RequestBudget;
+  authFailureBudget: RequestBudget;
   allowedHosts?: string[];
   allowedOrigins?: string[];
   trustProxyHops?: number;
@@ -34,6 +35,7 @@ const MESSAGES = {
   tooManyRequests: "Too many requests. Wait for the Retry-After delay before retrying.",
   sessionNotFound: "Session not found. Initialize a new session.",
   notInitialized: "Bad request. Send an initialize request first, then reuse its Mcp-Session-Id.",
+  methodNotAllowed: "Method not allowed. Start a session with a POST initialize request.",
   badBody: "Bad request. Body must be JSON under 1 MB.",
   internal: "Internal server error.",
 };
@@ -55,6 +57,7 @@ const REJECTIONS = {
   unreachable: { status: 503, code: RPC_CODES.unreachable, message: MESSAGES.unreachable, headers: { "Retry-After": "5" } },
   sessionNotFound: { status: 404, code: RPC_CODES.sessionNotFound, message: MESSAGES.sessionNotFound, headers: {} },
   notInitialized: { status: 400, code: RPC_CODES.badRequest, message: MESSAGES.notInitialized, headers: {} },
+  methodNotAllowed: { status: 405, code: RPC_CODES.badRequest, message: MESSAGES.methodNotAllowed, headers: { Allow: "POST" } },
   badBody: { status: 400, code: RPC_CODES.badRequest, message: MESSAGES.badBody, headers: {} },
   internal: { status: 500, code: RPC_CODES.internal, message: MESSAGES.internal, headers: {} },
 } satisfies Record<string, Rejection>;
@@ -131,7 +134,7 @@ function health(_req: express.Request, res: express.Response): void {
 }
 
 export function createHttpApp(options: HttpAppOptions): express.Express {
-  const { baseUrl, registry, logger, keyBudget, ipBudget, allowedHosts, allowedOrigins, trustProxyHops } = options;
+  const { baseUrl, registry, logger, keyBudget, ipBudget, authFailureBudget, allowedHosts, allowedOrigins, trustProxyHops } = options;
   const verifyCredentials = options.verifyCredentials ?? verifyWithAccount;
 
   const credentialRejection = async (credentials: ApiCredentials): Promise<Rejection | undefined> => {
@@ -157,7 +160,12 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
   ): Promise<void> => {
     if (!isInitializeRequest(req.body)) return reject(res, REJECTIONS.notInitialized);
 
+    const ip = req.ip ?? "unknown";
+    const failureDecision = authFailureBudget.peek(ip);
+    if (!failureDecision.allowed) return reject(res, tooManyRequests(failureDecision));
+
     const rejection = await credentialRejection(credentials);
+    if (rejection === REJECTIONS.rejectedKey) authFailureBudget.take(ip);
     if (rejection) return reject(res, rejection);
 
     const server = createMcpServer(buildToolContext(credentials));
@@ -181,6 +189,9 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
     const ipDecision = ipBudget.take(req.ip ?? "unknown");
     if (!ipDecision.allowed) return reject(res, tooManyRequests(ipDecision));
 
+    const sessionId = headerValue(req.headers["mcp-session-id"]);
+    if (sessionId === undefined && req.method !== "POST") return reject(res, REJECTIONS.methodNotAllowed);
+
     const token = readApiKey(req.headers);
     if (!token) return reject(res, REJECTIONS.missingKey);
 
@@ -190,7 +201,6 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
     const keyDecision = keyBudget.take(fingerprint);
     if (!keyDecision.allowed) return reject(res, tooManyRequests(keyDecision));
 
-    const sessionId = headerValue(req.headers["mcp-session-id"]);
     if (sessionId === undefined) return startSession({ token, baseUrl }, fingerprint, req, res);
 
     const session = registry.find(sessionId, fingerprint);

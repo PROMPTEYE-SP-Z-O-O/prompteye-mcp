@@ -69,6 +69,8 @@ const listen = (server: Server): Promise<Listening> =>
     });
   });
 
+let meCalls = 0;
+
 const answer = (res: ServerResponse, status: number, body: unknown): void => {
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(JSON.stringify(body));
@@ -84,7 +86,10 @@ function stubApi(req: IncomingMessage, res: ServerResponse): void {
   if (!projects) return answer(res, 401, { error: { code: "unauthorized", message: "Unknown key." } });
 
   const path = req.url ?? "";
-  if (path === "/v1/me") return answer(res, 200, ACCOUNT);
+  if (path === "/v1/me") {
+    meCalls += 1;
+    return answer(res, 200, ACCOUNT);
+  }
   if (path === "/v1/projects") return answer(res, 200, { data: projects });
 
   const wanted = projects.find((candidate) => path === `/v1/projects/${candidate.id}`);
@@ -107,6 +112,7 @@ function startApp(baseUrl: string, overrides: Partial<HttpAppOptions> = {}) {
     logger: createJsonLogger(sink),
     keyBudget: new RequestBudget({ perMinute: 1_000 }),
     ipBudget: new RequestBudget({ perMinute: 1_000 }),
+    authFailureBudget: new RequestBudget({ perMinute: 1_000 }),
     ...overrides,
   });
   return { listening: listen(createServer(app)), lines };
@@ -275,6 +281,61 @@ describe("createHttpApp", () => {
     expect([proxiedFirst.status, proxiedSecond.status, proxiedRepeat.status]).toEqual([401, 401, 429]);
 
     await direct.close();
+    await proxied.close();
+  });
+
+  it("refuses a non-POST without a session with 405 before the key is verified", async () => {
+    const before = meCalls;
+
+    for (const method of ["PUT", "PATCH"]) {
+      const response = await fetch(`${app.url}/mcp`, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${KEY_A}` },
+        body: JSON.stringify(INITIALIZE),
+      });
+
+      expect(response.status).toBe(405);
+      expect(response.headers.get("allow")).toBe("POST");
+      expect((await response.json()).error.message).toContain("Method not allowed");
+    }
+
+    expect(meCalls).toBe(before);
+  });
+
+  it("rate limits failed key checks per client address and then refuses even a valid key", async () => {
+    const started = startApp(api.url, { authFailureBudget: new RequestBudget({ perMinute: 10 }) });
+    const limited = await started.listening;
+    const before = meCalls;
+
+    const guesses: number[] = [];
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const response = await rawPost(limited.url, { Authorization: `Bearer pe_live_guess${attempt}` });
+      guesses.push(response.status);
+    }
+    const eleventh = await rawPost(limited.url, { Authorization: `Bearer pe_live_guess10` });
+    const valid = await rawPost(limited.url, { Authorization: `Bearer ${KEY_A}` });
+
+    expect(guesses).toEqual(Array(10).fill(401));
+    expect(eleventh.status).toBe(429);
+    expect(Number(eleventh.headers.get("retry-after"))).toBeGreaterThan(0);
+    expect((await eleventh.json()).error.message).toContain("Too many requests");
+    expect(valid.status).toBe(429);
+    expect(meCalls).toBe(before);
+
+    await limited.close();
+  });
+
+  it("keeps the failed key budget of one client address away from another", async () => {
+    const started = startApp(api.url, { authFailureBudget: new RequestBudget({ perMinute: 1 }), trustProxyHops: 1 });
+    const proxied = await started.listening;
+
+    const first = await rawPost(proxied.url, { Authorization: `Bearer ${KEY_UNKNOWN}`, "X-Forwarded-For": "1.1.1.1" });
+    const repeat = await rawPost(proxied.url, { Authorization: `Bearer ${KEY_UNKNOWN}`, "X-Forwarded-For": "1.1.1.1" });
+    const other = await rawPost(proxied.url, { Authorization: `Bearer ${KEY_UNKNOWN}`, "X-Forwarded-For": "2.2.2.2" });
+    const otherValid = await rawPost(proxied.url, { Authorization: `Bearer ${KEY_A}`, "X-Forwarded-For": "3.3.3.3" });
+
+    expect([first.status, repeat.status, other.status, otherValid.status]).toEqual([401, 429, 401, 200]);
+
     await proxied.close();
   });
 
