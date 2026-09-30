@@ -1,72 +1,59 @@
-import { randomUUID } from "crypto";
-import express from "express";
-import cors from "cors";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { describeDataSource, requireSettings, serverName, serverVersion } from "./config.js";
-import { createMcpServer } from "./server.js";
+import { describeDataSource, requireBaseUrl, serverName } from "./config.js";
+import { createHttpApp } from "./http/app.js";
+import { createJsonLogger } from "./http/logging.js";
+import { RequestBudget } from "./http/rate-limit.js";
+import { SessionRegistry } from "./http/sessions.js";
 
-// Refuse to start without a key and a deployment, rather than failing per request.
-const { baseUrl } = requireSettings();
+const SWEEP_EVERY_MS = 5 * 60_000;
 
-const app = express();
-app.use(cors({ origin: "*", methods: ["GET", "POST", "DELETE", "OPTIONS"] }));
-app.use(express.json());
-
-const sessions = new Map<string, { server: McpServer; transport: StreamableHTTPServerTransport }>();
-
-// Sessions whose transport has already closed leave an entry behind; sweep them.
-setInterval(() => {
-  for (const [id, session] of sessions) {
-    if (!session.transport.sessionId) sessions.delete(id);
-  }
-}, 10 * 60 * 1000);
-
-const handler = async (req: express.Request, res: express.Response): Promise<void> => {
-  try {
-    const sessionId = req.headers["mcp-session-id"] as string | undefined;
-
-    if (sessionId && sessions.has(sessionId)) {
-      await sessions.get(sessionId)!.transport.handleRequest(req, res, req.body);
-      return;
-    }
-
-    // A fresh session gets its own server, and so its own project selection.
-    const server = createMcpServer();
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-      onsessioninitialized: (sid): void => {
-        sessions.set(sid, { server, transport });
-      },
-    });
-
-    transport.onclose = (): void => {
-      const sid = transport.sessionId;
-      if (sid) sessions.delete(sid);
-    };
-
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
-  } catch (err) {
-    console.error("MCP request error:", err);
-    if (!res.headersSent) res.status(500).json({ error: "Internal server error" });
-  }
+const numberSetting = (name: string, fallback: number): number => {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 };
 
-app.get("/", (_req, res) => {
-  res.json({
-    status: "ok",
-    server: { name: serverName, version: serverVersion },
-    endpoint: "/mcp",
-    sessions: sessions.size,
-    source: baseUrl,
+const listSetting = (name: string): string[] | undefined => {
+  const entries = (process.env[name] ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== "");
+  return entries.length > 0 ? entries : undefined;
+};
+
+function main(): void {
+  const baseUrl = requireBaseUrl();
+  const port = numberSetting("PORT", 3000);
+  const logger = createJsonLogger();
+  const registry = new SessionRegistry({
+    idleMs: numberSetting("MCP_SESSION_IDLE_MINUTES", 30) * 60_000,
+    maxPerKey: numberSetting("MCP_MAX_SESSIONS_PER_KEY", 20),
   });
-});
 
-app.all("/mcp", handler);
+  const app = createHttpApp({
+    baseUrl,
+    registry,
+    logger,
+    keyBudget: new RequestBudget({ perMinute: numberSetting("MCP_RATE_LIMIT_PER_KEY", 120) }),
+    ipBudget: new RequestBudget({ perMinute: numberSetting("MCP_RATE_LIMIT_PER_IP", 600) }),
+    allowedHosts: listSetting("MCP_PUBLIC_HOSTS"),
+  });
 
-const PORT = Number(process.env.PORT ?? 3000);
-app.listen(PORT, () => {
-  console.log(`${serverName} → http://localhost:${PORT}/mcp`);
-  console.log(describeDataSource(baseUrl));
-});
+  setInterval(() => {
+    const removed = registry.sweep();
+    if (removed.length > 0) logger.info("mcp.sessions.swept", { removed: removed.length, remaining: registry.size });
+  }, SWEEP_EVERY_MS).unref();
+
+  app.listen(port, () => {
+    logger.info("mcp.listening", {
+      server: serverName,
+      url: `http://localhost:${port}/mcp`,
+      source: describeDataSource(baseUrl),
+    });
+  });
+}
+
+try {
+  main();
+} catch (err) {
+  console.error("Fatal error:", err instanceof Error ? err.message : err);
+  process.exit(1);
+}

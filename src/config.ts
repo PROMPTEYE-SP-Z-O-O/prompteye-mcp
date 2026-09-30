@@ -6,40 +6,36 @@ import type { PromptEyeClient } from "./client/prompteye-client.js";
 export const serverName = process.env.MCP_SERVER_NAME ?? "prompteye-mcp";
 export const serverVersion = process.env.MCP_SERVER_VERSION ?? "1.0.0";
 
-// Extension settings can pass an empty string for a field left blank; treat it as unset.
+export const INTEGRATIONS_URL = "https://app.prompteye.com/integrations";
+
+export type ApiCredentials = { token: string; baseUrl: string };
+
+const BASE_URL_SETTING = "PROMPTEYE_API_BASE_URL";
+const API_KEY_SETTING = "PROMPTEYE_API_KEY";
+
 const readSetting = (name: string): string | undefined => process.env[name]?.trim() || undefined;
 
-/**
- * The deployment to talk to and the key for it. Both are required — there is
- * no default deployment, and nothing answers without a key.
- */
-export function requireSettings(): { token: string; baseUrl: string } {
-  const baseUrl = readSetting("PROMPTEYE_API_BASE_URL");
-  const token = readSetting("PROMPTEYE_API_KEY");
+const missingSettings = (names: string[]): Error =>
+  new Error(
+    `${names.join(" and ")} ${names.length === 1 ? "is" : "are"} not set. ` +
+      `The API URL and the API key are both at ${INTEGRATIONS_URL}.`
+  );
 
-  if (!baseUrl || !token) {
-    const missing = !baseUrl
-      ? token
-        ? "PROMPTEYE_API_BASE_URL is"
-        : "PROMPTEYE_API_BASE_URL and PROMPTEYE_API_KEY are"
-      : "PROMPTEYE_API_KEY is";
-
-    throw new Error(
-      `${missing} not set. The API URL and the API key are both at https://app.prompteye.com/integrations.`
-    );
-  }
-
-  return { token, baseUrl };
+export function requireBaseUrl(): string {
+  const baseUrl = readSetting(BASE_URL_SETTING);
+  if (!baseUrl) throw missingSettings([BASE_URL_SETTING]);
+  return baseUrl;
 }
 
-/**
- * Builds the client the tools talk to: the PromptEye API for everything it
- * serves, and the sample data in `src/fixtures` for the endpoints it does not
- * have yet.
- */
-export function createClient(): PromptEyeClient {
-  const { token, baseUrl } = requireSettings();
+export function readEnvCredentials(): ApiCredentials {
+  const baseUrl = readSetting(BASE_URL_SETTING);
+  const token = readSetting(API_KEY_SETTING);
+  if (baseUrl && token) return { token, baseUrl };
 
+  throw missingSettings([...(baseUrl ? [] : [BASE_URL_SETTING]), ...(token ? [] : [API_KEY_SETTING])]);
+}
+
+export function createClient({ token, baseUrl }: ApiCredentials): PromptEyeClient {
   const api = new PromptEyeApi({
     token,
     baseUrl,
@@ -48,5 +44,4 @@ export function createClient(): PromptEyeClient {
   return createLiveClient(api, createFixturesClient());
 }
 
-/** Where the answers come from, for startup logs. Never includes the key. */
 export const describeDataSource = (baseUrl: string): string => `using the PromptEye API at ${baseUrl}`;

@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { createClient, requireSettings, serverName, serverVersion } from "./config.js";
+import { createClient, serverName, serverVersion, type ApiCredentials } from "./config.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
 import { registerPromptWorkflows } from "./prompts.js";
 import { ProjectSession } from "./session.js";
@@ -54,21 +54,17 @@ function withoutOutputSchemas(server: McpServer): McpServer {
   }) as McpServer;
 }
 
-/**
- * Builds one MCP server, and with it one project selection.
- *
- * Callers create a server per session — one per process over stdio, one per
- * `mcp-session-id` over HTTP — so the active project never leaks between clients.
- */
-export function createMcpServer(): McpServer {
+export function buildToolContext(credentials: ApiCredentials): ToolContext {
+  const client = createClient(credentials);
+  return { client, session: new ProjectSession(client), baseUrl: credentials.baseUrl };
+}
+
+export function createMcpServer(context: ToolContext): McpServer {
   const server = new McpServer(
     { name: serverName, version: serverVersion },
     { capabilities: { resources: {}, prompts: {} }, instructions: SERVER_INSTRUCTIONS }
   );
 
-  const client = createClient();
-  const { baseUrl } = requireSettings();
-  const context: ToolContext = { client, session: new ProjectSession(client), baseUrl };
   const toolServer = withoutOutputSchemas(server);
 
   // First, so a host reading the tool list meets the orientation tool before the rest.
