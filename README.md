@@ -351,8 +351,10 @@ then selected automatically. `create_project` also makes what it created active.
 src/
   api/                PromptEye API client — no MCP in it, publishable on its own
   index.ts            stdio entry point — key and API URL from the environment
-  index-http.ts       Streamable HTTP entry point — reads the environment, wires src/http/
+  index-http.ts       Streamable HTTP entry point — reads the settings, starts the server
   http/
+    settings.ts       every HTTP setting read from the environment, with its default
+    server.ts         builds the registry, the budgets and the app from the settings, sweeps idle sessions, listens
     app.ts            the express app: key per request, one session per initialize, route to sessions
     credentials.ts    reads the key from Authorization / X-PromptEye-Key, fingerprints it, verifies it at initialize
     rejections.ts     every refusal the app answers with — status, JSON-RPC code, message, headers

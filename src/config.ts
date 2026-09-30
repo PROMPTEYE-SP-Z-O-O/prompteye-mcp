@@ -13,7 +13,7 @@ export type ApiCredentials = { token: string; baseUrl: string };
 const BASE_URL_SETTING = "PROMPTEYE_API_BASE_URL";
 const API_KEY_SETTING = "PROMPTEYE_API_KEY";
 
-const readSetting = (name: string): string | undefined => process.env[name]?.trim() || undefined;
+const readSetting = (name: string, env: NodeJS.ProcessEnv = process.env): string | undefined => env[name]?.trim() || undefined;
 
 const missingSettings = (names: string[]): Error =>
   new Error(
@@ -21,8 +21,8 @@ const missingSettings = (names: string[]): Error =>
       `The API URL and the API key are both at ${INTEGRATIONS_URL}.`
   );
 
-export function requireBaseUrl(): string {
-  const baseUrl = readSetting(BASE_URL_SETTING);
+export function requireBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const baseUrl = readSetting(BASE_URL_SETTING, env);
   if (!baseUrl) throw missingSettings([BASE_URL_SETTING]);
   return baseUrl;
 }

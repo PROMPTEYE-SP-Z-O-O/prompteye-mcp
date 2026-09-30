@@ -29,6 +29,10 @@ const CORS_OPTIONS: cors.CorsOptions = {
   exposedHeaders: ["Mcp-Session-Id"],
 };
 
+const SESSION_HEADER = "mcp-session-id";
+
+type Handler = (req: express.Request, res: express.Response) => Promise<void>;
+
 const dnsRebindingOptions = (allowedHosts: string[] | undefined, allowedOrigins: string[] | undefined) =>
   allowedHosts?.length || allowedOrigins?.length
     ? { enableDnsRebindingProtection: true, allowedHosts, allowedOrigins }
@@ -40,6 +44,31 @@ function health(_req: express.Request, res: express.Response): void {
 
 export function createHttpApp(options: HttpAppOptions): express.Express {
   const { baseUrl, registry, logger, keyBudget, ipBudget, authFailureBudget, allowedHosts, allowedOrigins, trustProxyHops } = options;
+
+  const limitPerIp: express.RequestHandler = (req, res, next) => {
+    const decision = ipBudget.take(req.ip ?? "unknown");
+    if (!decision.allowed) return reject(res, tooManyRequests(decision));
+    next();
+  };
+
+  const requirePostForNewSessions: express.RequestHandler = (req, res, next) => {
+    const isNewSession = firstValue(req.headers, SESSION_HEADER) === undefined;
+    if (isNewSession && req.method !== "POST") return reject(res, REJECTIONS.methodNotAllowed);
+    next();
+  };
+
+  const requireApiKey: express.RequestHandler = (req, res, next) => {
+    const token = readApiKey(req.headers);
+    if (!token) return reject(res, REJECTIONS.missingKey);
+    res.locals.keyFingerprint = fingerprintOf(token);
+    next();
+  };
+
+  const limitPerKey: express.RequestHandler = (_req, res, next) => {
+    const decision = keyBudget.take(res.locals.keyFingerprint);
+    if (!decision.allowed) return reject(res, tooManyRequests(decision));
+    next();
+  };
 
   const startSession = async (
     credentials: ApiCredentials,
@@ -74,30 +103,40 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
     await transport.handleRequest(req, res, req.body);
   };
 
-  const handleMcp = async (req: express.Request, res: express.Response): Promise<void> => {
-    const ipDecision = ipBudget.take(req.ip ?? "unknown");
-    if (!ipDecision.allowed) return reject(res, tooManyRequests(ipDecision));
-
-    const sessionId = firstValue(req.headers, "mcp-session-id");
-    if (sessionId === undefined && req.method !== "POST") return reject(res, REJECTIONS.methodNotAllowed);
-
-    const token = readApiKey(req.headers);
-    if (!token) return reject(res, REJECTIONS.missingKey);
-
-    const fingerprint = fingerprintOf(token);
-    res.locals.keyFingerprint = fingerprint;
-
-    const keyDecision = keyBudget.take(fingerprint);
-    if (!keyDecision.allowed) return reject(res, tooManyRequests(keyDecision));
-
-    if (sessionId === undefined) return startSession({ token, baseUrl }, fingerprint, req, res);
-
+  const resumeSession = async (
+    sessionId: string,
+    fingerprint: string,
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> => {
     const session = registry.find(sessionId, fingerprint);
     if (!session) return reject(res, REJECTIONS.sessionNotFound);
 
     res.locals.sessionId = sessionId;
     await session.transport.handleRequest(req, res, req.body);
   };
+
+  const routeSession: Handler = async (req, res) => {
+    const token = readApiKey(req.headers);
+    if (!token) return reject(res, REJECTIONS.missingKey);
+
+    const sessionId = firstValue(req.headers, SESSION_HEADER);
+    const fingerprint = res.locals.keyFingerprint;
+    return sessionId === undefined
+      ? startSession({ token, baseUrl }, fingerprint, req, res)
+      : resumeSession(sessionId, fingerprint, req, res);
+  };
+
+  const guarded =
+    (handler: Handler): express.RequestHandler =>
+    async (req, res) => {
+      try {
+        await handler(req, res);
+      } catch (error) {
+        logger.error("mcp.request.failed", describeError(error));
+        if (!res.headersSent) reject(res, REJECTIONS.internal);
+      }
+    };
 
   const app = express();
   app.set("trust proxy", trustProxyHops ?? 0);
@@ -108,14 +147,7 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
   app.get("/", health);
   app.get("/healthz", health);
 
-  app.all("/mcp", async (req, res) => {
-    try {
-      await handleMcp(req, res);
-    } catch (error) {
-      logger.error("mcp.request.failed", describeError(error));
-      if (!res.headersSent) reject(res, REJECTIONS.internal);
-    }
-  });
+  app.all("/mcp", limitPerIp, requirePostForNewSessions, requireApiKey, limitPerKey, guarded(routeSession));
 
   app.use(rejectBadBody);
 
