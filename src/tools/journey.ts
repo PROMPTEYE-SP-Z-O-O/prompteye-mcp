@@ -1,5 +1,19 @@
 import { resolveDateRange } from "../schemas/common.js";
 import type { Account, List, Project } from "../schemas/prompteye.js";
+import {
+  LISTED,
+  THIN_GROUP,
+  countPrompts,
+  describeGroup,
+  groupStandings,
+  isAsked,
+  named,
+  thinGroups,
+  toRef,
+  type GroupStanding,
+  type PromptCounts,
+  type PromptRef,
+} from "./prompt-counts.js";
 import type { ToolContext } from "./result.js";
 
 export const PHASES = ["project", "knowledge_base", "prompts", "content", "waiting", "results"] as const;
@@ -19,13 +33,12 @@ export type Standing = {
   project: Project | null;
   projectCount: number;
   knowledgeBase: boolean;
-  prompts: number;
-  more: boolean;
-  asked: number;
+  prompts: PromptCounts;
   measured: number;
-  neverNamed: number;
-  awaitingFirstRun: number;
-  groups: number;
+  neverNamed: PromptRef[];
+  awaitingFirstRun: PromptRef[];
+  paused: PromptRef[];
+  groups: GroupStanding[];
   suggestions: number;
   briefed: boolean;
   reports: Reports | null;
@@ -43,13 +56,12 @@ export async function readStanding(
     project: active,
     projectCount: projectList.data.length,
     knowledgeBase: false,
-    prompts: 0,
-    more: false,
-    asked: 0,
+    prompts: countPrompts([], false),
     measured: 0,
-    neverNamed: 0,
-    awaitingFirstRun: 0,
-    groups: 0,
+    neverNamed: [],
+    awaitingFirstRun: [],
+    paused: [],
+    groups: [],
     suggestions: 0,
     briefed: active ? session.hasBrief(active.id) : false,
     reports: null,
@@ -80,14 +92,14 @@ export async function readStanding(
     ]);
 
     standing.knowledgeBase = (knowledgeBase.text ?? "").trim().length > 0;
-    standing.prompts = prompts.data.length;
-    standing.more = prompts.nextCursor !== null;
-    const asked = prompts.data.filter((prompt) => prompt.status !== "paused");
-    standing.asked = asked.length;
+    standing.prompts = countPrompts(prompts.data, prompts.nextCursor !== null);
     standing.measured = prompts.data.filter((prompt) => prompt.metrics.visibility !== null).length;
-    standing.neverNamed = prompts.data.filter((prompt) => prompt.metrics.visibility === 0).length;
-    standing.awaitingFirstRun = asked.filter((prompt) => prompt.metrics.visibility === null).length;
-    standing.groups = groups.data.length;
+    standing.neverNamed = prompts.data.filter((prompt) => prompt.metrics.visibility === 0).map(toRef);
+    standing.awaitingFirstRun = prompts.data
+      .filter((prompt) => isAsked(prompt) && prompt.metrics.visibility === null)
+      .map(toRef);
+    standing.paused = prompts.data.filter((prompt) => !isAsked(prompt)).map(toRef);
+    standing.groups = groupStandings(groups.data, prompts.data, suggestions.data);
     standing.suggestions = suggestions.data.length;
   }
 
@@ -95,7 +107,7 @@ export async function readStanding(
 }
 
 function trackingPhase(standing: Standing): Phase {
-  if (standing.asked === 0) return "prompts";
+  if (standing.prompts.active === 0) return "prompts";
 
   if (standing.measured === 0) return standing.briefed ? "waiting" : "content";
   return "results";
@@ -110,7 +122,7 @@ export function phaseOf(standing: Standing): Phase {
 const DONE: Record<Phase, (standing: Standing) => boolean> = {
   project: (standing) => standing.project !== null,
   knowledge_base: (standing) => standing.knowledgeBase,
-  prompts: (standing) => standing.asked > 0,
+  prompts: (standing) => standing.prompts.active > 0,
   content: (standing) => standing.briefed || standing.measured > 0,
   waiting: (standing) => standing.measured > 0,
   results: () => false,
@@ -120,10 +132,10 @@ const firstRun = (account: Account): string =>
   `The next run starts ${account.nextScanAt} and takes tens of minutes to finish; the first figures arrive after it.`;
 
 const promptSteps = (standing: Standing): string[] => {
-  if (standing.prompts > 0) {
+  if (standing.prompts.total > 0) {
     return [
-      `All ${standing.prompts} prompt(s) are paused, so the next run asks nothing. Resume the ones worth ` +
-        "tracking with update_prompt, or pick new ones from list_prompt_suggestions.",
+      `All ${standing.prompts.paused} prompt(s) are paused, so the next run asks nothing. Resume the ones worth ` +
+        `tracking with update_prompt (${named(standing.paused)}), or pick new ones from list_prompt_suggestions.`,
     ];
   }
   return [
@@ -135,26 +147,56 @@ const promptSteps = (standing: Standing): string[] => {
   ];
 };
 
+const groupStep = (standing: Standing): string[] => {
+  const thin = thinGroups(standing.groups);
+  if (thin.length === 0) return [];
+
+  const shown = thin.slice(0, LISTED).map(describeGroup).join("; ");
+  const rest = thin.length > LISTED ? ` and ${thin.length - LISTED} more` : "";
+  return [
+    `${thin.length} prompt group(s) have fewer than ${THIN_GROUP} active prompts: ${shown}${rest}. A group is the unit ` +
+      "analysis happens in, so fill them: list_prompt_suggestions with that groupId shows what is waiting, " +
+      "accepting happens in the PromptEye app.",
+  ];
+};
+
+const awaitingStep = (standing: Standing): string[] =>
+  standing.awaitingFirstRun.length > 0
+    ? [
+        `${standing.awaitingFirstRun.length} active prompt(s) have not been measured yet: ` +
+          `${named(standing.awaitingFirstRun)}. ${firstRun(standing.account)}`,
+      ]
+    : [];
+
+const pausedStep = (standing: Standing): string[] =>
+  standing.paused.length > 0
+    ? [
+        `${standing.paused.length} prompt(s) are paused and not asked: ${named(standing.paused)}. Resume any ` +
+          "still worth tracking with update_prompt; while paused they do not count against the plan.",
+      ]
+    : [];
+
 const resultSteps = (standing: Standing): string[] => {
   const steps: string[] = [];
-  if (standing.neverNamed > 0) {
+  if (standing.neverNamed.length > 0) {
     steps.push(
-      `Look into the ${standing.neverNamed} prompt(s) that were never named: list_sources shows whose pages ` +
-        "the assistants read instead, list_competitors who they named, and create_content_brief outlines " +
-        "an article to answer that question."
+      `Look into the ${standing.neverNamed.length} prompt(s) that were never named (${named(standing.neverNamed)}): ` +
+        "list_sources shows whose pages the assistants read instead, list_competitors who they named, and " +
+        "create_content_brief outlines an article to answer that question."
     );
   }
+  steps.push(...groupStep(standing));
   steps.push(
-    "Read the standing: list_prompts for what each question earns, list_competitors for share of voice, list_sources for the pages behind the answers."
+    `Read the standing of the ${standing.measured} measured prompt(s): list_prompts for what each question earns, ` +
+      "list_competitors for share of voice, list_sources for the pages behind the answers."
   );
   if (standing.suggestions > 0) {
     steps.push(
       `Review the ${standing.suggestions} suggestion(s) waiting with list_prompt_suggestions — each says which funnel stage it fills and how well it fits the brand.`
     );
   }
-  if (standing.awaitingFirstRun > 0) {
-    steps.push(`${standing.awaitingFirstRun} prompt(s) have not been measured yet — their figures arrive after the next run.`);
-  }
+  steps.push(...awaitingStep(standing));
+  steps.push(...pausedStep(standing));
   return steps;
 };
 
@@ -162,7 +204,7 @@ const STEPS: Record<Phase, (standing: Standing) => string[]> = {
   project: (standing) => [
     standing.projectCount === 0
       ? "Create the first project with create_project — one brand in one market. Nothing is measured until a project exists."
-      : "Pick which project to work on with select_project; every other tool reports on the active one.",
+      : `Pick which of the ${standing.projectCount} project(s) to work on with select_project; every other tool reports on the active one.`,
   ],
   knowledge_base: () => [
     "Fill in the knowledge base. Show the user what the project knows with get_knowledge_base, ask them " +
@@ -172,15 +214,19 @@ const STEPS: Record<Phase, (standing: Standing) => string[]> = {
   ],
   prompts: promptSteps,
   content: (standing) => [
-    "While the first run is pending, order article outlines for the prompts that matter most: " +
-      "create_content_brief with a promptId from list_prompts, highest business priority first. Each " +
-      "brief is the title and H2/H3 structure of an article written to be quoted for that question. " +
+    `While the first run is pending for ${named(standing.awaitingFirstRun)}, order article outlines for the ` +
+      "prompts that matter most: create_content_brief with that promptId, highest business priority first. " +
+      "Each brief is the title and H2/H3 structure of an article written to be quoted for that question. " +
       "Optional — if the user does not publish content, go straight to waiting for the run.",
     firstRun(standing.account),
+    ...groupStep(standing),
+    ...pausedStep(standing),
   ],
   waiting: (standing) => [
-    `Wait for the first measurement. ${firstRun(standing.account)} Call get_started again once it has run.`,
+    `Wait for the first measurement of ${named(standing.awaitingFirstRun)}. ${firstRun(standing.account)} ` +
+      "Call get_started again once it has run.",
     "Meanwhile get_content_brief reads the outlines that were ordered.",
+    ...pausedStep(standing),
   ],
   results: resultSteps,
 };
@@ -198,7 +244,9 @@ export function nextSteps(standing: Standing, phase: Phase = phaseOf(standing)):
 
   steps.push(...phaseSteps(standing, phase));
 
-  if (phase === "knowledge_base" && standing.prompts > 0) steps.push(...phaseSteps(standing, trackingPhase(standing)));
+  if (phase === "knowledge_base" && standing.prompts.total > 0) {
+    steps.push(...phaseSteps(standing, trackingPhase(standing)));
+  }
 
   if (standing.reports && standing.reports.unconverted > 0) {
     steps.push(

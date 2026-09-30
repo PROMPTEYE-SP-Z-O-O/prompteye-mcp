@@ -20,8 +20,10 @@ not answer it. Three things answer it instead:
   measurement — and say plainly what cannot be done through the API, so nobody is promised a
   button that is not there.
 - **`get_started`** answers from the workspace rather than from a brochure: it reads the account,
-  the project, whether the brand description exists, how many prompts are tracked, how many were
-  never named and how many suggestions are waiting, then names the **phase** the project is in and
+  the project, whether the brand description exists, how many prompts are active and how many
+  paused (active is what `get_account`'s `promptCount` counts, workspace-wide), which active prompts
+  still await a first run, which prompt groups have too few active prompts, how many were never
+  named and how many suggestions are waiting, then names the **phase** the project is in and
   the first step that phase asks for. The phases run `project → knowledge_base → prompts → content
   → waiting → results` (`src/tools/journey.ts`), and the tools that move a project along —
   `create_project`, `update_knowledge_base`, `add_prompts`, `create_content_brief` — end with the

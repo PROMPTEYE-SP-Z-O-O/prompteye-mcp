@@ -1,7 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { PHASES, nextSteps, phaseOf, readStanding, renderPhases } from "./journey.js";
+import { LISTED, describeCounts, describeUsage, thinGroups } from "./prompt-counts.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
+
+const PromptRefSchema = z.object({ id: z.string(), prompt: z.string() });
 
 export function registerGettingStartedTools(server: McpServer, context: ToolContext): void {
   const { client, session } = context;
@@ -34,9 +37,26 @@ export function registerGettingStartedTools(server: McpServer, context: ToolCont
         projectCount: z.number(),
         knowledgeBase: z.boolean(),
         prompts: z.number(),
+        promptCounts: z.object({
+          active: z.number(),
+          paused: z.number(),
+          total: z.number(),
+          more: z.boolean(),
+        }),
         neverNamed: z.number(),
         awaitingFirstRun: z.number(),
+        awaitingFirstRunPrompts: z.array(PromptRefSchema),
+        pausedPrompts: z.array(PromptRefSchema),
         groups: z.number(),
+        thinGroups: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            activePrompts: z.number(),
+            pausedPrompts: z.number(),
+            suggestions: z.number(),
+          })
+        ),
         suggestions: z.number(),
         reports: z
           .object({
@@ -64,7 +84,7 @@ export function registerGettingStartedTools(server: McpServer, context: ToolCont
 
         const lines = [
           `Account ${account.email} on the ${account.plan?.name ?? "unknown"} plan: ` +
-            `${account.promptCount} of ${account.promptLimit} prompt(s) tracked, asked on ` +
+            `${describeUsage(account)}, asked on ` +
             `${account.models.join(", ") || "no assistants"} ${account.scanFrequency}. ` +
             `Next run starts ${account.nextScanAt} and takes tens of minutes to finish.`,
           standing.project
@@ -75,8 +95,8 @@ export function registerGettingStartedTools(server: McpServer, context: ToolCont
         if (standing.project) {
           lines.push(
             `Brand description: ${standing.knowledgeBase ? "written" : "missing"}. ` +
-              `Prompts: ${standing.prompts}${standing.more ? "+" : ""} in ${standing.groups} group(s), ` +
-              `${standing.neverNamed} never named, ${standing.awaitingFirstRun} awaiting a first run. ` +
+              `Prompts in this project: ${describeCounts(standing.prompts)}, in ${standing.groups.length} group(s); ` +
+              `${standing.neverNamed.length} never named, ${standing.awaitingFirstRun.length} active awaiting a first run. ` +
               `Suggestions waiting: ${standing.suggestions}.`
           );
         }
@@ -118,10 +138,22 @@ export function registerGettingStartedTools(server: McpServer, context: ToolCont
           phase,
           projectCount: standing.projectCount,
           knowledgeBase: standing.knowledgeBase,
-          prompts: standing.prompts,
-          neverNamed: standing.neverNamed,
-          awaitingFirstRun: standing.awaitingFirstRun,
-          groups: standing.groups,
+          prompts: standing.prompts.active,
+          promptCounts: standing.prompts,
+          neverNamed: standing.neverNamed.length,
+          awaitingFirstRun: standing.awaitingFirstRun.length,
+          awaitingFirstRunPrompts: standing.awaitingFirstRun.slice(0, LISTED),
+          pausedPrompts: standing.paused.slice(0, LISTED),
+          groups: standing.groups.length,
+          thinGroups: thinGroups(standing.groups)
+            .slice(0, LISTED)
+            .map((group) => ({
+              id: group.id,
+              name: group.name,
+              activePrompts: group.active,
+              pausedPrompts: group.paused,
+              suggestions: group.suggestions,
+            })),
           suggestions: standing.suggestions,
           reports: standing.reports
             ? {
