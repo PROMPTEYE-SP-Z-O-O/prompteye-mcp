@@ -328,6 +328,53 @@ describe("PromptEyeApi", () => {
     });
   });
 
+  describe("content briefs", () => {
+    const brief = {
+      id: "b1",
+      status: "processing",
+      projectId: "j57",
+      trackerId: "m42",
+      prompt: "best crm for small teams",
+      error: null,
+      title: null,
+      originalTitle: null,
+      titleChangeAnnotation: null,
+      fanoutSource: null,
+      fanoutError: null,
+      fanoutVariants: null,
+      phrasesForArticle: null,
+      separateArticles: null,
+      outline: null,
+      sourceTextMatchPercentage: null,
+      requestedAt: "2026-09-28T09:24:11.000Z",
+      readyAt: null,
+    };
+
+    it("requests a brief with the key and the prompt it targets", async () => {
+      const { api, calls } = stubFetch(json(201, brief));
+
+      await expect(
+        api.contentBriefs.create({ projectId: "j57", prompt: "best crm for small teams", trackerId: "m42" })
+      ).resolves.toEqual(brief);
+
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/content/briefs`);
+      expect(calls[0].init.method).toBe("POST");
+      expect(calls[0].init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}` });
+      expect(JSON.parse(calls[0].init.body as string)).toEqual({
+        projectId: "j57",
+        prompt: "best crm for small teams",
+        trackerId: "m42",
+      });
+    });
+
+    it("reads one brief by id", async () => {
+      const { api, calls } = stubFetch(json(200, brief));
+
+      await expect(api.contentBriefs.get("b 1")).resolves.toEqual(brief);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/content/briefs/b%201`);
+    });
+  });
+
   describe("traffic", () => {
     it("sends every bot filter the API takes", async () => {
       const { api, calls } = stubFetch(json(200, { data: [], nextCursor: null }));

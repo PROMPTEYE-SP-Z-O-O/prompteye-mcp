@@ -44,7 +44,7 @@ const LIVE_GROUP = {
 
 const LIVE_GROUP_SETTINGS = { id: "g1", name: "Overall", description: null, order: 2, promptCount: 0 };
 
-const LIVE_DOMAIN = { domain: "acme.example", citations: 18, share: 5, ownDomain: true };
+const LIVE_DOMAIN = { domain: "acme.example", sourceOccurrences: 18, share: 5, ownDomain: true };
 
 const LIVE_COMPETITOR = {
   brand: "Rival",
@@ -52,7 +52,7 @@ const LIVE_COMPETITOR = {
   metrics: { visibility: 48.1, reachIndex: 45, averagePosition: 3.1 },
   change: null,
   shareOfVoice: 18,
-  citations: 31,
+  citedAnswers: 31,
   citationShare: 10,
 };
 
