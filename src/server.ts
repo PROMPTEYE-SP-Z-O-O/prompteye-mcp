@@ -102,7 +102,7 @@ export function createMcpServer(): McpServer {
     server,
     COMPETITORS_WIDGET,
     "PromptEye Competitors",
-    "The brands answering alongside a project's own, ranked by share of voice"
+    "The brands answering alongside a project's own, ranked by visibility"
   );
   registerCompetitorTools(toolServer, context);
   registerContentTools(toolServer, context);
