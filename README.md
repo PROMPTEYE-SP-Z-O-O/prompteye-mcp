@@ -355,7 +355,9 @@ src/
   http/
     settings.ts       every HTTP setting read from the environment, with its default
     server.ts         builds the registry, the budgets and the app from the settings, sweeps idle sessions, listens
-    app.ts            the express app: key per request, one session per initialize, route to sessions
+    app.ts            the express app: wires the middleware chain — CORS, logging, JSON body, then the /mcp steps
+    steps.ts          the /mcp steps as express handlers: IP limit, POST for new sessions, key required, key limit, error guard
+    mcp.ts            routes a request to its session: verifies the key and starts one at initialize, resumes by Mcp-Session-Id
     credentials.ts    reads the key from Authorization / X-PromptEye-Key, fingerprints it, verifies it at initialize
     rejections.ts     every refusal the app answers with — status, JSON-RPC code, message, headers
     sessions.ts       SessionRegistry — sessions bound to a key, idle sweep, per-key cap
