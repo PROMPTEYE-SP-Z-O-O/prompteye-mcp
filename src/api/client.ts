@@ -3,6 +3,7 @@ import {
   AccountResource,
   CategoriesResource,
   CompetitorsResource,
+  ContentBriefsResource,
   GoogleResource,
   KnowledgeBaseResource,
   ProjectsResource,
@@ -48,6 +49,7 @@ export class PromptEyeApi {
   readonly sources: SourcesResource;
   readonly competitors: CompetitorsResource;
   readonly reports: ReportsResource;
+  readonly contentBriefs: ContentBriefsResource;
   readonly google: GoogleResource;
   readonly traffic: TrafficResource;
 
@@ -73,6 +75,7 @@ export class PromptEyeApi {
     this.sources = new SourcesResource(http);
     this.competitors = new CompetitorsResource(http);
     this.reports = new ReportsResource(http);
+    this.contentBriefs = new ContentBriefsResource(http);
     this.google = new GoogleResource(http);
     this.traffic = new TrafficResource(http);
   }

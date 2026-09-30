@@ -24,6 +24,8 @@ type LiveMethod =
   | "createReport"
   | "listReports"
   | "getReport"
+  | "createContentBrief"
+  | "getContentBrief"
   | "getGoogleStatus"
   | "getSearchSummary"
   | "listSearchQueries"
@@ -64,6 +66,8 @@ export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): P
     createReport: (input) => api.reports.create(input),
     listReports: (query) => api.reports.list(query),
     getReport: (reportId) => api.reports.get(reportId),
+    createContentBrief: (input) => api.contentBriefs.create(input),
+    getContentBrief: (briefId) => api.contentBriefs.get(briefId),
     listSources: (projectId, query) => api.sources.list(projectId, query),
     listCompetitors: (projectId, query) => api.competitors.list(projectId, query),
     listCompetitorExclusions: (projectId) => api.competitors.listExclusions(projectId),
