@@ -12,11 +12,14 @@ export class NoActiveProjectError extends Error {
   }
 }
 
+const reasonOf = (error: PromptEyeApiError): string =>
+  error.apiMessage && error.apiMessage !== error.message ? ` ${error.apiMessage}` : "";
+
 /** The message a tool hands the model for a failure it can act on, or undefined for a bug. */
 export function toolMessageFor(error: unknown): string | undefined {
   if (error instanceof PromptEyeApiError) {
     return [
-      `PromptEye API error ${error.status}${error.code ? ` (${error.code})` : ""}: ${error.message}`,
+      `PromptEye API error ${error.status}${error.code ? ` (${error.code})` : ""}: ${error.message}${reasonOf(error)}`,
       ...error.details.map((detail) => `  - ${detail.field}: ${detail.message}`),
     ].join("\n");
   }

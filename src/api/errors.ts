@@ -25,6 +25,7 @@ export class PromptEyeApiError extends Error {
   readonly body: unknown;
   readonly code: string | undefined;
   readonly details: ApiErrorDetail[];
+  readonly apiMessage: string | undefined;
 
   constructor(status: number, body: unknown) {
     // `{ error: { code, message } }`, or a bare `{ error: "UNAUTHORIZED" }`.
@@ -32,13 +33,14 @@ export class PromptEyeApiError extends Error {
     const envelope = typeof error === "object" ? error : undefined;
     const code = (typeof error === "string" ? error : envelope?.code)?.toLowerCase();
 
-    super(
-      (code && API_ERROR_MESSAGES[code]) ?? envelope?.message ?? `The PromptEye API responded with HTTP ${status}.`
-    );
+    const apiMessage = envelope?.message;
+
+    super((code && API_ERROR_MESSAGES[code]) ?? apiMessage ?? `The PromptEye API responded with HTTP ${status}.`);
     this.name = "PromptEyeApiError";
     this.status = status;
     this.body = body;
     this.code = code;
     this.details = envelope?.details ?? [];
+    this.apiMessage = apiMessage;
   }
 }
