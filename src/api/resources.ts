@@ -193,9 +193,9 @@ export class PromptsResource {
 export class PromptGroupsResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** `GET /v1/projects/{projectId}/prompt-groups` — the groups with their figures for the period. */
+  /** `GET /v1/projects/{projectId}/groups` — the groups with their figures for the period. */
   list(projectId: string, params: DateRange & Pagination = {}, options?: RequestOptions): Promise<Page<PromptGroup>> {
-    return this.http.get(`${projectPath(projectId)}/prompt-groups`, PromptGroupPageSchema, {
+    return this.http.get(`${projectPath(projectId)}/groups`, PromptGroupPageSchema, {
       ...options,
       query: params,
     });

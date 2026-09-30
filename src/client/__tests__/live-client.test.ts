@@ -181,7 +181,7 @@ function liveClient() {
             ? { data: [{ id: "c1", name: "Pricing", parentId: null, source: "manual" }] }
             : pathname.endsWith("/prompt-suggestions")
               ? { data: [] }
-              : pathname.endsWith("/prompt-groups")
+              : pathname.endsWith("/groups")
                 ? { data: [LIVE_GROUP], nextCursor: null }
                 : pathname.endsWith("/sources")
                   ? { data: [LIVE_DOMAIN], nextCursor: null }
@@ -255,7 +255,7 @@ describe("createLiveClient", () => {
       data: [LIVE_GROUP],
       nextCursor: null,
     });
-    expect(calls[0].path).toBe(`/v1/projects/${LIVE_PROJECT.id}/prompt-groups?startDate=2026-08-16&endDate=2026-09-15`);
+    expect(calls[0].path).toBe(`/v1/projects/${LIVE_PROJECT.id}/groups?startDate=2026-08-16&endDate=2026-09-15`);
   });
 
   it("ranks cited domains, narrowed to one assistant", async () => {

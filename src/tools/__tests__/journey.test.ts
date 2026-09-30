@@ -1,8 +1,7 @@
 import type { PromptEyeClient } from "../../client/prompteye-client.js";
-import type { Account, Project, Prompt, PromptGroup, PromptSuggestion } from "../../schemas/prompteye.js";
+import type { Account, Project, Prompt } from "../../schemas/prompteye.js";
 import { ProjectSession } from "../../session.js";
 import { nextSteps, phaseOf, readStanding, renderPhases, whatNext, type Standing } from "../journey.js";
-import { countPrompts, type PromptRef } from "../prompt-counts.js";
 import type { ToolContext } from "../result.js";
 
 const ACCOUNT: Account = {
@@ -20,60 +19,41 @@ const ACCOUNT: Account = {
 
 const PROJECT = { id: "p1", name: "Acme", brand: "Acme", domain: "acme.example", country: "PL" } as Project;
 
-const refs = (count: number, prefix = "t"): PromptRef[] =>
-  Array.from({ length: count }, (_, index) => ({ id: `${prefix}${index}`, prompt: `question ${prefix}${index}` }));
-
-const counts = (active: number, paused = 0) => ({ active, paused, total: active + paused, more: false });
-
 const standing = (overrides: Partial<Standing> = {}): Standing => ({
   account: ACCOUNT,
   project: PROJECT,
   projectCount: 1,
   knowledgeBase: true,
-  prompts: counts(3),
+  prompts: 3,
+  more: false,
+  asked: 3,
   measured: 3,
-  neverNamed: [],
-  awaitingFirstRun: [],
-  paused: [],
-  groups: [{ id: "g1", name: "CRM", active: 3, paused: 0, suggestions: 0 }],
+  neverNamed: 0,
+  awaitingFirstRun: 0,
+  groups: 1,
   suggestions: 0,
+  promptList: [],
+  groupList: [],
+  suggestionList: [],
   briefed: false,
   reports: null,
   ...overrides,
 });
 
-let promptId = 0;
+const prompt = (visibility: number | null, status = "active"): Prompt =>
+  ({ id: `t${visibility}`, prompt: "q", status, metrics: { visibility, reachIndex: null, averagePosition: null } }) as Prompt;
 
-const prompt = (visibility: number | null, status = "active", groupId: string | null = null): Prompt =>
-  ({
-    id: `t${promptId++}`,
-    prompt: `q${promptId}`,
-    status,
-    groupId,
-    metrics: { visibility, reachIndex: null, averagePosition: null },
-  }) as Prompt;
-
-const group = (id: string, name: string): PromptGroup => ({ id, name }) as PromptGroup;
-
-const suggestion = (groupId: string): PromptSuggestion => ({ id: `s-${groupId}`, groupId }) as PromptSuggestion;
-
-function clientWith({
-  knowledgeBase = "Acme sells CRM.",
-  prompts = [] as Prompt[],
-  groups = [] as PromptGroup[],
-  suggestions = [] as PromptSuggestion[],
-  account = ACCOUNT,
-} = {}): PromptEyeClient {
+function clientWith({ knowledgeBase = "Acme sells CRM.", prompts = [] as Prompt[] } = {}): PromptEyeClient {
   return {
-    getAccount: async () => account,
+    getAccount: async () => ACCOUNT,
     listProjects: async () => ({ data: [PROJECT] }),
     listReports: async () => {
       throw new Error("no reports scope");
     },
     getKnowledgeBase: async () => ({ text: knowledgeBase, updatedAt: null }),
     listPrompts: async () => ({ data: prompts, nextCursor: null }),
-    listPromptGroups: async () => ({ data: groups, nextCursor: null }),
-    listPromptSuggestions: async () => ({ data: suggestions }),
+    listPromptGroups: async () => ({ data: [], nextCursor: null }),
+    listPromptSuggestions: async () => ({ data: [] }),
   } as unknown as PromptEyeClient;
 }
 
@@ -87,45 +67,42 @@ describe("phaseOf", () => {
   it("walks the phases in order", () => {
     expect(phaseOf(standing({ project: null, projectCount: 0 }))).toBe("project");
     expect(phaseOf(standing({ knowledgeBase: false }))).toBe("knowledge_base");
-    expect(phaseOf(standing({ prompts: counts(0), measured: 0 }))).toBe("prompts");
-    expect(phaseOf(standing({ measured: 0, awaitingFirstRun: refs(3) }))).toBe("content");
-    expect(phaseOf(standing({ measured: 0, awaitingFirstRun: refs(3), briefed: true }))).toBe("waiting");
-    expect(phaseOf(standing({ measured: 2, awaitingFirstRun: refs(1) }))).toBe("results");
+    expect(phaseOf(standing({ prompts: 0, asked: 0, measured: 0 }))).toBe("prompts");
+    expect(phaseOf(standing({ measured: 0, awaitingFirstRun: 3 }))).toBe("content");
+    expect(phaseOf(standing({ measured: 0, awaitingFirstRun: 3, briefed: true }))).toBe("waiting");
+    expect(phaseOf(standing({ measured: 2, awaitingFirstRun: 1 }))).toBe("results");
   });
 
   it("sends a project whose prompts are all paused back to prompts, not to waiting", () => {
-    const allPaused = standing({ prompts: counts(0, 3), paused: refs(3, "p") });
-    expect(phaseOf(allPaused)).toBe("prompts");
-    expect(nextSteps(allPaused)[0]).toMatch(/All 3 prompt\(s\) are paused/);
-    expect(nextSteps(allPaused)[0]).toMatch(/"question p0" \(p0\)/);
+    expect(phaseOf(standing({ asked: 0, measured: 3 }))).toBe("prompts");
+    expect(nextSteps(standing({ asked: 0, measured: 3 }))[0]).toMatch(/All 3 prompt\(s\) are paused/);
   });
 
   it("asks for the knowledge base before prompts even when prompts exist", () => {
-    expect(phaseOf(standing({ knowledgeBase: false, prompts: counts(0) }))).toBe("knowledge_base");
+    expect(phaseOf(standing({ knowledgeBase: false, prompts: 0 }))).toBe("knowledge_base");
   });
 });
 
 describe("nextSteps", () => {
   it("says suggestions come from the app when there are none", () => {
-    const [step] = nextSteps(standing({ prompts: counts(0), measured: 0, suggestions: 0 }));
+    const [step] = nextSteps(standing({ prompts: 0, asked: 0, measured: 0, suggestions: 0 }));
     expect(step).toMatch(/no suggestions/);
     expect(step).toMatch(/PromptEye app/);
   });
 
   it("points at the suggestions when there are some", () => {
-    const [step] = nextSteps(standing({ prompts: counts(0), measured: 0, suggestions: 4 }));
+    const [step] = nextSteps(standing({ prompts: 0, asked: 0, measured: 0, suggestions: 4 }));
     expect(step).toMatch(/4 suggestion\(s\)/);
   });
 
   it("offers articles and names the next run while nothing is measured", () => {
-    const steps = nextSteps(standing({ measured: 0, awaitingFirstRun: refs(3) }));
+    const steps = nextSteps(standing({ measured: 0, awaitingFirstRun: 3 }));
     expect(steps[0]).toMatch(/create_content_brief/);
-    expect(steps[0]).toMatch(/"question t0" \(t0\), "question t1" \(t1\), "question t2" \(t2\)/);
     expect(steps[1]).toMatch(ACCOUNT.nextScanAt);
   });
 
   it("keeps a measured project's work in view while the knowledge base is missing", () => {
-    const steps = nextSteps(standing({ knowledgeBase: false, neverNamed: refs(2) }));
+    const steps = nextSteps(standing({ knowledgeBase: false, neverNamed: 2 }));
     expect(steps[0]).toMatch(/Fill in the knowledge base/);
     expect(steps.some((step) => /2 prompt\(s\) that were never named/.test(step))).toBe(true);
   });
@@ -136,42 +113,11 @@ describe("nextSteps", () => {
     );
     expect(steps[0]).toMatch(/asking to be contacted/);
   });
-
-  it("names the thin groups with their active prompts and waiting suggestions", () => {
-    const steps = nextSteps(
-      standing({
-        groups: [
-          { id: "g1", name: "CRM", active: 3, paused: 0, suggestions: 0 },
-          { id: "g2", name: "Pricing", active: 1, paused: 1, suggestions: 4 },
-          { id: "g3", name: "Support", active: 0, paused: 0, suggestions: 0 },
-        ],
-      })
-    );
-    const step = steps.find((line) => /prompt group\(s\)/.test(line));
-
-    expect(step).toMatch(/^2 prompt group\(s\) have fewer than 3 active prompts/);
-    expect(step).toMatch(/"Support" \(g3\): 0 active; "Pricing" \(g2\): 1 active, 1 paused, 4 suggestion\(s\) waiting/);
-    expect(steps.join("\n")).not.toMatch(/"CRM"/);
-  });
-
-  it("names the active prompts awaiting a first run and the paused ones apart", () => {
-    const steps = nextSteps(standing({ awaitingFirstRun: refs(1, "a"), paused: refs(1, "p"), prompts: counts(3, 1) }));
-
-    expect(steps.find((line) => /not been measured yet/.test(line))).toMatch(/^1 active prompt\(s\).*"question a0"/);
-    expect(steps.find((line) => /are paused and not asked/.test(line))).toMatch(/"question p0" \(p0\)/);
-  });
-
-  it("caps the prompts a step names", () => {
-    const [step] = nextSteps(standing({ measured: 0, awaitingFirstRun: refs(8) }));
-
-    expect(step).toMatch(/"question t4" \(t4\) and 3 more/);
-    expect(step).not.toMatch(/"question t5"/);
-  });
 });
 
 describe("renderPhases", () => {
   it("marks what is done and where the project is", () => {
-    expect(renderPhases(standing({ prompts: counts(0), measured: 0 }))).toBe(
+    expect(renderPhases(standing({ prompts: 0, asked: 0, measured: 0 }))).toBe(
       "✓ project · ✓ knowledge_base · → prompts · content · waiting · results"
     );
   });
@@ -185,54 +131,30 @@ describe("renderPhases", () => {
 
 describe("readStanding", () => {
   it("counts the prompts still waiting for their first run", async () => {
-    const waiting = prompt(null);
-    const context = contextWith(clientWith({ prompts: [waiting, prompt(0), prompt(40)] }));
+    const context = contextWith(clientWith({ prompts: [prompt(null), prompt(0), prompt(40)] }));
     const read = await readStanding(context, PROJECT);
 
     expect(read.reports).toBeNull();
-    expect(read.prompts).toEqual(counts(3));
-    expect(read.awaitingFirstRun).toEqual([{ id: waiting.id, prompt: waiting.prompt }]);
-    expect(read.neverNamed).toHaveLength(1);
+    expect(read.prompts).toBe(3);
+    expect(read.awaitingFirstRun).toBe(1);
+    expect(read.neverNamed).toBe(1);
   });
 
   it("does not count a paused prompt as waiting for its first run", async () => {
-    const paused = prompt(null, "paused");
-    const read = await readStanding(contextWith(clientWith({ prompts: [paused, prompt(40)] })), PROJECT);
+    const read = await readStanding(contextWith(clientWith({ prompts: [prompt(null, "paused"), prompt(40)] })), PROJECT);
 
-    expect(read.prompts).toEqual(counts(1, 1));
-    expect(read.awaitingFirstRun).toEqual([]);
-    expect(read.paused).toEqual([{ id: paused.id, prompt: paused.prompt }]);
+    expect(read.asked).toBe(1);
+    expect(read.awaitingFirstRun).toBe(0);
     expect(phaseOf(read)).toBe("results");
   });
 
-  it("counts active prompts the way the account counter does, paused ones apart", async () => {
-    const prompts = [...Array.from({ length: 25 }, () => prompt(20)), prompt(null, "paused")];
-    const account = { ...ACCOUNT, promptCount: 25 };
-    const read = await readStanding(contextWith(clientWith({ prompts, account })), PROJECT);
+  it("hands over the API's prompt, group and suggestion lists untouched", async () => {
+    const prompts = [prompt(null, "paused"), prompt(40)];
+    const read = await readStanding(contextWith(clientWith({ prompts })), PROJECT);
 
-    expect(read.prompts).toEqual({ active: 25, paused: 1, total: 26, more: false });
-    expect(read.prompts.active).toBe(read.account.promptCount);
-    expect(countPrompts(prompts, false)).toEqual(read.prompts);
-    expect(read.awaitingFirstRun).toEqual([]);
-  });
-
-  it("reads each group's active and paused prompts and its waiting suggestions", async () => {
-    const read = await readStanding(
-      contextWith(
-        clientWith({
-          prompts: [prompt(10, "active", "g1"), prompt(null, "paused", "g1"), prompt(10, "active", "g2")],
-          groups: [group("g1", "CRM"), group("g2", "Pricing"), group("g3", "Support")],
-          suggestions: [suggestion("g3"), suggestion("g3")],
-        })
-      ),
-      PROJECT
-    );
-
-    expect(read.groups).toEqual([
-      { id: "g1", name: "CRM", active: 1, paused: 1, suggestions: 0 },
-      { id: "g2", name: "Pricing", active: 1, paused: 0, suggestions: 0 },
-      { id: "g3", name: "Support", active: 0, paused: 0, suggestions: 2 },
-    ]);
+    expect(read.promptList).toBe(prompts);
+    expect(read.groupList).toEqual([]);
+    expect(read.suggestionList).toEqual([]);
   });
 
   it("treats a blank knowledge base as missing", async () => {
