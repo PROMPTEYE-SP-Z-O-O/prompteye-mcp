@@ -3,7 +3,6 @@ import { z } from "zod";
 import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema } from "../schemas/prompteye.js";
 import type { Project } from "../schemas/prompteye.js";
 import { PROMPT_GENERATION } from "./glossary.js";
-import { whatNext } from "./journey.js";
 import { READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
 
 const ProjectOutputSchema = ProjectSchema.omit({ excludedCompetitors: true });
@@ -18,9 +17,7 @@ const describe = (project: Project): string =>
   `${project.name} — label ${project.label ?? "—"}, brand ${project.brand} (${project.domain}) tracked in ${project.country}, ` +
   `access ${project.accessRole} [id: ${project.id}]`;
 
-export function registerProjectTools(server: McpServer, context: ToolContext): void {
-  const { client, session } = context;
-
+export function registerProjectTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
     "list_projects",
     {
@@ -179,7 +176,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
         await session.select(project.id);
 
         return ok(
-          `Created ${describe(project)}.\nIt is now the active project.${await whatNext(context, project)}`,
+          `Created ${describe(project)}.\nIt is now the active project.`,
           toProjectOutput(project)
         );
       })
@@ -291,8 +288,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
         const knowledgeBase = await client.updateKnowledgeBase(project.id, args);
 
         return ok(
-          `Updated knowledge base for ${project.brand} (updated ${knowledgeBase.updatedAt ?? "—"}):\n\n${knowledgeBase.text ?? "No description"}` +
-            (await whatNext(context, project)),
+          `Updated knowledge base for ${project.brand} (updated ${knowledgeBase.updatedAt ?? "—"}):\n\n${knowledgeBase.text ?? "No description"}`,
           knowledgeBase
         );
       })

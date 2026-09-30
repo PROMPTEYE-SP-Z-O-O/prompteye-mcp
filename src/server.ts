@@ -5,7 +5,6 @@ import { registerPromptWorkflows } from "./prompts.js";
 import { ProjectSession } from "./session.js";
 import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
-import { registerGettingStartedTools } from "./tools/getting-started.js";
 import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
 import { registerContentTools } from "./tools/content.js";
 import { registerFeedbackTools } from "./tools/feedback.js";
@@ -74,8 +73,6 @@ export function createMcpServer(): McpServer {
   const context: ToolContext = { client, session: new ProjectSession(client), baseUrl };
   const toolServer = withoutOutputSchemas(server);
 
-  // First, so a host reading the tool list meets the orientation tool before the rest.
-  registerGettingStartedTools(toolServer, context);
   registerPromptWorkflows(server);
 
   registerAccountTools(toolServer, context);
@@ -102,7 +99,7 @@ export function createMcpServer(): McpServer {
     server,
     COMPETITORS_WIDGET,
     "PromptEye Competitors",
-    "The brands answering alongside a project's own, ranked by visibility"
+    "The brands answering alongside a project's own, ranked by visibility, then position"
   );
   registerCompetitorTools(toolServer, context);
   registerContentTools(toolServer, context);

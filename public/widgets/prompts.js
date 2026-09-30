@@ -1,7 +1,6 @@
 /** The prompts a project is tracked on, with what each one earned in the period. */
 function render(data) {
   const prompts = data?.data ?? [];
-  setContext(data?.startDate ? `${data.startDate} → ${data.endDate}` : "");
 
   if (prompts.length === 0) {
     empty("No prompts match this filter.");
@@ -53,9 +52,9 @@ function render(data) {
       data.nextCursor ? ", first page" : ""
     } · ranked as the API returns them, newest first</div>
     <div class="tiles">
-      ${tile("Prompts", prompts.length, "", null, true)}
-      ${tile("Average visibility", average, "%", null, true)}
-      ${tile("Never named", silent, "", null, false)}
+      ${tile("Prompts", prompts.length, "", null)}
+      ${tile("Average visibility", average, "%", null)}
+      ${tile("Never named", silent, "", null)}
     </div>
     <section>
       <h2>Visibility per prompt</h2>
