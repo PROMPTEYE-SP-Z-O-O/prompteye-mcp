@@ -46,15 +46,21 @@ export const SHARE_OF_VOICE =
   "shareOfVoice is how much of all the naming that happened on the project's prompts went to one " +
   "brand, so the brands in a ranking describe one pie. It answers a different question from " +
   "visibility: visibility is how often a brand was named at all, and every brand can score high at " +
-  "once, while share of voice is what each took from the others. citations and citationShare count " +
-  "how often the brand's own pages were cited as sources, which can diverge from being named — a " +
-  "brand can be recommended without being linked, and linked without being recommended. The " +
+  "once, while share of voice is what each took from the others. citedAnswers counts the answers that " +
+  "cited at least one domain assigned to the brand, its own or an alternative one, each domain at most " +
+  "once per answer, and citationShare is the share of answers carrying sources that did. It is a count " +
+  "of answers, not of sources, so it is not comparable with sourceOccurrences from list_sources, which " +
+  "counts every source on one host. Being cited can diverge from being named — a brand can be " +
+  "recommended without being linked, and linked without being recommended. The " +
   "project's own brand is in the ranking and marked with ownBrand, so it can be read against the rest.";
 
 export const CITED_DOMAINS =
-  "A cited domain is a site an assistant leaned on while answering the project's prompts. citations " +
-  "counts how often it was cited, and share is its slice of every citation made on those prompts, so " +
-  "the domains describe one pie. ownDomain marks the project's own domain and the alternatives " +
+  "A cited domain is a site an assistant leaned on while answering the project's prompts. " +
+  "sourceOccurrences counts every time a page on that exact host appeared among an answer's sources, " +
+  "so one answer citing two of its pages counts twice, and other domains of the same brand are not " +
+  "added in. It is a count of sources, not of answers, so it is not comparable with citedAnswers from " +
+  "list_competitors. share is the domain's slice of every source occurrence on those prompts, so the " +
+  "domains describe one pie. ownDomain marks the project's own domain and the alternatives " +
   "registered with it: a small own share means the assistants are describing the brand from other " +
   "people's pages rather than its own, which is where the story about it is being written.";
 
@@ -92,7 +98,14 @@ export const GOOGLE_BINDING =
   "answers with zeros and empty lists, which reads exactly like a site nobody visits — so call " +
   "get_google_status before reporting a zero as a finding, and say which of the two it was.";
 
-/** What the bot traffic is, for the tools that report it. */
+export const INTEGRATION_STATE =
+  "A project whose integration is not connected answers this with zeros and empty lists, which " +
+  "reads exactly like a site nobody visits. Call get_integrations_status before reporting a zero " +
+  "or an empty list as a finding: it says whether Search Console, Google Analytics, the bot " +
+  "tracker and the sitemap are connected, and a sync that is failing. Not connected means the " +
+  "figures say nothing about the site, never that it had no traffic; say the integration is " +
+  "missing and that it can be connected in the PromptEye app.";
+
 export const BOT_TRAFFIC =
   "A bot visit is a machine fetching a page, not a person reading one. It is the supply side of " +
   "visibility: an assistant can only quote a page its bot was able to fetch, so this says whether " +
@@ -107,3 +120,21 @@ export const VERIFIED =
   "so each one is marked `verified` or not. The API has no filter for it and counts cannot be " +
   "split by it, so any total here includes requests that only claimed to be that bot. Report a " +
   "count as an upper bound and say so; never present it as measured reach without the caveat.";
+
+export const CONTENT_APP_URL = "https://app.prompteye.com/content";
+
+export const CONTENT_GENERATION =
+  "PromptEye generates content as well as measuring visibility, and the two make one loop: track the " +
+  "prompts and how often the assistants name the brand on them, generate an article that targets a " +
+  "prompt where the brand is weak, publish it, then measure whether that prompt's visibility and " +
+  "citations move. Generation starts from a content brief: PromptEye fans the target prompt out into " +
+  "the phrases people ask around it, keeps the ones that belong in this article, sets aside the ones " +
+  "that deserve an article of their own, and writes a title and an H2/H3 outline from them. " +
+  "create_content_brief orders one and get_content_brief reads it. The article itself is written from " +
+  "the brief in the PromptEye app, under Content (" +
+  CONTENT_APP_URL +
+  "), from the brand description, the knowledge documents picked for it and the chosen writing style; " +
+  "saving the live URL, requesting indexing and following citations happen there too, and publishing " +
+  "the page is done on the user's own site. A generated article is a draft to review, and neither it " +
+  "nor its indexing guarantees that an assistant will cite it. Guides: " +
+  "https://app.prompteye.com/help/content/ and https://app.prompteye.com/help/content/article-workflow/.";

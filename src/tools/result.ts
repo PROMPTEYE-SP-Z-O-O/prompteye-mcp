@@ -21,6 +21,13 @@ export const WRITES = {
   openWorldHint: true,
 } as const;
 
+export const DELETES = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: true,
+  openWorldHint: true,
+} as const;
+
 /** What every tool module is handed when it registers itself. */
 export type ToolContext = {
   client: PromptEyeClient;

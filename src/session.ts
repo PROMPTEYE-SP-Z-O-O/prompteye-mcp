@@ -11,6 +11,7 @@ import type { Project } from "./schemas/prompteye.js";
  */
 export class ProjectSession {
   private active: Project | undefined;
+  private readonly briefed = new Set<string>();
 
   constructor(private readonly client: PromptEyeClient) {}
 
@@ -18,6 +19,14 @@ export class ProjectSession {
   async select(projectId: string): Promise<Project> {
     this.active = await this.client.getProject(projectId);
     return this.active;
+  }
+
+  noteBrief(projectId: string): void {
+    this.briefed.add(projectId);
+  }
+
+  hasBrief(projectId: string): boolean {
+    return this.briefed.has(projectId);
   }
 
   /** The active project, or undefined when nothing has been selected yet. */

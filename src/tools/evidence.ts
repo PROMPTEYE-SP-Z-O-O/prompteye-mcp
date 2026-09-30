@@ -27,6 +27,8 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         "how often they were cited. Call this to see which pages shape what the assistants say about " +
         "the brand, and where to go to change it.\n\n" +
         `${CITED_DOMAINS}\n\n` +
+        "When the own domain holds a small share, create_content_brief starts an article of the " +
+        "brand's own for the assistants to cite on the prompt it targets.\n\n" +
         "The ranking answers with the most cited domains rather than a list to walk to the end of, so " +
         "raise `limit` to see further down. `model` narrows it to one assistant, which is how to tell " +
         "a source every assistant trusts from one that only a single assistant leans on.",
@@ -61,7 +63,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
 
         const lines = page.data.map(
           (domain) =>
-            `- ${domain.domain}${domain.ownDomain ? " ← own domain" : ""} — ${domain.citations} citation(s), ` +
+            `- ${domain.domain}${domain.ownDomain ? " ← own domain" : ""} — ${domain.sourceOccurrences} source occurrence(s), ` +
             `${num(domain.share, "%")} share`
         );
 

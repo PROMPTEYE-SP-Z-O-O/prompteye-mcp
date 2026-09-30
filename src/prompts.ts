@@ -46,6 +46,9 @@ export function registerPromptWorkflows(server: McpServer): void {
           "be high for everyone at once; share of voice is what was taken from the others.\n" +
           "- If the brand's own domain holds a small slice of the citations, the assistants are " +
           "describing it from other people's pages. Name those pages.\n\n" +
+          "PromptEye closes the loop by generating content: for a prompt worth winning where the brand " +
+          "is missing, one of the next steps can be create_content_brief, which orders the brief the " +
+          "article is written from in the PromptEye app.\n\n" +
           "Finish with at most three things to do next, each tied to the figure that argues for it. " +
           "Say plainly when the data does not support a recommendation."
       )
@@ -100,7 +103,8 @@ export function registerPromptWorkflows(server: McpServer): void {
           "The cited domains are the pages the assistants lean on. Sort them into the kinds they are: " +
           "review sites and directories, forums and communities, press, and the brand's own pages. " +
           "Each kind is acted on differently — a listing is claimed and corrected, a forum thread is " +
-          "answered, a review page is earned, an own page is written.\n\n" +
+          "answered, a review page is earned, an own page is written — and PromptEye generates that " +
+          "one: create_content_brief starts the article for the prompt it should answer.\n\n" +
           "Then check whether the brands ahead on share of voice are the ones those domains name. A " +
           "competitor that leads because one review site ranks it first is a different problem from " +
           "one that leads everywhere.\n\n" +
@@ -112,7 +116,9 @@ export function registerPromptWorkflows(server: McpServer): void {
     "onboard_brand",
     {
       title: "Set up a new brand",
-      description: "Create a project for one brand in one market and get its first prompts in place.",
+      description:
+        "Walk one brand from nothing to its first measurement: project, knowledge base, prompts, " +
+        "article outlines, and the wait for the first run.",
       argsSchema: {
         brand: z.string().describe("The brand name as it is written in answers."),
         domain: z.string().describe("Primary domain, without protocol or path."),
@@ -121,18 +127,33 @@ export function registerPromptWorkflows(server: McpServer): void {
     },
     ({ brand, domain, country }) =>
       message(
-        `Set up PromptEye tracking for ${brand} (${domain}) in ${country}.\n\n` +
-          "First call list_projects: a brand already tracked in that market must not be created twice.\n\n" +
-          "Then create_project. Before you do, ask the user for the two things that quietly decide " +
+        `Set up PromptEye tracking for ${brand} (${domain}) in ${country}, one step at a time. ` +
+          "Finish each step with the user before starting the next, and tell them which step they are on.\n\n" +
+          "1. The project. Call list_projects first: a brand already tracked in that market must not be " +
+          "created twice. Before create_project, ask the user for the two things that quietly decide " +
           "whether the numbers are right:\n" +
           "- other spellings of the brand that should count as a mention, since answers using them " +
           "otherwise read as the brand being absent;\n" +
           "- brands to keep out of the competitor set, such as agencies or resellers, which would " +
           "otherwise dilute share of voice.\n\n" +
-          "Then read get_knowledge_base. Everything PromptEye writes for the project starts there, so " +
-          "if it is empty or wrong, say so — the prompts it proposes will inherit the mistake.\n\n" +
-          "Finally call list_prompt_suggestions and walk the user through the first set. Nothing is " +
-          "measured until the project has prompts, and the suggestions are the path meant for that."
+          "2. The knowledge base. Call get_knowledge_base and show the user what the project knows about " +
+          "the brand. Everything PromptEye writes for the project starts there, so a thin or wrong " +
+          "description is inherited by every prompt it proposes. Ask the user for whatever is missing or " +
+          "wrong — industry, product category, target audience, ICP, operating area, and a description of " +
+          "what the brand does — and save their answers with update_knowledge_base. Write down what they " +
+          "tell you; do not research the brand yourself or fill a field they left blank.\n\n" +
+          "3. The prompts. Call list_prompt_suggestions and walk the user through the first set; accepting " +
+          "them happens in the PromptEye app. A new project often has none yet, because suggestions are " +
+          "generated inside a prompt group from the app — say so plainly and point the user there. Only " +
+          "if the user already has prompts of their own that must be tracked verbatim, and says so, use " +
+          "add_prompts.\n\n" +
+          "4. The articles. Once prompts are tracked, offer to outline articles for the ones that matter " +
+          "most: create_content_brief with a promptId from list_prompts, then get_content_brief when it " +
+          "is ready. This is optional — skip it if the user does not publish content.\n\n" +
+          "5. The wait. Nothing is measured until the next run: get_account says when it starts, and it " +
+          "takes tens of minutes. Tell the user when to come back.\n\n" +
+          "Call get_started at the end: its phase should read waiting, or content if the articles were " +
+          "skipped, and it names anything that is still missing."
       )
   );
 }

@@ -14,7 +14,7 @@ import {
   type SearchPage,
   type SearchQuery,
 } from "../schemas/prompteye.js";
-import { GOOGLE_BINDING, GOOGLE_DATA } from "./glossary.js";
+import { GOOGLE_BINDING, GOOGLE_DATA, INTEGRATION_STATE } from "./glossary.js";
 import { READ_ONLY, handled, morePages, ok, type ToolContext } from "./result.js";
 
 /** Which axis a Search Console reading is split along, or the totals when omitted. */
@@ -64,7 +64,8 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
       description:
         "Whether Search Console and Google Analytics are bound to the active project, and how their " +
         "last sync went. Call this when a Google figure looks wrong or empty, or before promising a " +
-        "report built on one.\n\n" +
+        "report built on one. get_integrations_status answers the same question for the bot tracker " +
+        "and the sitemap as well.\n\n" +
         GOOGLE_BINDING,
       annotations: READ_ONLY,
       inputSchema: {},
@@ -106,7 +107,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
         "of — raise `limit` to see further down.\n\n" +
         GOOGLE_DATA +
         "\n\n" +
-        GOOGLE_BINDING,
+        INTEGRATION_STATE,
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
@@ -178,7 +179,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
         "end of.\n\n" +
         GOOGLE_DATA +
         "\n\n" +
-        GOOGLE_BINDING,
+        INTEGRATION_STATE,
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
