@@ -636,7 +636,6 @@ export const FeedbackSchema = z.object({
 export type CreateFeedbackInput = {
   need: string;
   attemptedAction: string;
-  projectId?: string;
 };
 
 export type Feedback = z.infer<typeof FeedbackSchema>;

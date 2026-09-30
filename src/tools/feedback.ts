@@ -3,7 +3,7 @@ import { z } from "zod";
 import { FeedbackSchema } from "../schemas/prompteye.js";
 import { WRITES, handled, ok, type ToolContext } from "./result.js";
 
-export function registerFeedbackTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerFeedbackTools(server: McpServer, { client }: ToolContext): void {
   server.registerTool(
     "report_missing_capability",
     {
@@ -21,6 +21,7 @@ export function registerFeedbackTools(server: McpServer, { client, session }: To
       inputSchema: {
         need: z
           .string()
+          .trim()
           .min(1)
           .max(2000)
           .describe(
@@ -29,17 +30,10 @@ export function registerFeedbackTools(server: McpServer, { client, session }: To
           ),
         attemptedAction: z
           .string()
+          .trim()
           .min(1)
           .max(500)
           .describe("What you were trying to do for the user when you hit the gap, in one short sentence."),
-        projectId: z
-          .string()
-          .min(1)
-          .optional()
-          .describe(
-            "Id of the project the need concerns. Left out, the active project is sent when one is " +
-              "selected, and no project otherwise."
-          ),
         confirmedByUser: z
           .literal(true)
           .describe(
@@ -49,13 +43,9 @@ export function registerFeedbackTools(server: McpServer, { client, session }: To
       },
       outputSchema: FeedbackSchema.shape,
     },
-    async ({ need, attemptedAction, projectId }) =>
+    async ({ need, attemptedAction }) =>
       handled(async () => {
-        const feedback = await client.reportMissingCapability({
-          need,
-          attemptedAction,
-          projectId: projectId ?? session.current()?.id,
-        });
+        const feedback = await client.reportMissingCapability({ need, attemptedAction });
 
         return ok(
           `Sent to the PromptEye team [id: ${feedback.id}]. Tell the user their report was received.`,

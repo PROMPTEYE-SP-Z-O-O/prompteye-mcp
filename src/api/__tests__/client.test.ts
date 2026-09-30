@@ -199,7 +199,6 @@ describe("PromptEyeApi", () => {
     const result = await api.feedback.create({
       need: "Export the prompt list as CSV",
       attemptedAction: "Exporting prompts for a client deck",
-      projectId: "p1",
     });
 
     expect(result).toEqual(feedback);
@@ -209,7 +208,6 @@ describe("PromptEyeApi", () => {
     expect(JSON.parse(calls[0].init.body as string)).toEqual({
       need: "Export the prompt list as CSV",
       attemptedAction: "Exporting prompts for a client deck",
-      projectId: "p1",
     });
   });
 
