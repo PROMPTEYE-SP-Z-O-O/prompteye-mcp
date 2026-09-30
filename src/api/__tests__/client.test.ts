@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 import { PromptEyeApi } from "../client.js";
 import { PromptEyeApiError } from "../errors.js";
 import type { FetchLike } from "../http.js";
+import { toolMessageFor } from "../../client/errors.js";
 
 const TOKEN = "pe_live_test_token";
 const BASE_URL = "https://example.convex.site";
@@ -92,6 +93,15 @@ describe("PromptEyeApi", () => {
       code: "unauthorized",
       message: "The API key is missing, malformed or revoked.",
     });
+  });
+
+  it("shows the API's own message for a failed validation", async () => {
+    const message = "No prompt group with this identifier is in this project.";
+    const { api } = stubFetch(json(400, { error: { code: "invalid_request", message } }));
+
+    const error = await api.projects.get("p").catch((e: unknown) => e);
+
+    expect(toolMessageFor(error)).toContain(message);
   });
 
   it("throws on a non-JSON failure too", async () => {
