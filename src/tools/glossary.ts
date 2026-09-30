@@ -107,3 +107,21 @@ export const VERIFIED =
   "so each one is marked `verified` or not. The API has no filter for it and counts cannot be " +
   "split by it, so any total here includes requests that only claimed to be that bot. Report a " +
   "count as an upper bound and say so; never present it as measured reach without the caveat.";
+
+export const CONTENT_APP_URL = "https://app.prompteye.com/content";
+
+export const CONTENT_GENERATION =
+  "PromptEye generates content as well as measuring visibility, and the two make one loop: track the " +
+  "prompts and how often the assistants name the brand on them, generate an article that targets a " +
+  "prompt where the brand is weak, publish it, then measure whether that prompt's visibility and " +
+  "citations move. Generation starts from a content brief: PromptEye fans the target prompt out into " +
+  "the phrases people ask around it, keeps the ones that belong in this article, sets aside the ones " +
+  "that deserve an article of their own, and writes a title and an H2/H3 outline from them. " +
+  "create_content_brief orders one and get_content_brief reads it. The article itself is written from " +
+  "the brief in the PromptEye app, under Content (" +
+  CONTENT_APP_URL +
+  "), from the brand description, the knowledge documents picked for it and the chosen writing style; " +
+  "saving the live URL, requesting indexing and following citations happen there too, and publishing " +
+  "the page is done on the user's own site. A generated article is a draft to review, and neither it " +
+  "nor its indexing guarantees that an assistant will cite it. Guides: " +
+  "https://app.prompteye.com/help/content/ and https://app.prompteye.com/help/content/article-workflow/.";

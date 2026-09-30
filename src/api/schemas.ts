@@ -300,6 +300,65 @@ export type Report = z.infer<typeof ReportSchema>;
 export type ReportDetail = z.infer<typeof ReportDetailSchema>;
 export type ReportReach = (typeof REPORT_REACH)[number];
 
+export const ContentBriefPhraseSchema = z.object({
+  keyword: z.string(),
+  type: z.string(),
+  confidence: z.number(),
+});
+
+export const ContentBriefSeparateArticleSchema = z.object({
+  keyword: z.string(),
+  articleTitle: z.string().nullable(),
+  type: z.string(),
+  confidence: z.number(),
+  reason: z.string(),
+  priority: z.number(),
+});
+
+export const ContentBriefOutlineItemSchema = z.object({
+  level: z.string(),
+  text: z.string(),
+  annotation: z.string().nullable(),
+  sourcePhrases: z.array(z.string()).nullable(),
+  includesBrand: z.boolean(),
+  faqQuestions: z.array(z.string()).nullable(),
+  origin: z.string().nullable(),
+  originalHeading: z.string().nullable(),
+  originalHasDirectAnswer: z.boolean().nullable(),
+});
+
+export const ContentBriefSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+  projectId: z.string(),
+  trackerId: z.string().nullable(),
+  prompt: z.string(),
+  error: z.string().nullable(),
+  title: z.string().nullable(),
+  originalTitle: z.string().nullable(),
+  titleChangeAnnotation: z.string().nullable(),
+  fanoutSource: z.string().nullable(),
+  fanoutError: z.string().nullable(),
+  fanoutVariants: z.array(ContentBriefPhraseSchema).nullable(),
+  phrasesForArticle: z.array(ContentBriefPhraseSchema).nullable(),
+  separateArticles: z.array(ContentBriefSeparateArticleSchema).nullable(),
+  outline: z.array(ContentBriefOutlineItemSchema).nullable(),
+  sourceTextMatchPercentage: z.number().nullable(),
+  requestedAt: z.string(),
+  readyAt: z.string().nullable(),
+});
+
+export type CreateContentBriefInput = {
+  projectId: string;
+  prompt: string;
+  trackerId?: string;
+};
+
+export type ContentBrief = z.infer<typeof ContentBriefSchema>;
+export type ContentBriefPhrase = z.infer<typeof ContentBriefPhraseSchema>;
+export type ContentBriefSeparateArticle = z.infer<typeof ContentBriefSeparateArticleSchema>;
+export type ContentBriefOutlineItem = z.infer<typeof ContentBriefOutlineItemSchema>;
+
 export const UpdateProjectRequestSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   label: z.string().min(1).max(40).optional(),

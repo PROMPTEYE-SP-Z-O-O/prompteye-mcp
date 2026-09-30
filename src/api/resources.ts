@@ -8,6 +8,7 @@ import {
   CitedDomainPageSchema,
   CompetitorExclusionListSchema,
   CompetitorPageSchema,
+  ContentBriefSchema,
   GoogleStatusSchema,
   KnowledgeBaseSchema,
   NewPromptListSchema,
@@ -36,6 +37,8 @@ import {
   type CitedDomain,
   type Competitor,
   type CompetitorExclusion,
+  type ContentBrief,
+  type CreateContentBriefInput,
   type CreateProjectInput,
   type CreateReportInput,
   type GoogleStatus,
@@ -289,6 +292,18 @@ export class ReportsResource {
   /** `GET /v1/reports/{reportId}` — one report with its prompts, models, examples and contacts. */
   get(reportId: string, options?: RequestOptions): Promise<ReportDetail> {
     return this.http.get(`/v1/reports/${encodeURIComponent(reportId)}`, ReportDetailSchema, options);
+  }
+}
+
+export class ContentBriefsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  create(input: CreateContentBriefInput, options?: RequestOptions): Promise<ContentBrief> {
+    return this.http.post("/v1/content/briefs", input, ContentBriefSchema, options);
+  }
+
+  get(briefId: string, options?: RequestOptions): Promise<ContentBrief> {
+    return this.http.get(`/v1/content/briefs/${encodeURIComponent(briefId)}`, ContentBriefSchema, options);
   }
 }
 
