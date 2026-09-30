@@ -1,4 +1,4 @@
-/** Brands answering alongside the project's own, ranked by share of voice. */
+/** Brands answering alongside the project's own, ranked by visibility. */
 function render(data) {
   const brands = data?.data ?? [];
   setContext(data?.startDate ? `${data.startDate} → ${data.endDate}` : "");
@@ -31,7 +31,7 @@ function render(data) {
         : ""
     }
     <section>
-      <h2>Ranked by share of voice</h2>
+      <h2>Share of voice, ranked by visibility</h2>
       ${rows(
         brands.map((brand) => ({
           name: brand.brand,

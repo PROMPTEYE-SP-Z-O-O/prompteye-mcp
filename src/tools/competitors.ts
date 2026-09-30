@@ -17,8 +17,10 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
       title: "Rank the brands answering alongside yours",
       description:
         "Every brand the assistants named on the active project's prompts, measured the same way the " +
-        "project's own brand is and ranked by share of voice. Call this for 'who are we losing to' " +
-        "and for how a market splits between brands.\n\n" +
+        "project's own brand is and ranked by visibility, then by average position. Call this for 'who are " +
+        "we losing to' and for how a market splits between brands.\n\n" +
+        "The order is not share of voice. The ranking is cut to the strongest brands by visibility first, so " +
+        "re-sorting what it returns by share of voice does not give the strongest brands by share of voice.\n\n" +
         "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         `${SHARE_OF_VOICE}\n\n${VISIBILITY}\n\n` +
         "The ranking answers with the strongest brands rather than a list to walk to the end of, so " +
