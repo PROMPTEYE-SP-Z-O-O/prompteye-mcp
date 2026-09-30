@@ -26,7 +26,7 @@ import {
   VISIBILITY,
 } from "./glossary.js";
 import { whatNext } from "./journey.js";
-import { DELETES, READ_ONLY, WRITES, fail, handled, morePages, num, ok, signed, type ToolContext } from "./result.js";
+import { DELETES, READ_ONLY, WRITES, aiTrafficText, fail, handled, morePages, num, ok, signed, type ToolContext } from "./result.js";
 
 const PURCHASE_INTENT_STAGE: Record<number, string> = {
   1: "educational",
@@ -181,7 +181,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
             `Keyword: ${prompt.keyword || "—"}. Categories: ${prompt.categories.join(", ") || "—"}.`,
             `Visibility ${num(prompt.metrics.visibility, "%")} (${signed(prompt.change?.visibility ?? null, " pp")}), ` +
               `reach index ${num(prompt.metrics.reachIndex)}, position ${num(prompt.metrics.averagePosition)}.`,
-            `AI traffic: ${num(prompt.aiTraffic)}. Business priority: ${prompt.businessPriority ?? "—"}` +
+            `AI traffic: ${aiTrafficText(prompt)}. Business priority: ${prompt.businessPriority ?? "—"}` +
               `${prompt.businessPriorityReason ? ` — set by hand: ${prompt.businessPriorityReason}` : ""}.`,
             "By assistant:",
             ...perModel,
@@ -203,7 +203,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
         "reorders a group, and delete_prompt_group removes an empty one.\n\n" +
         "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         "aiTrafficTotal adds up the demand behind the prompts of the group that are still being asked, " +
-        "so a paused prompt contributes nothing.",
+        "so a paused prompt contributes nothing. It is null when none of those prompts has a measured figure.",
       annotations: READ_ONLY,
       inputSchema: { ...dateRangeShape, ...paginationShape },
       outputSchema: { data: z.array(PromptGroupSchema), nextCursor: z.string().nullable() },

@@ -81,6 +81,13 @@ export const sampleData = (text: string): string =>
 export const num = (value: number | null, suffix = ""): string =>
   value === null ? "—" : `${value}${suffix}`;
 
+export const aiTrafficText = (prompt: { aiTraffic: number | null; aiTrafficMeasuredAt?: string | null }): string => {
+  if (prompt.aiTrafficMeasuredAt === undefined) return num(prompt.aiTraffic);
+  if (prompt.aiTrafficMeasuredAt === null) return prompt.aiTraffic === null ? "not measured yet" : num(prompt.aiTraffic);
+  const figure = prompt.aiTraffic === null ? "no data" : String(prompt.aiTraffic);
+  return `${figure} (measured ${prompt.aiTrafficMeasuredAt.slice(0, 10)})`;
+};
+
 /** Renders a change with an explicit sign, so a drop never reads as a gain. */
 export const signed = (value: number | null, suffix = ""): string =>
   value === null ? "—" : `${value > 0 ? "+" : ""}${value}${suffix}`;

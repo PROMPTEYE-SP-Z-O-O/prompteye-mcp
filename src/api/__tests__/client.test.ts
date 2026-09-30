@@ -171,6 +171,29 @@ describe("PromptEyeApi", () => {
     expect(JSON.parse(calls[0].init.body as string)).toEqual({ status: "paused" });
   });
 
+  it("keeps when the AI traffic was measured, and reads an API that does not send it yet", async () => {
+    const settings = {
+      id: "prompt1",
+      prompt: "best tools",
+      keyword: "",
+      status: "active",
+      categories: [],
+      subcategories: [],
+      groupId: null,
+      createdAt: "2026-09-10T09:24:11.000Z",
+      aiTraffic: 0,
+      aiTrafficMeasuredAt: "2026-09-29T10:00:00.000Z",
+      businessPriority: null,
+      businessPriorityReason: null,
+    };
+    const older = { ...settings, aiTrafficMeasuredAt: undefined };
+
+    await expect(stubFetch(json(200, settings)).api.prompts.update("p1", "prompt1", {})).resolves.toEqual(settings);
+    await expect(stubFetch(json(200, older)).api.prompts.update("p1", "prompt1", {})).resolves.not.toHaveProperty(
+      "aiTrafficMeasuredAt"
+    );
+  });
+
   it("creates, changes and deletes a prompt group", async () => {
     const group = { id: "g1", name: "Overall", description: null, order: 2, promptCount: 0 };
     const created = stubFetch(json(201, group));
