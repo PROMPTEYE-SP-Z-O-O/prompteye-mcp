@@ -1,4 +1,6 @@
 /** The domains the assistants leaned on, ranked by how often they were cited. */
+const oneDecimal = (value) => (value === null || value === undefined ? value : Math.round(value * 10) / 10);
+
 function render(data) {
   const domains = data?.data ?? [];
   setContext(data?.startDate ? `${data.startDate} → ${data.endDate}` : "");
@@ -18,7 +20,7 @@ function render(data) {
     <div class="sub">
       ${
         ownShare > 0
-          ? `Own pages carry ${fmt(Math.round(ownShare * 10) / 10, "%")} of the citations — the rest of the story is told elsewhere.`
+          ? `Own pages carry ${fmt(oneDecimal(ownShare), "%")} of the citations — the rest of the story is told elsewhere.`
           : "No citation went to the project's own pages in this period."
       }
     </div>
@@ -28,7 +30,7 @@ function render(data) {
         domains.map((domain) => ({
           name: domain.domain,
           own: domain.ownDomain,
-          value: domain.share,
+          value: oneDecimal(domain.share),
           suffix: "%",
           note: `· ${domain.sourceOccurrences} occurrence(s)`,
         }))

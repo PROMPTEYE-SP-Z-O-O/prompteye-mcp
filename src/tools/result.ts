@@ -88,3 +88,11 @@ export const signed = (value: number | null, suffix = ""): string =>
 /** The trailing line a paginated listing adds so the model knows more exists. */
 export const morePages = (nextCursor: string | null): string =>
   nextCursor === null ? "" : `\n\nMore entries follow. Pass cursor="${nextCursor}" to read the next page.`;
+
+const roundedToOneDecimal = (value: number): number => Number(value.toFixed(1));
+
+export const percent = (value: number | null): string => {
+  if (value === null) return "—";
+  if (value > 0 && value < 1) return "<1%";
+  return `${roundedToOneDecimal(value)}%`;
+};

@@ -11,7 +11,7 @@ import {
 import { AnswerSchema, CitationQualitySchema, CitedDomainSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
-import { READ_ONLY, handled, morePages, num, ok, sampleData, type ToolContext } from "./result.js";
+import { READ_ONLY, handled, morePages, num, ok, percent, sampleData, type ToolContext } from "./result.js";
 
 export const SOURCES_WIDGET = "sources";
 
@@ -64,7 +64,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         const lines = page.data.map(
           (domain) =>
             `- ${domain.domain}${domain.ownDomain ? " ← own domain" : ""} — ${domain.sourceOccurrences} source occurrence(s), ` +
-            `${num(domain.share, "%")} share`
+            `${percent(domain.share)} share`
         );
 
         return ok(
