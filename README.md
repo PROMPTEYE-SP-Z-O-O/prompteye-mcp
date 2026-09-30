@@ -353,11 +353,12 @@ src/
   index.ts            stdio entry point — key and API URL from the environment
   index-http.ts       Streamable HTTP entry point — reads the environment, wires src/http/
   http/
-    app.ts            the express app: key per request, verify at initialize, route to sessions
-    credentials.ts    reads the key from Authorization / X-PromptEye-Key, fingerprints it
+    app.ts            the express app: key per request, one session per initialize, route to sessions
+    credentials.ts    reads the key from Authorization / X-PromptEye-Key, fingerprints it, verifies it at initialize
+    rejections.ts     every refusal the app answers with — status, JSON-RPC code, message, headers
     sessions.ts       SessionRegistry — sessions bound to a key, idle sweep, per-key cap
     rate-limit.ts     RequestBudget — requests per minute, per key and per client address
-    logging.ts        one JSON line per event, never a key or a header
+    logging.ts        one JSON line per event and per request, never a key or a header
   server.ts           builds one server from a ToolContext: session, tools, SAMPLE_TOOLS switch
   session.ts          ProjectSession — which project the tools report on
   config.ts           environment, credentials, and the client factory

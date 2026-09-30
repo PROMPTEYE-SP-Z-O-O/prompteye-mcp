@@ -3,12 +3,12 @@ import cors from "cors";
 import express from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import { PromptEyeApiError } from "../api/index.js";
-import { INTEGRATIONS_URL, createClient, serverName, serverVersion, type ApiCredentials } from "../config.js";
+import { serverName, serverVersion, type ApiCredentials } from "../config.js";
 import { buildToolContext, createMcpServer } from "../server.js";
-import { fingerprintOf, readApiKey } from "./credentials.js";
-import { describeError, type LogFields, type Logger } from "./logging.js";
-import type { BudgetDecision, RequestBudget } from "./rate-limit.js";
+import { fingerprintOf, firstValue, readApiKey, verifyApiKey } from "./credentials.js";
+import { describeError, requestLogging, type Logger } from "./logging.js";
+import type { RequestBudget } from "./rate-limit.js";
+import { REJECTIONS, reject, rejectBadBody, tooManyRequests } from "./rejections.js";
 import type { SessionRegistry } from "./sessions.js";
 
 export type HttpAppOptions = {
@@ -21,55 +21,7 @@ export type HttpAppOptions = {
   allowedHosts?: string[];
   allowedOrigins?: string[];
   trustProxyHops?: number;
-  verifyCredentials?: (credentials: ApiCredentials) => Promise<void>;
 };
-
-const WWW_AUTHENTICATE = 'Bearer realm="prompteye-mcp", error="invalid_token"';
-
-const MESSAGES = {
-  missingKey:
-    "Missing PromptEye API key. Send it as Authorization: Bearer pe_live_… (or X-PromptEye-Key). " +
-    `Keys: ${INTEGRATIONS_URL}`,
-  rejectedKey: `PromptEye rejected this API key. Check it at ${INTEGRATIONS_URL} and send a valid one.`,
-  unreachable: "PromptEye API is unreachable. Retry in a moment.",
-  tooManyRequests: "Too many requests. Wait for the Retry-After delay before retrying.",
-  sessionNotFound: "Session not found. Initialize a new session.",
-  notInitialized: "Bad request. Send an initialize request first, then reuse its Mcp-Session-Id.",
-  methodNotAllowed: "Method not allowed. Start a session with a POST initialize request.",
-  badBody: "Bad request. Body must be JSON under 1 MB.",
-  internal: "Internal server error.",
-};
-
-const RPC_CODES = {
-  unauthorized: -32001,
-  sessionNotFound: -32001,
-  tooManyRequests: -32000,
-  unreachable: -32000,
-  badRequest: -32600,
-  internal: -32603,
-};
-
-type Rejection = { status: number; code: number; message: string; headers: Record<string, string> };
-
-const REJECTIONS = {
-  missingKey: { status: 401, code: RPC_CODES.unauthorized, message: MESSAGES.missingKey, headers: { "WWW-Authenticate": WWW_AUTHENTICATE } },
-  rejectedKey: { status: 401, code: RPC_CODES.unauthorized, message: MESSAGES.rejectedKey, headers: { "WWW-Authenticate": WWW_AUTHENTICATE } },
-  unreachable: { status: 503, code: RPC_CODES.unreachable, message: MESSAGES.unreachable, headers: { "Retry-After": "5" } },
-  sessionNotFound: { status: 404, code: RPC_CODES.sessionNotFound, message: MESSAGES.sessionNotFound, headers: {} },
-  notInitialized: { status: 400, code: RPC_CODES.badRequest, message: MESSAGES.notInitialized, headers: {} },
-  methodNotAllowed: { status: 405, code: RPC_CODES.badRequest, message: MESSAGES.methodNotAllowed, headers: { Allow: "POST" } },
-  badBody: { status: 400, code: RPC_CODES.badRequest, message: MESSAGES.badBody, headers: {} },
-  internal: { status: 500, code: RPC_CODES.internal, message: MESSAGES.internal, headers: {} },
-} satisfies Record<string, Rejection>;
-
-const tooManyRequests = (decision: BudgetDecision): Rejection => ({
-  status: 429,
-  code: RPC_CODES.tooManyRequests,
-  message: MESSAGES.tooManyRequests,
-  headers: { "Retry-After": String(decision.retryAfterSeconds) },
-});
-
-const KEY_REJECTING_STATUSES = new Set([401, 403]);
 
 const CORS_OPTIONS: cors.CorsOptions = {
   methods: ["GET", "POST", "DELETE", "OPTIONS"],
@@ -77,57 +29,10 @@ const CORS_OPTIONS: cors.CorsOptions = {
   exposedHeaders: ["Mcp-Session-Id"],
 };
 
-const RPC_DETAILS_BY_METHOD: Record<string, (params: unknown) => LogFields> = {
-  "tools/call": (params) => ({ tool: (params as { name?: unknown } | undefined)?.name }),
-};
-
-type RpcMessage = { method?: unknown; params?: unknown };
-
-function describeRpc(body: unknown): LogFields {
-  const message = (Array.isArray(body) ? body[0] : body) as RpcMessage | undefined;
-  const method = message?.method;
-  if (typeof method !== "string") return {};
-
-  return { rpcMethod: method, ...(RPC_DETAILS_BY_METHOD[method]?.(message?.params) ?? {}) };
-}
-
-const headerValue = (value: string | string[] | undefined): string | undefined =>
-  Array.isArray(value) ? value[0] : value;
-
 const dnsRebindingOptions = (allowedHosts: string[] | undefined, allowedOrigins: string[] | undefined) =>
   allowedHosts?.length || allowedOrigins?.length
     ? { enableDnsRebindingProtection: true, allowedHosts, allowedOrigins }
     : {};
-
-async function verifyWithAccount(credentials: ApiCredentials): Promise<void> {
-  await createClient(credentials).getAccount();
-}
-
-function reject(res: express.Response, rejection: Rejection): void {
-  res.set(rejection.headers);
-  res.status(rejection.status).json({ jsonrpc: "2.0", error: { code: rejection.code, message: rejection.message }, id: null });
-}
-
-function rejectBadBody(error: { status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction): void {
-  reject(res, { ...REJECTIONS.badBody, status: error.status ?? 400 });
-}
-
-function requestLogging(logger: Logger): express.RequestHandler {
-  return (req, res, next) => {
-    const startedAt = Date.now();
-    res.on("finish", () => {
-      logger.info("mcp.request", {
-        method: req.method,
-        path: req.path,
-        status: res.statusCode,
-        durationMs: Date.now() - startedAt,
-        ...res.locals,
-        ...describeRpc(req.body),
-      });
-    });
-    next();
-  };
-}
 
 function health(_req: express.Request, res: express.Response): void {
   res.json({ status: "ok", server: { name: serverName, version: serverVersion } });
@@ -135,22 +40,6 @@ function health(_req: express.Request, res: express.Response): void {
 
 export function createHttpApp(options: HttpAppOptions): express.Express {
   const { baseUrl, registry, logger, keyBudget, ipBudget, authFailureBudget, allowedHosts, allowedOrigins, trustProxyHops } = options;
-  const verifyCredentials = options.verifyCredentials ?? verifyWithAccount;
-
-  const credentialRejection = async (credentials: ApiCredentials): Promise<Rejection | undefined> => {
-    try {
-      await verifyCredentials(credentials);
-      return undefined;
-    } catch (error) {
-      if (error instanceof PromptEyeApiError && KEY_REJECTING_STATUSES.has(error.status)) return REJECTIONS.rejectedKey;
-      if (error instanceof PromptEyeApiError && error.status === 429) {
-        return tooManyRequests({ allowed: false, retryAfterSeconds: error.retryAfterSeconds ?? 5 });
-      }
-
-      logger.error("mcp.credentials.unverifiable", describeError(error));
-      return REJECTIONS.unreachable;
-    }
-  };
 
   const startSession = async (
     credentials: ApiCredentials,
@@ -164,7 +53,7 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
     const failureDecision = authFailureBudget.peek(ip);
     if (!failureDecision.allowed) return reject(res, tooManyRequests(failureDecision));
 
-    const rejection = await credentialRejection(credentials);
+    const rejection = await verifyApiKey(credentials, logger);
     if (rejection === REJECTIONS.rejectedKey) authFailureBudget.take(ip);
     if (rejection) return reject(res, rejection);
 
@@ -189,7 +78,7 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
     const ipDecision = ipBudget.take(req.ip ?? "unknown");
     if (!ipDecision.allowed) return reject(res, tooManyRequests(ipDecision));
 
-    const sessionId = headerValue(req.headers["mcp-session-id"]);
+    const sessionId = firstValue(req.headers, "mcp-session-id");
     if (sessionId === undefined && req.method !== "POST") return reject(res, REJECTIONS.methodNotAllowed);
 
     const token = readApiKey(req.headers);
