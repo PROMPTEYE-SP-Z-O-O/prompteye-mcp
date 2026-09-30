@@ -17,6 +17,9 @@ type LiveMethod =
   | "addPrompts"
   | "updatePrompt"
   | "listPromptGroups"
+  | "createPromptGroup"
+  | "updatePromptGroup"
+  | "deletePromptGroup"
   | "listSources"
   | "listCompetitors"
   | "listCompetitorExclusions"
@@ -24,6 +27,8 @@ type LiveMethod =
   | "createReport"
   | "listReports"
   | "getReport"
+  | "createContentBrief"
+  | "getContentBrief"
   | "reportMissingCapability"
   | "getGoogleStatus"
   | "getSearchSummary"
@@ -35,7 +40,8 @@ type LiveMethod =
   | "listBotVisits"
   | "countBotVisits"
   | "listCrawls"
-  | "getSitemap";
+  | "getSitemap"
+  | "getIntegrationsStatus";
 
 /** What is left for the sample data to answer, until the API grows those endpoints too. */
 export type FallbackClient = Omit<PromptEyeClient, LiveMethod>;
@@ -62,9 +68,14 @@ export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): P
     addPrompts: (projectId, prompts) => api.prompts.create(projectId, prompts),
     updatePrompt: (projectId, promptId, input) => api.prompts.update(projectId, promptId, input),
     listPromptGroups: (projectId, query) => api.promptGroups.list(projectId, query),
+    createPromptGroup: (projectId, input) => api.promptGroups.create(projectId, input),
+    updatePromptGroup: (projectId, groupId, input) => api.promptGroups.update(projectId, groupId, input),
+    deletePromptGroup: (projectId, groupId) => api.promptGroups.delete(projectId, groupId),
     createReport: (input) => api.reports.create(input),
     listReports: (query) => api.reports.list(query),
     getReport: (reportId) => api.reports.get(reportId),
+    createContentBrief: (input) => api.contentBriefs.create(input),
+    getContentBrief: (briefId) => api.contentBriefs.get(briefId),
     reportMissingCapability: (input) => api.feedback.create(input),
     listSources: (projectId, query) => api.sources.list(projectId, query),
     listCompetitors: (projectId, query) => api.competitors.list(projectId, query),
@@ -81,5 +92,6 @@ export function createLiveClient(api: PromptEyeApi, fallback: FallbackClient): P
     countBotVisits: (projectId, query) => api.traffic.countEvents(projectId, query),
     listCrawls: (projectId, query) => api.traffic.crawls(projectId, query),
     getSitemap: (projectId, query) => api.traffic.sitemap(projectId, query),
+    getIntegrationsStatus: (projectId) => api.integrations.status(projectId),
   };
 }

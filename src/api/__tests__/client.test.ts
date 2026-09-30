@@ -171,6 +171,43 @@ describe("PromptEyeApi", () => {
     expect(JSON.parse(calls[0].init.body as string)).toEqual({ status: "paused" });
   });
 
+  it("creates, changes and deletes a prompt group", async () => {
+    const group = { id: "g1", name: "Overall", description: null, order: 2, promptCount: 0 };
+    const created = stubFetch(json(201, group));
+
+    await expect(created.api.promptGroups.create("p1", { name: "Overall" })).resolves.toEqual(group);
+    expect(created.calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/groups`);
+    expect(created.calls[0].init.method).toBe("POST");
+    expect(JSON.parse(created.calls[0].init.body as string)).toEqual({ name: "Overall" });
+
+    const updated = stubFetch(json(200, { ...group, description: "Broad questions." }));
+
+    await expect(
+      updated.api.promptGroups.update("p1", "g 1", { description: "Broad questions.", order: 0 })
+    ).resolves.toMatchObject({ description: "Broad questions." });
+    expect(updated.calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/groups/g%201`);
+    expect(updated.calls[0].init.method).toBe("PATCH");
+    expect(JSON.parse(updated.calls[0].init.body as string)).toEqual({ description: "Broad questions.", order: 0 });
+
+    const deleted = stubFetch(new Response(null, { status: 204 }));
+
+    await expect(deleted.api.promptGroups.delete("p1", "g1")).resolves.toBeUndefined();
+    expect(deleted.calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/groups/g1`);
+    expect(deleted.calls[0].init.method).toBe("DELETE");
+    expect(deleted.calls[0].init.body).toBeUndefined();
+  });
+
+  it("carries the reason a group with prompts cannot be deleted", async () => {
+    const message =
+      "The prompt group still has prompts. Move them to another group or ungroup them, then delete the group.";
+    const { api } = stubFetch(json(409, { error: { code: "conflict", message } }));
+
+    const error = await api.promptGroups.delete("p1", "g1").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(PromptEyeApiError);
+    expect(error).toMatchObject({ status: 409, code: "conflict", message });
+  });
+
   it("gets competitor exclusions", async () => {
     const exclusions = [{ name: "Competitor A", aliases: ["CompA"] }];
     const { api, calls } = stubFetch(json(200, { data: exclusions }));
@@ -310,6 +347,53 @@ describe("PromptEyeApi", () => {
     });
   });
 
+  describe("content briefs", () => {
+    const brief = {
+      id: "b1",
+      status: "processing",
+      projectId: "j57",
+      trackerId: "m42",
+      prompt: "best crm for small teams",
+      error: null,
+      title: null,
+      originalTitle: null,
+      titleChangeAnnotation: null,
+      fanoutSource: null,
+      fanoutError: null,
+      fanoutVariants: null,
+      phrasesForArticle: null,
+      separateArticles: null,
+      outline: null,
+      sourceTextMatchPercentage: null,
+      requestedAt: "2026-09-28T09:24:11.000Z",
+      readyAt: null,
+    };
+
+    it("requests a brief with the key and the prompt it targets", async () => {
+      const { api, calls } = stubFetch(json(201, brief));
+
+      await expect(
+        api.contentBriefs.create({ projectId: "j57", prompt: "best crm for small teams", trackerId: "m42" })
+      ).resolves.toEqual(brief);
+
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/content/briefs`);
+      expect(calls[0].init.method).toBe("POST");
+      expect(calls[0].init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}` });
+      expect(JSON.parse(calls[0].init.body as string)).toEqual({
+        projectId: "j57",
+        prompt: "best crm for small teams",
+        trackerId: "m42",
+      });
+    });
+
+    it("reads one brief by id", async () => {
+      const { api, calls } = stubFetch(json(200, brief));
+
+      await expect(api.contentBriefs.get("b 1")).resolves.toEqual(brief);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/content/briefs/b%201`);
+    });
+  });
+
   describe("traffic", () => {
     it("sends every bot filter the API takes", async () => {
       const { api, calls } = stubFetch(json(200, { data: [], nextCursor: null }));
@@ -424,6 +508,22 @@ describe("PromptEyeApi", () => {
       expect(calls[0].url).toBe(
         `${BASE_URL}/v1/projects/p1/traffic/google/analytics/sources?assistant=openai&limit=10`
       );
+    });
+  });
+
+  describe("integrations", () => {
+    it("reads which integrations the project has", async () => {
+      const status = {
+        searchConsole: { connected: true, reason: null },
+        analytics: { connected: true, reason: "sync_failing" },
+        botLogs: { connected: false, reason: "not_connected" },
+        sitemap: { connected: false, reason: "not_connected" },
+      };
+      const { api, calls } = stubFetch(json(200, status));
+
+      await expect(api.integrations.status("p1")).resolves.toEqual(status);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/integrations/status`);
+      expect(calls[0].init.method).toBe("GET");
     });
   });
 });

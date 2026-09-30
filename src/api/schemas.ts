@@ -129,6 +129,7 @@ export const PromptDetailSchema = PromptSchema.extend({
 export const PromptGroupSchema = z.object({
   id: z.string(),
   name: z.string(),
+  description: z.string().nullable().optional(),
   order: z.number().nullable(),
   /** Paused prompts included. */
   promptCount: z.number(),
@@ -161,8 +162,8 @@ export const PromptSuggestionSchema = z.object({
 
 export const CitedDomainSchema = z.object({
   domain: z.string(),
-  citations: z.number(),
-  /** The domain's share of every citation made on the project's prompts. */
+  sourceOccurrences: z.number(),
+  /** The domain's share of every source occurrence on the project's prompts. */
   share: z.number(),
   /** Whether it is the project's own domain, or one of its alternatives. */
   ownDomain: z.boolean(),
@@ -176,7 +177,7 @@ export const CompetitorSchema = z.object({
   change: MetricsChangeSchema.nullable(),
   /** How much of the naming this brand took from everyone else. */
   shareOfVoice: z.number().nullable(),
-  citations: z.number().nullable(),
+  citedAnswers: z.number().nullable(),
   citationShare: z.number().nullable(),
 });
 
@@ -201,6 +202,7 @@ export const PromptSuggestionListSchema = listOf(PromptSuggestionSchema);
 export const NewPromptListSchema = listOf(NewPromptSchema);
 export const PromptPageSchema = pageOf(PromptSchema);
 export const PromptGroupPageSchema = pageOf(PromptGroupSchema);
+export const PromptGroupSettingsSchema = PromptGroupSchema.omit({ aiTrafficTotal: true, metrics: true });
 export const CitedDomainPageSchema = pageOf(CitedDomainSchema);
 export const CompetitorPageSchema = pageOf(CompetitorSchema);
 
@@ -300,6 +302,65 @@ export type Report = z.infer<typeof ReportSchema>;
 export type ReportDetail = z.infer<typeof ReportDetailSchema>;
 export type ReportReach = (typeof REPORT_REACH)[number];
 
+export const ContentBriefPhraseSchema = z.object({
+  keyword: z.string(),
+  type: z.string(),
+  confidence: z.number(),
+});
+
+export const ContentBriefSeparateArticleSchema = z.object({
+  keyword: z.string(),
+  articleTitle: z.string().nullable(),
+  type: z.string(),
+  confidence: z.number(),
+  reason: z.string(),
+  priority: z.number(),
+});
+
+export const ContentBriefOutlineItemSchema = z.object({
+  level: z.string(),
+  text: z.string(),
+  annotation: z.string().nullable(),
+  sourcePhrases: z.array(z.string()).nullable(),
+  includesBrand: z.boolean(),
+  faqQuestions: z.array(z.string()).nullable(),
+  origin: z.string().nullable(),
+  originalHeading: z.string().nullable(),
+  originalHasDirectAnswer: z.boolean().nullable(),
+});
+
+export const ContentBriefSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+  projectId: z.string(),
+  trackerId: z.string().nullable(),
+  prompt: z.string(),
+  error: z.string().nullable(),
+  title: z.string().nullable(),
+  originalTitle: z.string().nullable(),
+  titleChangeAnnotation: z.string().nullable(),
+  fanoutSource: z.string().nullable(),
+  fanoutError: z.string().nullable(),
+  fanoutVariants: z.array(ContentBriefPhraseSchema).nullable(),
+  phrasesForArticle: z.array(ContentBriefPhraseSchema).nullable(),
+  separateArticles: z.array(ContentBriefSeparateArticleSchema).nullable(),
+  outline: z.array(ContentBriefOutlineItemSchema).nullable(),
+  sourceTextMatchPercentage: z.number().nullable(),
+  requestedAt: z.string(),
+  readyAt: z.string().nullable(),
+});
+
+export type CreateContentBriefInput = {
+  projectId: string;
+  prompt: string;
+  trackerId?: string;
+};
+
+export type ContentBrief = z.infer<typeof ContentBriefSchema>;
+export type ContentBriefPhrase = z.infer<typeof ContentBriefPhraseSchema>;
+export type ContentBriefSeparateArticle = z.infer<typeof ContentBriefSeparateArticleSchema>;
+export type ContentBriefOutlineItem = z.infer<typeof ContentBriefOutlineItemSchema>;
+
 export const UpdateProjectRequestSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   label: z.string().min(1).max(40).optional(),
@@ -323,6 +384,18 @@ export const UpdatePromptRequestSchema = z.object({
   subcategoryId: z.string().min(1).optional(),
   businessPriority: z.enum(BUSINESS_PRIORITY_VALUES).nullable().optional(),
   businessPriorityReason: z.string().max(500).optional(),
+});
+
+export const CreatePromptGroupRequestSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().max(500).optional(),
+  order: z.number().int().min(0).optional(),
+});
+
+export const UpdatePromptGroupRequestSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().max(500).nullable().optional(),
+  order: z.number().int().min(0).optional(),
 });
 
 export const PromptSettingsSchema = z.object({
@@ -381,6 +454,8 @@ export type PromptInput = {
 };
 
 export type UpdatePromptInput = z.infer<typeof UpdatePromptRequestSchema>;
+export type CreatePromptGroupInput = z.infer<typeof CreatePromptGroupRequestSchema>;
+export type UpdatePromptGroupInput = z.infer<typeof UpdatePromptGroupRequestSchema>;
 
 export type List<T> = { data: T[] };
 export type Page<T> = { data: T[]; nextCursor: string | null };
@@ -403,6 +478,7 @@ export type Prompt = z.infer<typeof PromptSchema>;
 export type PromptDetail = z.infer<typeof PromptDetailSchema>;
 export type PromptSettings = z.infer<typeof PromptSettingsSchema>;
 export type PromptGroup = z.infer<typeof PromptGroupSchema>;
+export type PromptGroupSettings = z.infer<typeof PromptGroupSettingsSchema>;
 export type PromptSuggestion = z.infer<typeof PromptSuggestionSchema>;
 export type NewPrompt = z.infer<typeof NewPromptSchema>;
 
@@ -412,6 +488,18 @@ export type NewPrompt = z.infer<typeof NewPromptSchema>;
  * an AI assistant. None of it is a PromptEye measurement: it counts people who
  * reached the site, where visibility counts answers that named the brand.
  */
+
+export const IntegrationSchema = z.object({
+  connected: z.boolean(),
+  reason: z.string().nullable(),
+});
+
+export const IntegrationsStatusSchema = z.object({
+  searchConsole: IntegrationSchema,
+  analytics: IntegrationSchema,
+  botLogs: IntegrationSchema,
+  sitemap: IntegrationSchema,
+});
 
 /** How the last pull from Google went. `failedSince` stays null while it is healthy. */
 export const GoogleSyncSchema = z.object({
@@ -506,6 +594,8 @@ export const SearchPagePageSchema = pageOf(SearchPageSchema);
 export const AnalyticsSourcePageSchema = pageOf(AnalyticsSourceSchema);
 export const AnalyticsPagePageSchema = pageOf(AnalyticsPageSchema);
 
+export type Integration = z.infer<typeof IntegrationSchema>;
+export type IntegrationsStatus = z.infer<typeof IntegrationsStatusSchema>;
 export type GoogleSync = z.infer<typeof GoogleSyncSchema>;
 export type SearchConsoleStatus = z.infer<typeof SearchConsoleStatusSchema>;
 export type AnalyticsStatus = z.infer<typeof AnalyticsStatusSchema>;
