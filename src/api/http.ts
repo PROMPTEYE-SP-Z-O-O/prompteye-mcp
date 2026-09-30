@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import { z } from "zod";
 import { PromptEyeApiError } from "./errors.js";
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
@@ -81,6 +81,10 @@ export class HttpClient {
 
   put: HttpMethodWithBody = async (path, body, schema, options) =>
     (await this.send({ method: "PUT", path, schema, body, options })).data;
+
+  delete = async (path: string, options?: RequestOptions): Promise<void> => {
+    await this.send({ method: "DELETE", path, schema: z.undefined(), options });
+  };
 
   /** Like {@link post}, for the endpoints whose status carries meaning of its own. */
   postAnswered<T>(

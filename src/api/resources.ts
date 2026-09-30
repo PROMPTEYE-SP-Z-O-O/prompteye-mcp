@@ -17,6 +17,7 @@ import {
   ProjectSchema,
   PromptDetailSchema,
   PromptGroupPageSchema,
+  PromptGroupSettingsSchema,
   PromptPageSchema,
   PromptSettingsSchema,
   PromptSuggestionListSchema,
@@ -41,6 +42,7 @@ import {
   type ContentBrief,
   type CreateContentBriefInput,
   type CreateProjectInput,
+  type CreatePromptGroupInput,
   type CreateReportInput,
   type GoogleStatus,
   type IntegrationsStatus,
@@ -54,6 +56,7 @@ import {
   type Prompt,
   type PromptDetail,
   type PromptGroup,
+  type PromptGroupSettings,
   type PromptInput,
   type PromptSettings,
   type PromptSuggestion,
@@ -68,10 +71,14 @@ import {
   type TrafficSitemapPage,
   type UpdateKnowledgeBaseInput,
   type UpdateProjectInput,
+  type UpdatePromptGroupInput,
   type UpdatePromptInput,
 } from "./schemas.js";
 
 const projectPath = (projectId: string): string => `/v1/projects/${encodeURIComponent(projectId)}`;
+
+const promptGroupPath = (projectId: string, groupId: string): string =>
+  `${projectPath(projectId)}/groups/${encodeURIComponent(groupId)}`;
 
 /** The period a listing reports on. Defaults to the last 30 days. */
 export type DateRange = { startDate?: string; endDate?: string };
@@ -195,12 +202,29 @@ export class PromptsResource {
 export class PromptGroupsResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** `GET /v1/projects/{projectId}/prompt-groups` — the groups with their figures for the period. */
+  /** `GET /v1/projects/{projectId}/groups` — the groups with their figures for the period. */
   list(projectId: string, params: DateRange & Pagination = {}, options?: RequestOptions): Promise<Page<PromptGroup>> {
-    return this.http.get(`${projectPath(projectId)}/prompt-groups`, PromptGroupPageSchema, {
+    return this.http.get(`${projectPath(projectId)}/groups`, PromptGroupPageSchema, {
       ...options,
       query: params,
     });
+  }
+
+  create(projectId: string, input: CreatePromptGroupInput, options?: RequestOptions): Promise<PromptGroupSettings> {
+    return this.http.post(`${projectPath(projectId)}/groups`, input, PromptGroupSettingsSchema, options);
+  }
+
+  update(
+    projectId: string,
+    groupId: string,
+    input: UpdatePromptGroupInput,
+    options?: RequestOptions
+  ): Promise<PromptGroupSettings> {
+    return this.http.patch(promptGroupPath(projectId, groupId), input, PromptGroupSettingsSchema, options);
+  }
+
+  delete(projectId: string, groupId: string, options?: RequestOptions): Promise<void> {
+    return this.http.delete(promptGroupPath(projectId, groupId), options);
   }
 }
 

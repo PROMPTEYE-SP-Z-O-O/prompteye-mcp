@@ -15,6 +15,7 @@ import type {
   ContentBrief,
   CreateContentBriefInput,
   CreateProjectInput,
+  CreatePromptGroupInput,
   CreateReportInput,
   GoogleStatus,
   IntegrationsStatus,
@@ -25,6 +26,7 @@ import type {
   Prompt,
   PromptDetail,
   PromptGroup,
+  PromptGroupSettings,
   PromptInput,
   PromptSettings,
   PromptSuggestion,
@@ -41,6 +43,7 @@ import type {
   TrafficSitemapPage,
   UpdateKnowledgeBaseInput,
   UpdateProjectInput,
+  UpdatePromptGroupInput,
   UpdatePromptInput,
   VisibilityRow,
   VisibilitySummary,
@@ -124,6 +127,9 @@ export interface PromptEyeClient {
   addPrompts(projectId: string, prompts: PromptInput[]): Promise<List<NewPrompt>>;
   updatePrompt(projectId: string, promptId: string, input: UpdatePromptInput): Promise<PromptSettings>;
   listPromptGroups(projectId: string, query: PromptGroupQuery): Promise<Page<PromptGroup>>;
+  createPromptGroup(projectId: string, input: CreatePromptGroupInput): Promise<PromptGroupSettings>;
+  updatePromptGroup(projectId: string, groupId: string, input: UpdatePromptGroupInput): Promise<PromptGroupSettings>;
+  deletePromptGroup(projectId: string, groupId: string): Promise<void>;
 
   getVisibilitySummary(projectId: string, query: VisibilitySummaryQuery): Promise<VisibilitySummary>;
   getVisibility(projectId: string, query: VisibilityQuery): Promise<Page<VisibilityRow>>;

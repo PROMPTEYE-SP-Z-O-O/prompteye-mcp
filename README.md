@@ -49,9 +49,11 @@ Every one of these calls the PromptEye API.
 | `list_categories` | `GET /v1/projects/{projectId}/categories` |
 | `list_prompts` | `GET /v1/projects/{projectId}/prompts` |
 | `get_prompt` | `GET /v1/projects/{projectId}/prompts/{promptId}` |
-| `list_prompt_groups` | `GET /v1/projects/{projectId}/prompt-groups` |
+| `list_prompt_groups` | `GET /v1/projects/{projectId}/groups` |
 | `list_prompt_suggestions` | `GET /v1/projects/{projectId}/prompt-suggestions` |
 | `add_prompts` | `POST /v1/projects/{projectId}/prompts` |
+| `upsert_prompt_group` | `POST /v1/projects/{projectId}/groups`, or `PATCH …/groups/{groupId}` with a `groupId` |
+| `delete_prompt_group` | `DELETE /v1/projects/{projectId}/groups/{groupId}` — empty groups only |
 | `create_report` | `POST /v1/reports` — **public, no key**, identified by `agencyId` |
 | `get_report_integration` | `GET /v1/me` — the agency id and endpoint to post a form to |
 | `list_reports` | `GET /v1/reports` |

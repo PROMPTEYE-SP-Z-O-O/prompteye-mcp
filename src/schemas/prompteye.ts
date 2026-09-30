@@ -30,6 +30,7 @@ export {
   ProjectSchema,
   PromptDetailSchema,
   PromptGroupSchema,
+  PromptGroupSettingsSchema,
   PromptSchema,
   PromptSettingsSchema,
   PromptSuggestionSchema,
@@ -68,6 +69,7 @@ export {
   type ContentBriefSeparateArticle,
   type CreateContentBriefInput,
   type CreateProjectInput,
+  type CreatePromptGroupInput,
   type GoogleStatus,
   type GoogleSync,
   type Integration,
@@ -79,6 +81,7 @@ export {
   type Prompt,
   type PromptDetail,
   type PromptGroup,
+  type PromptGroupSettings,
   type PromptInput,
   type PromptSettings,
   type PromptSuggestion,
@@ -103,6 +106,7 @@ export {
   type ReplaceCompetitorExclusionsInput,
   type UpdateKnowledgeBaseInput,
   type UpdateProjectInput,
+  type UpdatePromptGroupInput,
   type UpdatePromptInput,
 } from "../api/schemas.js";
 
