@@ -61,7 +61,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
 
         const lines = page.data.map(
           (domain) =>
-            `- ${domain.domain}${domain.ownDomain ? " ← own domain" : ""} — ${domain.citations} citation(s), ` +
+            `- ${domain.domain}${domain.ownDomain ? " ← own domain" : ""} — ${domain.sourceOccurrences} source occurrence(s), ` +
             `${num(domain.share, "%")} share`
         );
 

@@ -42,7 +42,7 @@ const LIVE_GROUP = {
   metrics: { visibility: 58.3, reachIndex: 55, averagePosition: 2.6 },
 };
 
-const LIVE_DOMAIN = { domain: "acme.example", citations: 18, share: 5, ownDomain: true };
+const LIVE_DOMAIN = { domain: "acme.example", sourceOccurrences: 18, share: 5, ownDomain: true };
 
 const LIVE_COMPETITOR = {
   brand: "Rival",
@@ -50,7 +50,7 @@ const LIVE_COMPETITOR = {
   metrics: { visibility: 48.1, reachIndex: 45, averagePosition: 3.1 },
   change: null,
   shareOfVoice: 18,
-  citations: 31,
+  citedAnswers: 31,
   citationShare: 10,
 };
 
