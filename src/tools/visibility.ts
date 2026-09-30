@@ -1,13 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
-import {
-  MAX_LIMIT,
-  dateRangeShape,
-  modelFilterShape,
-  paginationShape,
-  resolveDateRange,
-} from "../schemas/common.js";
+import { MAX_LIMIT, dateRangeShape, modelFilterShape, paginationShape } from "../schemas/common.js";
 import {
   BreakdownSchema,
   VisibilityRowSchema,
@@ -60,11 +54,10 @@ export function registerVisibilityTools(server: McpServer, { client, session }: 
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const summary = await client.getVisibilitySummary(project.id, { ...args, ...range });
+        const summary = await client.getVisibilitySummary(project.id, args);
 
         const headline = [
-          `${project.brand} — ${range.startDate} to ${range.endDate}`,
+          `${project.brand} — ${summary.startDate} to ${summary.endDate}`,
           `Visibility ${num(summary.totals.visibility, "%")} (${signed(summary.change?.visibility ?? null, " pp")})`,
           `Reach index ${num(summary.totals.reachIndex)} (${signed(summary.change?.reachIndex ?? null)})`,
           `Average position ${num(summary.totals.averagePosition)} (${signed(summary.change?.averagePosition ?? null)})`,
@@ -113,8 +106,7 @@ export function registerVisibilityTools(server: McpServer, { client, session }: 
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.getVisibility(project.id, { ...args, ...range });
+        const page = await client.getVisibility(project.id, args);
 
         const lines = page.data.map(
           (row) =>
@@ -125,7 +117,7 @@ export function registerVisibilityTools(server: McpServer, { client, session }: 
         return ok(
           sampleData(
             (page.data.length === 0
-              ? `No measurements for ${project.brand} between ${range.startDate} and ${range.endDate}.`
+              ? `No measurements for ${project.brand}.`
               : `${page.data.length} measurement(s):\n${lines.join("\n")}`) + morePages(page.nextCursor)
           ),
           page

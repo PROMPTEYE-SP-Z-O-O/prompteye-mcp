@@ -3,7 +3,6 @@ import { z } from "zod";
 import { ContentBriefSchema } from "../schemas/prompteye.js";
 import type { ContentBrief, ContentBriefOutlineItem, ContentBriefSeparateArticle } from "../schemas/prompteye.js";
 import { CONTENT_APP_URL, CONTENT_GENERATION } from "./glossary.js";
-import { whatNext } from "./journey.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
 
 const OUTLINE_INDENT: Record<string, string> = { H2: "  ", H3: "    " };
@@ -84,9 +83,7 @@ function renderBrief(brief: ContentBrief): string {
   return [header, ...readyBriefLines(brief), "", WRITE_IN_APP].join("\n");
 }
 
-export function registerContentTools(server: McpServer, context: ToolContext): void {
-  const { client, session } = context;
-
+export function registerContentTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
     "create_content_brief",
     {
@@ -123,7 +120,6 @@ export function registerContentTools(server: McpServer, context: ToolContext): v
       handled(async () => {
         const project = await session.require();
         const brief = await client.createContentBrief({ projectId: project.id, prompt, trackerId: promptId });
-        session.noteBrief(project.id);
 
         return ok(
           [
@@ -132,7 +128,7 @@ export function registerContentTools(server: McpServer, context: ToolContext): v
             "Read the title and outline with get_content_brief once it is ready — it usually takes " +
               "several seconds to a minute.",
             WRITE_IN_APP,
-          ].join("\n") + (await whatNext(context, project)),
+          ].join("\n"),
           brief
         );
       })

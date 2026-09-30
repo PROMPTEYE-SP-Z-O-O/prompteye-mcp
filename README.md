@@ -22,15 +22,9 @@ not answer it. Three things answer it instead:
   measurement, content — and say plainly what cannot be done through the API, so nobody is
   promised a button that is not there, and nobody is told PromptEye cannot generate content.
 - **`get_started`** answers from the workspace rather than from a brochure: it reads the account,
-  the project, whether the brand description exists, and the prompts, groups and pending
-  suggestions as the API lists them — handed over uncounted, so the model tallies what it needs —
-  then names the **phase** the project is in and the first step that phase asks for. The phases
-  run `project → knowledge_base → prompts → content → waiting → results` (`src/tools/journey.ts`),
-  and the tools that move a project along —
-  `create_project`, `update_knowledge_base`, `add_prompts`, `create_content_brief` — end with the
-  phase they left it in and the next step, so a host walks the user through one step at a time.
-  The API lists no briefs, so `content` turns into `waiting` once a brief is ordered in the same
-  MCP session.
+  the projects, the active project's knowledge base, prompts, groups and pending suggestions, and
+  the public reports, and hands them over as the API returns them. Its description lays out the
+  order the product works in, and the model works out from the data which step the project is on.
 - **The help center** (`src/help/`, `src/tools/help.ts`) is PromptEye's knowledge base of guides
   on how the product works. Its complete corpus is `https://app.prompteye.com/help/llms-full.txt`;
   `read_full_help_knowledge_base` exposes it to hosts, while `list_help_articles` and

@@ -3,16 +3,13 @@ import { z } from "zod";
 import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema } from "../schemas/prompteye.js";
 import type { Project } from "../schemas/prompteye.js";
 import { PROMPT_GENERATION } from "./glossary.js";
-import { whatNext } from "./journey.js";
 import { READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
 
-const describe = (project: Project): string =>
+export const describeProject = (project: Project): string =>
   `${project.name} — label ${project.label ?? "—"}, brand ${project.brand} (${project.domain}) tracked in ${project.country}, ` +
   `access ${project.accessRole} [id: ${project.id}]`;
 
-export function registerProjectTools(server: McpServer, context: ToolContext): void {
-  const { client, session } = context;
-
+export function registerProjectTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
     "list_projects",
     {
@@ -32,7 +29,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
     async () =>
       handled(async () => {
         const list = await client.listProjects();
-        const lines = list.data.map((project) => `- ${describe(project)}`);
+        const lines = list.data.map((project) => `- ${describeProject(project)}`);
 
         return ok(
           list.data.length === 0
@@ -65,7 +62,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
         const project = await session.select(projectId);
 
         return ok(
-          `Active project is now ${describe(project)}.\n` +
+          `Active project is now ${describeProject(project)}.\n` +
             "Every following tool call reports on this project until select_project is called again.",
           project
         );
@@ -93,7 +90,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
           );
         }
 
-        return ok(`Active project: ${describe(project)}.`, project);
+        return ok(`Active project: ${describeProject(project)}.`, project);
       })
   );
 
@@ -169,7 +166,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
         await session.select(project.id);
 
         return ok(
-          `Created ${describe(project)}.\nIt is now the active project.${await whatNext(context, project)}`,
+          `Created ${describeProject(project)}.\nIt is now the active project.`,
           project
         );
       })
@@ -216,7 +213,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
         const project = await client.updateProject(current.id, args);
         await session.select(project.id);
 
-        return ok(`Updated project ${describe(project)}.`, project);
+        return ok(`Updated project ${describeProject(project)}.`, project);
       })
   );
 
@@ -280,8 +277,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
         const knowledgeBase = await client.updateKnowledgeBase(project.id, args);
 
         return ok(
-          `Updated knowledge base for ${project.brand} (updated ${knowledgeBase.updatedAt ?? "—"}):\n\n${knowledgeBase.text ?? "No description"}` +
-            (await whatNext(context, project)),
+          `Updated knowledge base for ${project.brand} (updated ${knowledgeBase.updatedAt ?? "—"}):\n\n${knowledgeBase.text ?? "No description"}`,
           knowledgeBase
         );
       })

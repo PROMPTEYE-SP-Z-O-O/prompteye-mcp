@@ -6,7 +6,7 @@ import type { Report } from "../schemas/prompteye.js";
 import { PUBLIC_REPORTS } from "./glossary.js";
 import { READ_ONLY, WRITES, handled, morePages, num, ok, type ToolContext } from "./result.js";
 
-const line = (report: Report): string =>
+export const reportLine = (report: Report): string =>
   `- ${report.brand}${report.domain ? ` (${report.domain})` : ""} — ${report.status}` +
   `${report.score === null ? "" : `, score ${report.score}%`}` +
   `, lead ${report.leadStatus}` +
@@ -187,13 +187,12 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
     async (args) =>
       handled(async () => {
         const page = await client.listReports(args);
-        const waiting = page.data.filter((report) => report.contactCount > 0).length;
 
         return ok(
           (page.data.length === 0
             ? "This account has generated no public reports."
-            : `${page.data.length} report(s)${waiting > 0 ? `, ${waiting} with a contact request` : ""}:\n` +
-              page.data.map(line).join("\n")) + morePages(page.nextCursor),
+            : `${page.data.length} report(s):\n` + page.data.map(reportLine).join("\n")) +
+            morePages(page.nextCursor),
           page
         );
       })

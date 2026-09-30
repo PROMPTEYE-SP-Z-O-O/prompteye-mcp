@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
-import { MAX_LIMIT, dateRangeShape, modelFilterShape, resolveDateRange } from "../schemas/common.js";
+import { MAX_LIMIT, dateRangeShape, modelFilterShape } from "../schemas/common.js";
 import { CompetitorExclusionSchema, CompetitorSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
@@ -17,7 +17,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
       title: "Rank the brands answering alongside yours",
       description:
         "Every brand the assistants named on the active project's prompts, measured the same way the " +
-        "project's own brand is and ranked by share of voice. Call this for 'who are we losing to' " +
+        "project's own brand is and ranked by visibility, then position. Call this for 'who are we losing to' " +
         "and for how a market splits between brands.\n\n" +
         "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         `${SHARE_OF_VOICE}\n\n${VISIBILITY}\n\n` +
@@ -41,8 +41,6 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
         nextCursor: z.string().nullable(),
         projectName: z.string(),
         brand: z.string(),
-        startDate: z.string(),
-        endDate: z.string(),
         model: z.string().nullable(),
       },
       _meta: widgetMeta(widgetUri(COMPETITORS_WIDGET), "Ranking the brands…", "Ranked the brands"),
@@ -50,8 +48,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.listCompetitors(project.id, { ...args, ...range });
+        const page = await client.listCompetitors(project.id, args);
 
         const lines = page.data.map((competitor, index) => {
           const mark = competitor.ownBrand ? " ← this project" : "";
@@ -64,13 +61,12 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
 
         return ok(
           page.data.length === 0
-            ? `No brands were named on ${project.brand}'s prompts between ${range.startDate} and ${range.endDate}.`
-            : `Brands answering alongside ${project.brand}, ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`,
+            ? `No brands were named on ${project.brand}'s prompts.`
+            : `Brands answering alongside ${project.brand}:\n${lines.join("\n")}`,
           {
             ...page,
             projectName: project.name,
             brand: project.brand,
-            ...range,
             model: args.model ?? null,
           }
         );

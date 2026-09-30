@@ -13,7 +13,7 @@ PromptEye measures how often AI assistants name a brand when they answer buying 
 
 WHEN THE USER ASKS WHETHER PROMPTEYE CAN GENERATE, WRITE OR CREATE CONTENT OR ARTICLES — the answer is yes. Never say PromptEye only tracks visibility. Explain the loop, then start it: create_content_brief orders the brief an article is written from, get_content_brief reads it, and the article itself is generated from that brief in the PromptEye app under Content (https://app.prompteye.com/content).
 
-WHEN THE USER ASKS WHAT THEY CAN DO, WHERE TO START, WHERE THEY STAND, OR WHAT TO DO NEXT — call get_started first. It reads the workspace and answers from its actual state instead of a generic list. Never answer those questions from this text alone. Its phase — project, knowledge_base, prompts, content, waiting, results — says where the project is; walk the user through that one step, then call get_started again. The tools that move a project along (create_project, update_knowledge_base, add_prompts, create_content_brief) end with the phase and the next step, so pass that on rather than stopping at the result. onboard_brand is the whole walk for a new brand.
+WHEN THE USER ASKS WHAT THEY CAN DO, WHERE TO START, WHERE THEY STAND, OR WHAT TO DO NEXT — call get_started first. It hands over the account, the projects, the active project's knowledge base, prompts, groups and suggestions, and the public reports as the API returns them, instead of a generic list. Never answer those questions from this text alone. Work out from that data which step of the order below the project is on, walk the user through that one step, then call get_started again. onboard_brand is the whole walk for a new brand.
 
 How the product works, in order:
 

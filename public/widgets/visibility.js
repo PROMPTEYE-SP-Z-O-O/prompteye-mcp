@@ -54,9 +54,9 @@ function render(data) {
     <h1>${esc(data.brand ?? "Visibility")}${data.projectName ? ` · ${esc(data.projectName)}` : ""}</h1>
     <div class="sub">${esc((data.models ?? []).join(", ") || "no assistants")}</div>
     <div class="tiles">
-      ${tile("Visibility", totals.visibility, "%", change?.visibility, true)}
-      ${tile("Reach index", totals.reachIndex, "", change?.reachIndex, true)}
-      ${tile("Avg position", totals.averagePosition, "", change?.averagePosition, false)}
+      ${tile("Visibility", totals.visibility, "%", change?.visibility)}
+      ${tile("Reach index", totals.reachIndex, "", change?.reachIndex)}
+      ${tile("Avg position", totals.averagePosition, "", change?.averagePosition)}
     </div>
     ${breakdownSection}`;
 }

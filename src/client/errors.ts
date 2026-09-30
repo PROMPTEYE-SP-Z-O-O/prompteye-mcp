@@ -21,7 +21,7 @@ export function toolMessageFor(error: unknown): string | undefined {
     ].join("\n");
   }
 
-  if (error instanceof NoActiveProjectError || error instanceof RangeError || error instanceof HelpError) {
+  if (error instanceof NoActiveProjectError || error instanceof HelpError) {
     return error.message;
   }
 

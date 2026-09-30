@@ -152,8 +152,7 @@ export function registerPromptWorkflows(server: McpServer): void {
           "is ready. This is optional — skip it if the user does not publish content.\n\n" +
           "5. The wait. Nothing is measured until the next run: get_account says when it starts, and it " +
           "takes tens of minutes. Tell the user when to come back.\n\n" +
-          "Call get_started at the end: its phase should read waiting, or content if the articles were " +
-          "skipped, and it names anything that is still missing."
+          "Call get_started at the end and check from what it returns that nothing is still missing."
       )
   );
 }
