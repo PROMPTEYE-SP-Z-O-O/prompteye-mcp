@@ -204,8 +204,9 @@ What happens with it:
 
 - **Verified at initialize.** The first request of a session (`initialize`) is answered only
   after `GET /v1/me` on the PromptEye API accepts the key. A key PromptEye rejects gets `401`
-  with a `WWW-Authenticate: Bearer` challenge; a PromptEye API that cannot be reached gets `503`
-  with `Retry-After`. A request without a key gets `401` before anything else is looked at.
+  with a `WWW-Authenticate: Bearer` challenge; a key PromptEye throttles gets `429` with its
+  `Retry-After`; a PromptEye API that cannot be reached gets `503` with `Retry-After`. A request
+  without a key gets `401` before anything else is looked at.
 - **Sessions are bound to the key.** The `Mcp-Session-Id` the server hands out is usable only
   with the key that opened it; with any other key it is `404 Session not found`, as if it never
   existed. Each session has its own `McpServer`, its own API client and its own project
@@ -243,10 +244,13 @@ claude mcp add --transport http prompteye http://localhost:3000/mcp \
 Claude.ai and ChatGPT connectors authenticate with OAuth rather than a pasted header; that is
 not in this version, so they cannot use the hosted server yet.
 
-Set `MCP_PUBLIC_HOSTS` to the `Host` values the server is reachable under when it faces the
-internet directly, so a browser cannot be tricked into talking to it through DNS rebinding.
-Behind a proxy that terminates TLS, the proxy is the place to enforce that, and the proxy's
-client address is what the per-IP limit sees.
+Set `MCP_PUBLIC_HOSTS` to the `Host` values the server is reachable under and
+`MCP_ALLOWED_ORIGINS` to the browser origins allowed to call it; together they are the
+DNS-rebinding protection. Requests without an `Origin` header (Cursor, Claude Code, curl) are
+never affected by the origin list. Behind a reverse proxy, set `MCP_TRUST_PROXY_HOPS` to the
+number of proxies in front of the server (Cloud Run: `1`) so `X-Forwarded-For` is read that
+far and the per-IP limit counts clients rather than the proxy; at the default `0` the header
+is ignored.
 
 ### Claude Desktop
 
@@ -381,6 +385,8 @@ scripts/bundle.mjs    stages dist/, public/ and production deps, then packs the 
 | `MCP_RATE_LIMIT_PER_KEY` | `120` | HTTP | Requests a minute per key |
 | `MCP_RATE_LIMIT_PER_IP` | `600` | HTTP | Requests a minute per client address |
 | `MCP_PUBLIC_HOSTS` | unset | HTTP | Comma-separated `Host` values to accept; unset accepts any |
+| `MCP_ALLOWED_ORIGINS` | unset | HTTP | Comma-separated browser `Origin` values to accept; unset accepts any |
+| `MCP_TRUST_PROXY_HOPS` | `0` | HTTP | Reverse proxies in front of the server whose `X-Forwarded-For` is trusted; `0` ignores it |
 
 Both the API URL and the key are at
 [app.prompteye.com/integrations](https://app.prompteye.com/integrations).

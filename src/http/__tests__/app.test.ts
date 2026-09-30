@@ -10,6 +10,7 @@ import { SessionRegistry } from "../sessions.js";
 const KEY_A = "pe_live_aaaaaaaaaaaaaaaaaaaaaaaa";
 const KEY_B = "pe_live_bbbbbbbbbbbbbbbbbbbbbbbb";
 const KEY_UNKNOWN = "pe_live_cccccccccccccccccccccccc";
+const KEY_THROTTLED = "pe_live_dddddddddddddddddddddddd";
 
 const ACCOUNT = {
   id: "acc_1",
@@ -75,6 +76,10 @@ const answer = (res: ServerResponse, status: number, body: unknown): void => {
 
 function stubApi(req: IncomingMessage, res: ServerResponse): void {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+  if (token === KEY_THROTTLED) {
+    res.writeHead(429, { "Content-Type": "application/json", "Retry-After": "17" });
+    return res.end(JSON.stringify({ error: { code: "rate_limited", message: "Slow down." } }));
+  }
   const projects = token === undefined ? undefined : PROJECTS_BY_KEY[token];
   if (!projects) return answer(res, 401, { error: { code: "unauthorized", message: "Unknown key." } });
 
@@ -253,5 +258,70 @@ describe("createHttpApp", () => {
     expect(Number(second.headers.get("retry-after"))).toBeGreaterThan(0);
 
     await limited.close();
+  });
+
+  it("ignores X-Forwarded-For unless trustProxyHops says how many hops to trust", async () => {
+    const direct = await startApp(api.url, { ipBudget: new RequestBudget({ perMinute: 1 }) }).listening;
+    const proxied = await startApp(api.url, { ipBudget: new RequestBudget({ perMinute: 1 }), trustProxyHops: 1 })
+      .listening;
+
+    const directFirst = await rawPost(direct.url, { "X-Forwarded-For": "1.1.1.1" });
+    const directSecond = await rawPost(direct.url, { "X-Forwarded-For": "2.2.2.2" });
+    const proxiedFirst = await rawPost(proxied.url, { "X-Forwarded-For": "1.1.1.1" });
+    const proxiedSecond = await rawPost(proxied.url, { "X-Forwarded-For": "2.2.2.2" });
+    const proxiedRepeat = await rawPost(proxied.url, { "X-Forwarded-For": "2.2.2.2" });
+
+    expect([directFirst.status, directSecond.status]).toEqual([401, 429]);
+    expect([proxiedFirst.status, proxiedSecond.status, proxiedRepeat.status]).toEqual([401, 401, 429]);
+
+    await direct.close();
+    await proxied.close();
+  });
+
+  it("answers a malformed body with a JSON-RPC 400 and no stack trace", async () => {
+    const response = await fetch(`${app.url}/mcp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${KEY_A}` },
+      body: "{not json",
+    });
+    const text = await response.text();
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("content-type")).toContain("application/json");
+    expect(JSON.parse(text).error.message).toContain("Body must be JSON");
+    expect(text).not.toContain(" at ");
+  });
+
+  it("answers a body over the limit with a JSON-RPC 413", async () => {
+    const response = await rawPost(app.url, { Authorization: `Bearer ${KEY_A}` }, { ...INITIALIZE, padding: "x".repeat(1_100_000) });
+    const body = await response.json();
+
+    expect(response.status).toBe(413);
+    expect(body.error.code).toBe(-32600);
+    expect(body.error.message).toContain("under 1 MB");
+  });
+
+  it("refuses an Origin outside the allowlist and still serves requests without one", async () => {
+    const started = startApp(api.url, { allowedOrigins: ["https://app.example"] });
+    const guarded = await started.listening;
+
+    const evil = await rawPost(guarded.url, { Authorization: `Bearer ${KEY_A}`, Origin: "https://evil.example" });
+    const allowed = await rawPost(guarded.url, { Authorization: `Bearer ${KEY_A}`, Origin: "https://app.example" });
+    const headless = await rawPost(guarded.url, { Authorization: `Bearer ${KEY_A}` });
+
+    expect(evil.status).toBe(403);
+    expect(allowed.status).toBe(200);
+    expect(headless.status).toBe(200);
+
+    await guarded.close();
+  });
+
+  it("passes a PromptEye 429 on as 429 with its Retry-After", async () => {
+    const response = await rawPost(app.url, { Authorization: `Bearer ${KEY_THROTTLED}` });
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("17");
+    expect(body.error.message).toContain("Too many requests");
   });
 });

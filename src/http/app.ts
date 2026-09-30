@@ -18,6 +18,8 @@ export type HttpAppOptions = {
   keyBudget: RequestBudget;
   ipBudget: RequestBudget;
   allowedHosts?: string[];
+  allowedOrigins?: string[];
+  trustProxyHops?: number;
   verifyCredentials?: (credentials: ApiCredentials) => Promise<void>;
 };
 
@@ -32,6 +34,7 @@ const MESSAGES = {
   tooManyRequests: "Too many requests. Wait for the Retry-After delay before retrying.",
   sessionNotFound: "Session not found. Initialize a new session.",
   notInitialized: "Bad request. Send an initialize request first, then reuse its Mcp-Session-Id.",
+  badBody: "Bad request. Body must be JSON under 1 MB.",
   internal: "Internal server error.",
 };
 
@@ -52,6 +55,7 @@ const REJECTIONS = {
   unreachable: { status: 503, code: RPC_CODES.unreachable, message: MESSAGES.unreachable, headers: { "Retry-After": "5" } },
   sessionNotFound: { status: 404, code: RPC_CODES.sessionNotFound, message: MESSAGES.sessionNotFound, headers: {} },
   notInitialized: { status: 400, code: RPC_CODES.badRequest, message: MESSAGES.notInitialized, headers: {} },
+  badBody: { status: 400, code: RPC_CODES.badRequest, message: MESSAGES.badBody, headers: {} },
   internal: { status: 500, code: RPC_CODES.internal, message: MESSAGES.internal, headers: {} },
 } satisfies Record<string, Rejection>;
 
@@ -65,7 +69,6 @@ const tooManyRequests = (decision: BudgetDecision): Rejection => ({
 const KEY_REJECTING_STATUSES = new Set([401, 403]);
 
 const CORS_OPTIONS: cors.CorsOptions = {
-  origin: "*",
   methods: ["GET", "POST", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-PromptEye-Key", "Mcp-Session-Id", "MCP-Protocol-Version", "Last-Event-ID"],
   exposedHeaders: ["Mcp-Session-Id"],
@@ -88,8 +91,10 @@ function describeRpc(body: unknown): LogFields {
 const headerValue = (value: string | string[] | undefined): string | undefined =>
   Array.isArray(value) ? value[0] : value;
 
-const dnsRebindingOptions = (allowedHosts: string[] | undefined) =>
-  allowedHosts && allowedHosts.length > 0 ? { enableDnsRebindingProtection: true, allowedHosts } : {};
+const dnsRebindingOptions = (allowedHosts: string[] | undefined, allowedOrigins: string[] | undefined) =>
+  allowedHosts?.length || allowedOrigins?.length
+    ? { enableDnsRebindingProtection: true, allowedHosts, allowedOrigins }
+    : {};
 
 async function verifyWithAccount(credentials: ApiCredentials): Promise<void> {
   await createClient(credentials).getAccount();
@@ -98,6 +103,10 @@ async function verifyWithAccount(credentials: ApiCredentials): Promise<void> {
 function reject(res: express.Response, rejection: Rejection): void {
   res.set(rejection.headers);
   res.status(rejection.status).json({ jsonrpc: "2.0", error: { code: rejection.code, message: rejection.message }, id: null });
+}
+
+function rejectBadBody(error: { status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction): void {
+  reject(res, { ...REJECTIONS.badBody, status: error.status ?? 400 });
 }
 
 function requestLogging(logger: Logger): express.RequestHandler {
@@ -122,7 +131,7 @@ function health(_req: express.Request, res: express.Response): void {
 }
 
 export function createHttpApp(options: HttpAppOptions): express.Express {
-  const { baseUrl, registry, logger, keyBudget, ipBudget, allowedHosts } = options;
+  const { baseUrl, registry, logger, keyBudget, ipBudget, allowedHosts, allowedOrigins, trustProxyHops } = options;
   const verifyCredentials = options.verifyCredentials ?? verifyWithAccount;
 
   const credentialRejection = async (credentials: ApiCredentials): Promise<Rejection | undefined> => {
@@ -131,6 +140,9 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
       return undefined;
     } catch (error) {
       if (error instanceof PromptEyeApiError && KEY_REJECTING_STATUSES.has(error.status)) return REJECTIONS.rejectedKey;
+      if (error instanceof PromptEyeApiError && error.status === 429) {
+        return tooManyRequests({ allowed: false, retryAfterSeconds: error.retryAfterSeconds ?? 5 });
+      }
 
       logger.error("mcp.credentials.unverifiable", describeError(error));
       return REJECTIONS.unreachable;
@@ -155,7 +167,7 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
         res.locals.sessionId = sessionId;
         registry.add(sessionId, { server, transport, fingerprint, lastSeenAt: Date.now() });
       },
-      ...dnsRebindingOptions(allowedHosts),
+      ...dnsRebindingOptions(allowedHosts, allowedOrigins),
     });
     transport.onclose = () => {
       if (transport.sessionId) registry.remove(transport.sessionId);
@@ -189,9 +201,10 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
   };
 
   const app = express();
-  app.use(cors(CORS_OPTIONS));
-  app.use(express.json({ limit: "1mb" }));
+  app.set("trust proxy", trustProxyHops ?? 0);
+  app.use(cors({ ...CORS_OPTIONS, origin: allowedOrigins ?? "*" }));
   app.use(requestLogging(logger));
+  app.use(express.json({ limit: "1mb" }));
 
   app.get("/", health);
   app.get("/healthz", health);
@@ -204,6 +217,8 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
       if (!res.headersSent) reject(res, REJECTIONS.internal);
     }
   });
+
+  app.use(rejectBadBody);
 
   return app;
 }
