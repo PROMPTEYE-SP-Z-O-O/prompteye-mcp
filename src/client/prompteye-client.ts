@@ -17,6 +17,7 @@ import type {
   CreateProjectInput,
   CreateReportInput,
   GoogleStatus,
+  IntegrationsStatus,
   KnowledgeBase,
   List,
   NewPrompt,
@@ -165,6 +166,7 @@ export interface PromptEyeClient {
   listCrawls(projectId: string, query: CrawlQuery): Promise<Page<TrafficCrawl>>;
   /** Takes no period: the sitemap is a standing inventory. */
   getSitemap(projectId: string, query: SitemapQuery): Promise<TrafficSitemapPage>;
+  getIntegrationsStatus(projectId: string): Promise<IntegrationsStatus>;
 
   listAnswers(projectId: string, query: AnswerQuery): Promise<Page<Answer>>;
   listSources(projectId: string, query: SourceQuery): Promise<Page<CitedDomain>>;

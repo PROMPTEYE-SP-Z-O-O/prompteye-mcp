@@ -5,6 +5,7 @@ import {
   CompetitorsResource,
   ContentBriefsResource,
   GoogleResource,
+  IntegrationsResource,
   KnowledgeBaseResource,
   ProjectsResource,
   PromptGroupsResource,
@@ -52,6 +53,7 @@ export class PromptEyeApi {
   readonly contentBriefs: ContentBriefsResource;
   readonly google: GoogleResource;
   readonly traffic: TrafficResource;
+  readonly integrations: IntegrationsResource;
 
   constructor(options: PromptEyeApiOptions) {
     if (!options.token?.trim()) throw new TypeError("token is required.");
@@ -78,5 +80,6 @@ export class PromptEyeApi {
     this.contentBriefs = new ContentBriefsResource(http);
     this.google = new GoogleResource(http);
     this.traffic = new TrafficResource(http);
+    this.integrations = new IntegrationsResource(http);
   }
 }

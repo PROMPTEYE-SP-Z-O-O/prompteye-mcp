@@ -454,4 +454,20 @@ describe("PromptEyeApi", () => {
       );
     });
   });
+
+  describe("integrations", () => {
+    it("reads which integrations the project has", async () => {
+      const status = {
+        searchConsole: { connected: true, reason: null },
+        analytics: { connected: true, reason: "sync_failing" },
+        botLogs: { connected: false, reason: "not_connected" },
+        sitemap: { connected: false, reason: "not_connected" },
+      };
+      const { api, calls } = stubFetch(json(200, status));
+
+      await expect(api.integrations.status("p1")).resolves.toEqual(status);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/integrations/status`);
+      expect(calls[0].init.method).toBe("GET");
+    });
+  });
 });

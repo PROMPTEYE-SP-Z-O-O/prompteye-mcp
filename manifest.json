@@ -94,6 +94,7 @@
     { "name": "update_prompt", "description": "Pause, resume, file or re-prioritise a prompt" },
     { "name": "list_competitor_exclusions", "description": "Read which brands are kept out of competitor rankings" },
     { "name": "set_competitor_exclusions", "description": "Set which brands are kept out of competitor rankings" },
+    { "name": "get_integrations_status", "description": "Whether Search Console, Analytics, the bot tracker and the sitemap are connected" },
     { "name": "get_google_status", "description": "Whether Search Console and Analytics are bound to the project" },
     { "name": "get_search_performance", "description": "Clicks, impressions and position in ordinary Google results" },
     { "name": "get_ai_traffic", "description": "Sessions Google Analytics attributes to AI assistants" },

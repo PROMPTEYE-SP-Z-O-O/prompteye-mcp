@@ -472,6 +472,18 @@ export type NewPrompt = z.infer<typeof NewPromptSchema>;
  * reached the site, where visibility counts answers that named the brand.
  */
 
+export const IntegrationSchema = z.object({
+  connected: z.boolean(),
+  reason: z.string().nullable(),
+});
+
+export const IntegrationsStatusSchema = z.object({
+  searchConsole: IntegrationSchema,
+  analytics: IntegrationSchema,
+  botLogs: IntegrationSchema,
+  sitemap: IntegrationSchema,
+});
+
 /** How the last pull from Google went. `failedSince` stays null while it is healthy. */
 export const GoogleSyncSchema = z.object({
   lastSyncedAt: z.string().nullable(),
@@ -565,6 +577,8 @@ export const SearchPagePageSchema = pageOf(SearchPageSchema);
 export const AnalyticsSourcePageSchema = pageOf(AnalyticsSourceSchema);
 export const AnalyticsPagePageSchema = pageOf(AnalyticsPageSchema);
 
+export type Integration = z.infer<typeof IntegrationSchema>;
+export type IntegrationsStatus = z.infer<typeof IntegrationsStatusSchema>;
 export type GoogleSync = z.infer<typeof GoogleSyncSchema>;
 export type SearchConsoleStatus = z.infer<typeof SearchConsoleStatusSchema>;
 export type AnalyticsStatus = z.infer<typeof AnalyticsStatusSchema>;

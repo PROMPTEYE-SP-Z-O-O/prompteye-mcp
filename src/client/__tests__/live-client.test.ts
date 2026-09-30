@@ -96,6 +96,13 @@ const LIVE_ANALYTICS = {
   keyEvents: 9,
 };
 
+const LIVE_INTEGRATIONS_STATUS = {
+  searchConsole: { connected: true, reason: null },
+  analytics: { connected: false, reason: "not_connected" },
+  botLogs: { connected: true, reason: null },
+  sitemap: { connected: true, reason: "sync_failing" },
+};
+
 const LIVE_ANALYTICS_SOURCE = { source: "chatgpt.com", sessions: 78, keyEvents: 6 };
 const LIVE_ANALYTICS_PAGE = { page: "/pricing", sessions: 22, keyEvents: 3 };
 
@@ -170,6 +177,7 @@ function liveClient() {
     }
 
     const body =
+      (pathname.endsWith("/integrations/status") ? LIVE_INTEGRATIONS_STATUS : undefined) ??
       googleBody(pathname) ??
       (pathname === "/v1/projects"
         ? { data: [LIVE_PROJECT] }
@@ -337,6 +345,14 @@ describe("createLiveClient", () => {
       `/v1/projects/${LIVE_PROJECT.id}/traffic/google/search?startDate=2026-08-16&endDate=2026-09-15`,
       `/v1/projects/${LIVE_PROJECT.id}/traffic/google/analytics?startDate=2026-08-16&endDate=2026-09-15&assistant=openai`,
     ]);
+  });
+
+  it("reads which integrations the project has", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.getIntegrationsStatus(LIVE_PROJECT.id)).resolves.toEqual(LIVE_INTEGRATIONS_STATUS);
+
+    expect(calls.map((call) => call.path)).toEqual([`/v1/projects/${LIVE_PROJECT.id}/integrations/status`]);
   });
 
   it("ranks Search Console rows and the AI sessions apart", async () => {
