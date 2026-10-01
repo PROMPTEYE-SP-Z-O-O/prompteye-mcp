@@ -6,6 +6,7 @@ import {
   AnalyticsSourceSchema,
   AnalyticsSummarySchema,
   GoogleStatusSchema,
+  NextCursorSchema,
   SearchPageSchema,
   SearchQuerySchema,
   SearchSummarySchema,
@@ -88,10 +89,13 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
         ...limitShape("entries"),
       },
       outputSchema: {
-        by: SearchBreakdownSchema.nullable(),
-        summary: SearchSummarySchema.nullable(),
-        data: z.array(z.union([SearchQuerySchema, SearchPageSchema])).nullable(),
-        nextCursor: z.string().nullable(),
+        by: SearchBreakdownSchema.nullable().describe("The axis the period is ranked along. null = totals in summary."),
+        summary: SearchSummarySchema.nullable().describe("The period's totals. null when by is set."),
+        data: z
+          .array(z.union([SearchQuerySchema, SearchPageSchema]))
+          .nullable()
+          .describe("The ranking, most clicked first. null when by is not set."),
+        nextCursor: NextCursorSchema,
       },
     },
     async ({ by, limit, ...range }) =>
@@ -137,11 +141,14 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
         ...limitShape("entries"),
       },
       outputSchema: {
-        assistant: z.string().nullable(),
-        by: AiTrafficBreakdownSchema.nullable(),
-        summary: AnalyticsSummarySchema.nullable(),
-        data: z.array(z.union([AnalyticsSourceSchema, AnalyticsPageSchema])).nullable(),
-        nextCursor: z.string().nullable(),
+        assistant: z.string().nullable().describe("The assistant the figures are narrowed to. null = all assistants."),
+        by: AiTrafficBreakdownSchema.nullable().describe("The axis the period is ranked along. null = totals in summary."),
+        summary: AnalyticsSummarySchema.nullable().describe("The period's totals. null when by is set."),
+        data: z
+          .array(z.union([AnalyticsSourceSchema, AnalyticsPageSchema]))
+          .nullable()
+          .describe("The ranking, most sessions first. null when by is not set."),
+        nextCursor: NextCursorSchema,
       },
     },
     async ({ by, limit, assistant, ...range }) =>

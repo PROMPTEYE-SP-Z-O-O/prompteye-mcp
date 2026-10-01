@@ -11,46 +11,68 @@ export const COUNTRY_CODES = [
   "US", "VN", "ZA",
 ] as const;
 
+const timestamp = (description: string) => z.string().describe(`${description}, ISO 8601 in UTC.`);
+
+const VISIBILITY_FIELD = "Share of answers that named the brand in the period, in percent 0-100. null = not measured.";
+const AVERAGE_POSITION_FIELD =
+  "Mean place the brand was named at in the answers that named it, counting from 1; lower is earlier. null = not measured.";
+
 const MetricsSchema = z.object({
-  /** Share of answers naming the brand, 0 to 100. `null` until measured. */
-  visibility: z.number().nullable(),
-  /** Visibility weighted by how much of the market each assistant carries. */
-  reachIndex: z.number().nullable(),
-  averagePosition: z.number().nullable(),
+  visibility: z.number().nullable().describe(VISIBILITY_FIELD),
+  reachIndex: z
+    .number()
+    .nullable()
+    .describe("Visibility weighted by how much of the market each assistant carries, 0-100, whole number. null = not measured."),
+  averagePosition: z.number().nullable().describe(AVERAGE_POSITION_FIELD),
 });
 
 /** One assistant measured against itself, so there is no weighted figure. */
 const ModelMetricsSchema = z.object({
-  visibility: z.number().nullable(),
-  averagePosition: z.number().nullable(),
+  visibility: z.number().nullable().describe(VISIBILITY_FIELD),
+  averagePosition: z.number().nullable().describe(AVERAGE_POSITION_FIELD),
 });
 
-/** Movement against the period of the same length before this one. */
 const MetricsChangeSchema = z.object({
-  visibility: z.number().nullable(),
-  reachIndex: z.number().nullable(),
-  averagePosition: z.number().nullable(),
+  visibility: z
+    .number()
+    .nullable()
+    .describe("Percentage points visibility moved by; negative = fell. null = either period could not measure it."),
+  reachIndex: z
+    .number()
+    .nullable()
+    .describe("Points reachIndex moved by; negative = fell. null = either period could not measure it."),
+  averagePosition: z
+    .number()
+    .nullable()
+    .describe(
+      "Places moved, signed so positive = named earlier (an improvement). null = either period could not measure it."
+    ),
 });
+
+const NullableMetricsChangeSchema = MetricsChangeSchema.nullable().describe(
+  "Movement against the period of the same length directly before this one. null = no figure could be compared."
+);
 
 export const AccountSchema = z.object({
   id: z.string(),
   email: z.string(),
-  plan: z.object({ key: z.string(), name: z.string() }).nullable(),
+  plan: z.object({ key: z.string(), name: z.string() }).nullable().describe("null = no plan assigned."),
   addons: z.array(z.string()),
   scopes: z.array(z.string()),
-  promptCount: z.number(),
-  /** What the plan allows in total; `promptCount` counts against it. */
-  promptLimit: z.number(),
+  promptCount: z
+    .number()
+    .describe("Prompts tracked across the workspace, active or pending; paused prompts are not counted."),
+  promptLimit: z
+    .number()
+    .describe("Prompts the plan allows in total; the room left is promptLimit minus promptCount."),
   /** The assistants every active prompt is asked on, following the plan and its add-ons. */
   models: z.array(z.string()),
-  /** How often the prompts are asked. */
-  scanFrequency: z.string(),
-  /**
-   * When the next run *starts*, RFC 3339 in UTC — not when it has finished.
-   * Asking every prompt on every assistant takes tens of minutes, so the
-   * figures keep moving for a while after this time passes.
-   */
-  nextScanAt: z.string(),
+  scanFrequency: z.string().describe("How often every active prompt is asked, e.g. daily."),
+  nextScanAt: z
+    .string()
+    .describe(
+      "When the next run starts, not when it finishes, ISO 8601 in UTC; answers land over the hours after it, so figures keep moving."
+    ),
 });
 
 export const ProjectSchema = z.object({
@@ -59,13 +81,12 @@ export const ProjectSchema = z.object({
   brand: z.string(),
   domain: z.string(),
   country: z.string(),
-  label: z.string().nullable(),
+  label: z.string().nullable().describe("Grouping label. null = the project has none."),
   alternativeBrandNames: z.array(z.string()),
   alternativeDomains: z.array(z.string()),
   excludedCompetitors: z.array(z.string()),
-  /** `OWNER`, `FULL_ACCESS` or `READ_ONLY`. */
-  accessRole: z.string(),
-  createdAt: z.string(),
+  accessRole: z.string().describe("OWNER manages the project, FULL_ACCESS edits it, READ_ONLY reads it."),
+  createdAt: timestamp("When the project was created"),
 });
 
 export const CompanyProfileSchema = z.object({
@@ -78,9 +99,9 @@ export const CompanyProfileSchema = z.object({
 });
 
 export const KnowledgeBaseSchema = z.object({
-  text: z.string().nullable(),
-  profile: CompanyProfileSchema.optional(),
-  updatedAt: z.string().nullable(),
+  text: z.string().nullable().describe("The whole profile as stored, one `Label: value` block per field. null = not described yet."),
+  profile: CompanyProfileSchema.optional().describe("One field per question about the brand; null where nothing is written yet."),
+  updatedAt: z.string().nullable().describe("When the profile was last written, ISO 8601 in UTC. null = no profile yet."),
 });
 
 export const UpdateKnowledgeBaseRequestSchema = z.object({
@@ -95,107 +116,170 @@ export const UpdateKnowledgeBaseRequestSchema = z.object({
 export const CategorySchema = z.object({
   id: z.string(),
   name: z.string(),
-  parentId: z.string().nullable(),
-  /** `ai` or `manual`. */
-  source: z.string(),
+  parentId: z.string().nullable().describe("The category this one sits under. null = top-level."),
+  source: z.string().describe("ai = proposed by PromptEye, manual = written by hand."),
 });
+
+const promptKeyword = z.string().describe("Keyword the prompt was built around. Empty when it was written by hand.");
+
+const promptStatus = z
+  .string()
+  .describe("active = asked on every run, paused = not asked, pending = added but not measured yet.");
+
+const promptGroupId = z.string().nullable().describe("null = the prompt is ungrouped.");
+
+const promptCreatedAt = timestamp("When the prompt was added");
+
+const aiTraffic = z
+  .number()
+  .nullable()
+  .describe(
+    "Estimated monthly searches behind the prompt; a property of the prompt, not of the period. " +
+      "0 = measured, below the reporting floor of 50 searches a month. " +
+      "null = no figure: not measured yet when aiTrafficMeasuredAt is null, otherwise measured with no volume found (unknown, not zero)."
+  );
+
+const aiTrafficMeasuredAt = z
+  .string()
+  .nullable()
+  .describe(
+    "When aiTraffic was last measured, ISO 8601 in UTC. null = never measured. A failed refresh keeps the previous figure and date."
+  );
+
+const businessPriority = z
+  .string()
+  .nullable()
+  .describe(
+    "very_high, high, medium, low or very_low. null = not ranked yet. A priority set by hand wins over the computed one."
+  );
+
+const businessPriorityReason = z
+  .string()
+  .nullable()
+  .describe("Why the priority was set by hand. null = the computed priority, or no reason given.");
 
 export const PromptSchema = z.object({
   id: z.string(),
   prompt: z.string(),
-  /** Empty when the prompt was written by hand. */
-  keyword: z.string(),
-  /** `active`, `paused` or `pending`. */
-  status: z.string(),
+  keyword: promptKeyword,
+  status: promptStatus,
   categories: z.array(z.string()),
   subcategories: z.array(z.string()),
-  /** `null` when the prompt is ungrouped. */
-  groupId: z.string().nullable(),
-  createdAt: z.string(),
-  aiTraffic: z.number().nullable(),
-  aiTrafficMeasuredAt: z.string().nullable().optional(),
-  /** `very_high`, `high`, `medium`, `low`, `very_low`, or `null` before it is ranked. */
-  businessPriority: z.string().nullable(),
-  /** Why someone set the priority by hand; `null` when it is the computed one. */
-  businessPriorityReason: z.string().nullable(),
+  groupId: promptGroupId,
+  createdAt: promptCreatedAt,
+  aiTraffic,
+  aiTrafficMeasuredAt: aiTrafficMeasuredAt.optional(),
+  businessPriority,
+  businessPriorityReason,
   metrics: MetricsSchema,
-  change: MetricsChangeSchema.nullable(),
+  change: NullableMetricsChangeSchema,
 });
 
 export const PromptDetailSchema = PromptSchema.extend({
-  /** Only the assistants that actually answered. */
-  byModel: z.array(z.object({ model: z.string(), metrics: ModelMetricsSchema })),
+  byModel: z
+    .array(z.object({ model: z.string(), metrics: ModelMetricsSchema }))
+    .describe("One entry per assistant that actually answered."),
 });
 
 export const PromptGroupSchema = z.object({
   id: z.string(),
   name: z.string(),
-  description: z.string().nullable().optional(),
-  order: z.number().nullable(),
-  /** Paused prompts included. */
-  promptCount: z.number(),
-  /** Added up over the prompts still being asked. */
-  aiTrafficTotal: z.number().nullable(),
+  description: z.string().nullable().optional().describe("What the group is for. null = nobody described it."),
+  order: z.number().nullable().describe("Where the group sits in the project's own ordering, lowest first."),
+  promptCount: z.number().describe("Prompts in the group, paused ones included."),
+  aiTrafficTotal: z
+    .number()
+    .nullable()
+    .describe(
+      "Monthly searches behind the group's prompts still being asked, added up; paused prompts add nothing. " +
+        "null = none of them has a measured figure."
+    ),
   metrics: MetricsSchema,
 });
 
 export const PromptSuggestionSchema = z.object({
   id: z.string(),
   prompt: z.string(),
-  /** `gap` or `replicate`. */
-  mode: z.string(),
+  mode: z
+    .string()
+    .describe("gap = fills a funnel stage the group does not cover, replicate = close to prompts already performing in it."),
   groupId: z.string(),
   groupName: z.string().nullable(),
   sourcePhrase: z.string(),
-  sourcePhraseVolume: z.number().nullable(),
-  aiTraffic: z.number().nullable(),
-  relativeVolumeScore: z.number(),
-  relativeVolumeLabel: z.string(),
-  /** 1 educational, 2 solution-seeking, 3 comparison, 4 decision. */
-  purchaseIntentLevel: z.number(),
-  companyFitScore: z.number(),
+  sourcePhraseVolume: z
+    .number()
+    .nullable()
+    .describe("Monthly searches for sourcePhrase as the traffic provider reports them, not an estimate of the prompt."),
+  aiTraffic: z
+    .number()
+    .nullable()
+    .describe("Estimated monthly searches behind the prompt, on the scale tracked prompts use. null = the phrases came back with no data."),
+  relativeVolumeScore: z.number().describe("Where the demand sits among the group's prompts, 0 lowest to 1 highest."),
+  relativeVolumeLabel: z.string().describe("very_high, high or standard, relative to the group rather than the market."),
+  purchaseIntentLevel: z.number().describe("1 educational, 2 solution-seeking, 3 comparison, 4 decision."),
+  companyFitScore: z.number().describe("How well the question fits what the brand sells, 0 unrelated to 1 squarely on topic."),
   companyFitReason: z.string(),
   whyText: z.string(),
   whyArguments: z.array(z.string()),
-  createdAt: z.string(),
-  expiresAt: z.string(),
+  createdAt: timestamp("When the suggestion was generated"),
+  expiresAt: timestamp("When it lapses if nobody decides on it"),
 });
 
 export const CitedDomainSchema = z.object({
   domain: z.string(),
-  sourceOccurrences: z.number(),
-  /** The domain's share of every source occurrence on the project's prompts. */
-  share: z.number(),
-  /** Whether it is the project's own domain, or one of its alternatives. */
-  ownDomain: z.boolean(),
+  sourceOccurrences: z
+    .number()
+    .describe("Times a page on this exact host appeared among an answer's sources; a count of sources, not answers."),
+  share: z
+    .number()
+    .describe(
+      "The domain's share of the source occurrences across the domains reported, in percent 0-100 with up to five decimals."
+    ),
+  ownDomain: z.boolean().describe("Whether it is the project's own domain or one of its alternatives."),
 });
 
 export const CompetitorSchema = z.object({
   brand: z.string(),
-  /** True for the project's own brand, which is ranked alongside the rest. */
-  ownBrand: z.boolean(),
+  ownBrand: z.boolean().describe("True for the project's own brand, ranked alongside the rest."),
   metrics: MetricsSchema,
-  change: MetricsChangeSchema.nullable(),
-  /** How much of the naming this brand took from everyone else. */
-  shareOfVoice: z.number().nullable(),
-  citedAnswers: z.number().nullable(),
-  citationShare: z.number().nullable(),
+  change: NullableMetricsChangeSchema,
+  shareOfVoice: z
+    .number()
+    .nullable()
+    .describe(
+      "How much of the naming this brand took, in whole percent 0-100; all brands in the period add up to 100. null = no figure for the period."
+    ),
+  citedAnswers: z
+    .number()
+    .nullable()
+    .describe(
+      "Answers citing at least one domain of this brand, each domain once per answer; a count of answers, not sources. null = no figure for the period."
+    ),
+  citationShare: z
+    .number()
+    .nullable()
+    .describe(
+      "Share of the answers carrying any sources that cited this brand, in whole percent 0-100; brands do not add up to 100. null = no answer carried sources."
+    ),
 });
 
 /** A prompt as it comes back from being added: it has not been asked yet. */
 export const NewPromptSchema = z.object({
   id: z.string(),
   prompt: z.string(),
-  /** The group it was filed under, or `null` when it is ungrouped. */
-  groupName: z.string().nullable(),
+  groupName: z.string().nullable().describe("The group it was filed under. null = ungrouped."),
 });
 
 /** Every entry an endpoint has, in one response. */
 const listOf = <T extends z.ZodTypeAny>(entry: T) => z.object({ data: z.array(entry) });
 
+export const NextCursorSchema = z
+  .string()
+  .nullable()
+  .describe("Pass as cursor to read the next page. null = this was the last page.");
+
 /** A page of entries, walked with `nextCursor`. */
-const pageOf = <T extends z.ZodTypeAny>(entry: T) =>
-  z.object({ data: z.array(entry), nextCursor: z.string().nullable() });
+const pageOf = <T extends z.ZodTypeAny>(entry: T) => z.object({ data: z.array(entry), nextCursor: NextCursorSchema });
 
 export const ProjectListSchema = listOf(ProjectSchema);
 export const CategoryListSchema = listOf(CategorySchema);
@@ -217,47 +301,49 @@ export const REPORT_REACH = ["local", "regional", "national"] as const;
 export const ReportSchema = z.object({
   id: z.string(),
   brand: z.string(),
-  /** Without `www.`; `null` when the form carried no website. */
-  domain: z.string().nullable(),
+  domain: z.string().nullable().describe("Website without `www.`. null = the form carried no website."),
   /** Where the finished report was sent. */
   email: z.string(),
-  /** `processing`, `ready` or `error`. */
-  status: z.string(),
-  /** Visibility 0–100, `null` until the report is ready. */
-  score: z.number().nullable(),
-  reach: z.string().nullable(),
-  country: z.string().nullable(),
+  status: z.string().describe("processing until the assistants have answered, then ready, or error."),
+  score: z.number().nullable().describe("Visibility of the brand in whole percent 0-100. null = the report is not ready yet."),
+  reach: z.string().nullable().describe("How far the brand sells: local, regional or national."),
+  country: z.string().nullable().describe("Market the report was taken in, ISO 3166-1 alpha-2."),
   language: z.string().nullable(),
   utm: z.string().nullable(),
-  /** `new`, `in_progress` or `done` — moved in the PromptEye app, not through the API. */
-  leadStatus: z.string(),
-  /** The project this report was converted into, or `null` while it is still just a sample. */
-  projectId: z.string().nullable(),
-  /** How many times the brand asked to be contacted from the report page. */
-  contactCount: z.number(),
-  createdAt: z.string(),
-  readyAt: z.string().nullable(),
+  leadStatus: z.string().describe("new, in_progress or done; moved in the PromptEye app, not through the API."),
+  projectId: z.string().nullable().describe("The project the report was converted into. null = still only a sample."),
+  contactCount: z.number().describe("How many times the brand asked to be contacted from the report page."),
+  createdAt: timestamp("When the report was ordered"),
+  readyAt: z.string().nullable().describe("When it finished, ISO 8601 in UTC. null = not finished yet."),
   /** The public report page, in the agency's branding. */
   url: z.string(),
 });
 
 export const ReportDetailSchema = ReportSchema.extend({
   industry: z.string().nullable(),
-  monthlySearches: z.number().nullable(),
+  monthlySearches: z
+    .number()
+    .nullable()
+    .describe("Monthly searches behind the prompts the report asked, as the traffic provider reports them."),
   /** Every question put to the assistants for this report. */
   prompts: z.array(z.string()),
   rankingPhrases: z.array(z.string()),
-  /** Strongest first. */
-  competitors: z.array(z.object({ name: z.string(), score: z.number() })),
-  /** Assistants that answered; the others are left out. */
-  models: z.array(
-    z.object({
-      model: z.string(),
-      score: z.number().nullable(),
-      answers: z.number().nullable(),
-      averagePosition: z.number().nullable(),
-    })
-  ),
+  competitors: z
+    .array(z.object({ name: z.string(), score: z.number().describe("Its visibility, in whole percent 0-100.") }))
+    .describe("Other brands the same answers named, strongest first."),
+  models: z
+    .array(
+      z.object({
+        model: z.string(),
+        score: z.number().nullable().describe("Visibility in this assistant's answers, in whole percent 0-100."),
+        answers: z.number().nullable().describe("How many of the prompts this assistant answered."),
+        averagePosition: z
+          .number()
+          .nullable()
+          .describe("Mean place the brand took in the answers that named it, counting from 1."),
+      })
+    )
+    .describe("One entry per assistant that answered; the others are left out."),
   examples: z.array(
     z.object({
       prompt: z.string(),
@@ -269,12 +355,11 @@ export const ReportDetailSchema = ReportSchema.extend({
   /** Oldest first. */
   contacts: z.array(
     z.object({
-      /** `calendly`, `email` or `phone`. */
-      type: z.string(),
-      createdAt: z.string(),
+      type: z.string().describe("calendly, email or phone: how the brand asked to be reached."),
+      createdAt: timestamp("When the brand asked"),
       email: z.string().nullable(),
       phone: z.string().nullable(),
-      meetingAt: z.string().nullable(),
+      meetingAt: z.string().nullable().describe("Start of the meeting booked through Calendly, as Calendly sent it. null = none booked."),
       inviteeEmail: z.string().nullable(),
     })
   ),
@@ -315,40 +400,68 @@ export const ContentBriefSeparateArticleSchema = z.object({
   type: z.string(),
   confidence: z.number(),
   reason: z.string(),
-  priority: z.number(),
+  priority: z.number().describe("How worthwhile the separate article is, 1 (highest) to 5."),
 });
 
 export const ContentBriefOutlineItemSchema = z.object({
-  level: z.string(),
+  level: z.string().describe("H2 or H3."),
   text: z.string(),
   annotation: z.string().nullable(),
   sourcePhrases: z.array(z.string()).nullable(),
-  includesBrand: z.boolean(),
-  faqQuestions: z.array(z.string()).nullable(),
-  origin: z.string().nullable(),
-  originalHeading: z.string().nullable(),
-  originalHasDirectAnswer: z.boolean().nullable(),
+  includesBrand: z.boolean().describe("Whether this is the one section required to name the brand."),
+  faqQuestions: z.array(z.string()).nullable().describe("Questions to answer as FAQ; set only for the FAQ section."),
+  origin: z
+    .string()
+    .nullable()
+    .describe(
+      "When optimizing an existing article: existing (kept), from_fanout (built from a phrase) or added. null = brief built from scratch."
+    ),
+  originalHeading: z.string().nullable().describe("The original heading this replaces; set only when origin is existing."),
+  originalHasDirectAnswer: z
+    .boolean()
+    .nullable()
+    .describe("Whether the original section already answered directly; set only when origin is existing."),
 });
 
 export const ContentBriefSchema = z.object({
   id: z.string(),
-  status: z.string(),
+  status: z.string().describe("processing until generated, then ready (title and outline filled in) or error."),
   projectId: z.string(),
-  trackerId: z.string().nullable(),
+  trackerId: z.string().nullable().describe("The tracked prompt the brief is linked to. null = requested standalone."),
   prompt: z.string(),
-  error: z.string().nullable(),
-  title: z.string().nullable(),
-  originalTitle: z.string().nullable(),
-  titleChangeAnnotation: z.string().nullable(),
-  fanoutSource: z.string().nullable(),
-  fanoutError: z.string().nullable(),
-  fanoutVariants: z.array(ContentBriefPhraseSchema).nullable(),
-  phrasesForArticle: z.array(ContentBriefPhraseSchema).nullable(),
-  separateArticles: z.array(ContentBriefSeparateArticleSchema).nullable(),
-  outline: z.array(ContentBriefOutlineItemSchema).nullable(),
-  sourceTextMatchPercentage: z.number().nullable(),
-  requestedAt: z.string(),
-  readyAt: z.string().nullable(),
+  error: z.string().nullable().describe("Why generation failed. null unless status is error."),
+  title: z.string().nullable().describe("Generated article title. null until status is ready."),
+  originalTitle: z
+    .string()
+    .nullable()
+    .describe("Title of the existing article being optimized. null = no existing article, or not ready yet."),
+  titleChangeAnnotation: z
+    .string()
+    .nullable()
+    .describe("Why the title changed. null = kept, no existing article, or not ready yet."),
+  fanoutSource: z.string().nullable().describe("Which fan-out engine produced the phrases. null until ready."),
+  fanoutError: z
+    .string()
+    .nullable()
+    .describe("Set when the fan-out failed but the brief completed with the phrases it had. null otherwise."),
+  fanoutVariants: z.array(ContentBriefPhraseSchema).nullable().describe("Every phrase the fan-out found. null until ready."),
+  phrasesForArticle: z
+    .array(ContentBriefPhraseSchema)
+    .nullable()
+    .describe("Phrases that belong in this article and built the outline. null until ready."),
+  separateArticles: z
+    .array(ContentBriefSeparateArticleSchema)
+    .nullable()
+    .describe("Phrases that deserve an article of their own. null until ready."),
+  outline: z.array(ContentBriefOutlineItemSchema).nullable().describe("The H2/H3 structure of the article. null until ready."),
+  sourceTextMatchPercentage: z
+    .number()
+    .nullable()
+    .describe(
+      "How much of the phrase coverage the existing article already had, in whole percent 0-100. null = no existing article, or not ready yet."
+    ),
+  requestedAt: timestamp("When the brief was requested"),
+  readyAt: z.string().nullable().describe("When it finished, ISO 8601 in UTC. null = not finished yet."),
 });
 
 export type CreateContentBriefInput = {
@@ -402,16 +515,16 @@ export const UpdatePromptGroupRequestSchema = z.object({
 export const PromptSettingsSchema = z.object({
   id: z.string(),
   prompt: z.string(),
-  keyword: z.string(),
-  status: z.string(),
+  keyword: promptKeyword,
+  status: promptStatus,
   categories: z.array(z.string()),
   subcategories: z.array(z.string()),
-  groupId: z.string().nullable(),
-  createdAt: z.string(),
-  aiTraffic: z.number().nullable(),
-  aiTrafficMeasuredAt: z.string().nullable().optional(),
-  businessPriority: z.string().nullable(),
-  businessPriorityReason: z.string().nullable().optional(),
+  groupId: promptGroupId,
+  createdAt: promptCreatedAt,
+  aiTraffic,
+  aiTrafficMeasuredAt: aiTrafficMeasuredAt.optional(),
+  businessPriority,
+  businessPriorityReason: businessPriorityReason.optional(),
 });
 
 export const CompetitorExclusionSchema = z.object({
@@ -492,8 +605,15 @@ export type NewPrompt = z.infer<typeof NewPromptSchema>;
  */
 
 export const IntegrationSchema = z.object({
-  connected: z.boolean(),
-  reason: z.string().nullable(),
+  connected: z
+    .boolean()
+    .describe("Whether it is connected. While false, the figures it feeds are zeros that describe a missing integration, not a quiet site."),
+  reason: z
+    .string()
+    .nullable()
+    .describe(
+      "not_connected = the figures say nothing about the site; sync_failing = connected but the last sync failed, so figures are stale. null = connected and working."
+    ),
 });
 
 export const IntegrationsStatusSchema = z.object({
@@ -505,16 +625,17 @@ export const IntegrationsStatusSchema = z.object({
 
 /** How the last pull from Google went. `failedSince` stays null while it is healthy. */
 export const GoogleSyncSchema = z.object({
-  lastSyncedAt: z.string().nullable(),
-  /** When the failures started, so a stale figure can be told from a fresh one. */
-  failedSince: z.string().nullable(),
-  error: z.string().nullable(),
+  lastSyncedAt: z
+    .string()
+    .nullable()
+    .describe("When the last successful sync finished, ISO 8601 in UTC. null = before the first one."),
+  failedSince: z.string().nullable().describe("When the sync started failing, ISO 8601 in UTC. null = it works."),
+  error: z.string().nullable().describe("Why the last sync failed. null = it works."),
 });
 
 export const SearchConsoleStatusSchema = z.object({
   connected: z.boolean(),
-  /** The property as Google names it, e.g. `sc-domain:example.com`. Null until one is bound. */
-  siteUrl: z.string().nullable(),
+  siteUrl: z.string().nullable().describe("The bound property as Google names it, e.g. sc-domain:example.com. null = none bound."),
   /** What the bound account may read, e.g. `siteOwner`. */
   permissionLevel: z.string().nullable(),
   sync: GoogleSyncSchema.nullable(),
@@ -522,7 +643,7 @@ export const SearchConsoleStatusSchema = z.object({
 
 export const AnalyticsStatusSchema = z.object({
   connected: z.boolean(),
-  propertyId: z.string().nullable(),
+  propertyId: z.string().nullable().describe("The bound Google Analytics property. null = none bound."),
   propertyName: z.string().nullable(),
   accountName: z.string().nullable(),
   sync: GoogleSyncSchema.nullable(),
@@ -542,7 +663,7 @@ export const GoogleStatusSchema = z.object({
 
 /** One day of the Search Console timeline. */
 export const SearchTimelinePointSchema = z.object({
-  date: z.string(),
+  date: z.string().describe("The day, YYYY-MM-DD."),
   clicks: z.number(),
   impressions: z.number(),
 });
@@ -551,15 +672,13 @@ export const SearchTimelinePointSchema = z.object({
 const searchFigures = {
   clicks: z.number(),
   impressions: z.number(),
-  /** Clicks over impressions, 0 to 1 — a rate, not a percentage. */
-  ctr: z.number(),
-  /** Average position in the results, counting from 1. Lower is better. */
-  position: z.number(),
+  ctr: z.number().describe("Clicks divided by impressions, a rate from 0 to 1, not a percentage."),
+  position: z.number().describe("Average position in Google results weighted by impressions, counting from 1; lower is better."),
 };
 
 export const SearchSummarySchema = z.object({
   ...searchFigures,
-  timeline: z.array(SearchTimelinePointSchema),
+  timeline: z.array(SearchTimelinePointSchema).describe("Clicks and impressions for each day of the period, oldest first."),
 });
 
 export const SearchQuerySchema = z.object({ query: z.string(), ...searchFigures });
@@ -569,10 +688,8 @@ export const SearchPageSchema = z.object({ page: z.string(), ...searchFigures })
 export const AnalyticsSummarySchema = z.object({
   sessions: z.number(),
   engagedSessions: z.number(),
-  /** Engaged sessions over sessions, 0 to 1. */
-  engagementRate: z.number(),
-  /** Seconds. */
-  averageSessionDuration: z.number(),
+  engagementRate: z.number().describe("Engaged sessions divided by sessions, a rate from 0 to 1, not a percentage."),
+  averageSessionDuration: z.number().describe("Average session length in seconds."),
   /** The conversions the property marks as key events. */
   keyEvents: z.number(),
 });
@@ -624,45 +741,46 @@ export const TrafficKindSchema = z.enum(TRAFFIC_KINDS);
 export const TrafficCategorySchema = z.enum(TRAFFIC_CATEGORIES);
 export const TrafficGroupSchema = z.enum(TRAFFIC_GROUPS);
 
+const botKind = TrafficKindSchema.describe("ai = an AI assistant's bot, seo = search engines and SEO tools.");
+
 export const TrafficEventSchema = z.object({
   id: z.string(),
-  at: z.string(),
+  at: timestamp("When the bot made the request"),
   botId: z.string(),
   name: z.string(),
   vendor: z.string(),
   botType: z.string(),
-  kind: TrafficKindSchema,
+  kind: botKind,
   category: TrafficCategorySchema,
   path: z.string(),
-  statusCode: z.number().nullable(),
-  redirectLocation: z.string().nullable(),
-  responseTimeMs: z.number().nullable(),
-  country: z.string().nullable(),
-  referer: z.string().nullable(),
-  /**
-   * Whether the origin checked out as the bot it claims to be. A `User-Agent`
-   * is free text anybody can send, so an unverified request is a claim rather
-   * than reach. The API has no filter for it: read it, never quietly drop it.
-   */
-  verified: z.boolean(),
+  statusCode: z.number().nullable().describe("HTTP status the site answered with. null = none reported."),
+  redirectLocation: z.string().nullable().describe("Where a redirect pointed. null = not a redirect."),
+  responseTimeMs: z.number().nullable().describe("How long the site took to answer, in milliseconds. null = not reported."),
+  country: z.string().nullable().describe("Two-letter country the request came from. null = unknown."),
+  referer: z.string().nullable().describe("The referrer the bot sent. null = none."),
+  verified: z
+    .boolean()
+    .describe(
+      "Whether the origin was confirmed as the bot it claims to be; false also when it could not be checked. Unverified requests are claims, so counts are upper bounds."
+    ),
 });
 
 export const TrafficCountSchema = z.object({
-  /** A bot id, a path, a status code (`unknown` when none was reported), a UTC day or a category. */
-  key: z.string(),
-  /** A display name, set for bots and null for the other groupings. */
-  label: z.string().nullable(),
-  count: z.number(),
-  uniquePaths: z.number(),
-  lastAt: z.string(),
+  key: z
+    .string()
+    .describe("A bot id, a path, an HTTP status code (unknown when none was reported), a UTC day or a category."),
+  label: z.string().nullable().describe("Display name, set for bots. null for the other groupings."),
+  count: z.number().describe("Requests in the group."),
+  uniquePaths: z.number().describe("Distinct paths those requests asked for."),
+  lastAt: timestamp("When the newest request of the group was made"),
 });
 
 export const TrafficCountPageSchema = z.object({
   data: z.array(TrafficCountSchema),
-  /** Always null: the answer is ranked, not paged. */
-  nextCursor: z.string().nullable(),
-  /** The period held more requests than could be read, so only the newest are counted. */
-  partial: z.boolean(),
+  nextCursor: z.string().nullable().describe("Always null: the answer is ranked, not paged."),
+  partial: z
+    .boolean()
+    .describe("true = the period held more requests than could be read, so the counts describe the newest ones only."),
 });
 
 export const TrafficCrawlSchema = z.object({
@@ -671,39 +789,35 @@ export const TrafficCrawlSchema = z.object({
   name: z.string(),
   vendor: z.string(),
   botType: z.string(),
-  kind: TrafficKindSchema,
-  firstVisitAt: z.string(),
-  lastVisitAt: z.string(),
-  /** Since tracking began, not over a period. */
-  visitCount: z.number(),
-  lastStatusCode: z.number().nullable(),
+  kind: botKind,
+  firstVisitAt: timestamp("When the bot first asked for the path"),
+  lastVisitAt: timestamp("When the bot last asked for the path"),
+  visitCount: z.number().describe("How many times the bot asked for the path since tracking began, not over a period."),
+  lastStatusCode: z.number().nullable().describe("HTTP status the site answered with the last time. null = none reported."),
 });
 
 export const TrafficSitemapUrlSchema = z.object({
   url: z.string(),
-  /** The same form the other traffic endpoints use, so the two can be joined. */
-  path: z.string(),
-  lastModified: z.string().nullable(),
-  firstSeenAt: z.string(),
-  lastSeenAt: z.string(),
-  /** Whether the sitemap still lists it. */
-  active: z.boolean(),
+  path: z.string().describe("The path in the form the other traffic tools use, so the two can be joined."),
+  lastModified: z.string().nullable().describe("The lastmod the sitemap gives, as written there. null = none given."),
+  firstSeenAt: timestamp("When the address first appeared in the sitemap"),
+  lastSeenAt: timestamp("When the address was last found in the sitemap"),
+  active: z.boolean().describe("Whether the sitemap still lists it."),
 });
 
 export const TrafficSitemapStateSchema = z.object({
   url: z.string(),
-  status: z.enum(["active", "syncing", "error"]),
-  lastSyncedAt: z.string().nullable(),
-  nextSyncAt: z.string(),
-  urlCount: z.number(),
-  error: z.string().nullable(),
+  status: z.enum(["active", "syncing", "error"]).describe("Where the last sync stands."),
+  lastSyncedAt: z.string().nullable().describe("When the last sync finished, ISO 8601 in UTC. null = before the first one."),
+  nextSyncAt: timestamp("When the next sync is due"),
+  urlCount: z.number().describe("How many addresses the last sync found."),
+  error: z.string().nullable().describe("Why the last sync failed. null = it works."),
 });
 
 export const TrafficSitemapPageSchema = z.object({
-  /** Null when no sitemap is connected; `data` is then empty. */
-  sitemap: TrafficSitemapStateSchema.nullable(),
+  sitemap: TrafficSitemapStateSchema.nullable().describe("null = no sitemap is connected; data is then empty."),
   data: z.array(TrafficSitemapUrlSchema),
-  nextCursor: z.string().nullable(),
+  nextCursor: NextCursorSchema,
 });
 
 export const TrafficEventPageSchema = pageOf(TrafficEventSchema);
@@ -722,7 +836,7 @@ export type TrafficSitemapPage = z.infer<typeof TrafficSitemapPageSchema>;
 
 export const FeedbackSchema = z.object({
   id: z.string(),
-  receivedAt: z.string(),
+  receivedAt: timestamp("When PromptEye received the report"),
 });
 
 export type CreateFeedbackInput = {

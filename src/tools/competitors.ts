@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { MAX_LIMIT, dateRangeShape, modelFilterShape } from "../schemas/common.js";
-import { CompetitorExclusionSchema, CompetitorSchema } from "../schemas/prompteye.js";
+import { CompetitorExclusionSchema, CompetitorSchema, NextCursorSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
@@ -40,10 +40,10 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
       },
       outputSchema: {
         data: z.array(CompetitorSchema),
-        nextCursor: z.string().nullable(),
+        nextCursor: NextCursorSchema,
         projectName: z.string(),
         brand: z.string(),
-        model: z.string().nullable(),
+        model: z.string().nullable().describe("The assistant the ranking is narrowed to. null = all assistants."),
       },
       _meta: widgetMeta(widgetUri(COMPETITORS_WIDGET), "Ranking the brands…", "Ranked the brands"),
     },

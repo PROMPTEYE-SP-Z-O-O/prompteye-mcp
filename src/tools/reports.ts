@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { paginationShape } from "../schemas/common.js";
-import { REPORT_REACH, ReportDetailSchema, ReportSchema } from "../schemas/prompteye.js";
+import { NextCursorSchema, REPORT_REACH, ReportDetailSchema, ReportSchema } from "../schemas/prompteye.js";
 import { PUBLIC_REPORTS } from "./glossary.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
 
@@ -137,7 +137,7 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
         "contactCount is how the interested leads are found.",
       annotations: READ_ONLY,
       inputSchema: paginationShape,
-      outputSchema: { data: z.array(ReportSchema), nextCursor: z.string().nullable() },
+      outputSchema: { data: z.array(ReportSchema), nextCursor: NextCursorSchema },
     },
     async (args) =>
       handled(async () => {

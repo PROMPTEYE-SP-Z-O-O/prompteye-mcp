@@ -139,3 +139,35 @@ describe("tool results", () => {
     expect(result.content).toEqual([{ type: "text", text: JSON.stringify(expected) }]);
   });
 });
+
+const fieldOf = (schema: unknown, path: string[]): Record<string, unknown> =>
+  path.reduce(
+    (node, key) => (key === "[]" ? node.items : (node.properties as Record<string, unknown>)[key]) as Record<string, unknown>,
+    schema as Record<string, unknown>
+  );
+
+describe("output schema descriptions", () => {
+  it.each([
+    ["list_prompts", ["data", "[]", "aiTraffic"], "0 = measured, below the reporting floor of 50 searches a month"],
+    ["list_prompts", ["data", "[]", "aiTraffic"], "null = no figure"],
+    ["list_prompts", ["data", "[]", "aiTrafficMeasuredAt"], "null = never measured"],
+    ["get_prompt", ["aiTrafficMeasuredAt"], "null = never measured"],
+    ["list_prompts", ["data", "[]", "metrics", "visibility"], "percent 0-100. null = not measured"],
+    ["list_prompts", ["data", "[]", "change"], "null = no figure could be compared"],
+    ["list_prompts", ["data", "[]", "businessPriority"], "null = not ranked yet"],
+    ["list_prompts", ["nextCursor"], "null = this was the last page"],
+    ["list_prompt_groups", ["data", "[]", "aiTrafficTotal"], "null = none of them has a measured figure"],
+    ["list_competitors", ["data", "[]", "shareOfVoice"], "whole percent 0-100"],
+    ["list_competitors", ["data", "[]", "citationShare"], "null = no answer carried sources"],
+    ["list_sources", ["data", "[]", "share"], "percent 0-100"],
+    ["get_report", ["score"], "null = the report is not ready yet"],
+    ["get_content_brief", ["outline"], "null until ready"],
+    ["get_sitemap", ["sitemap"], "null = no sitemap is connected"],
+  ])("%s advertises what %j means", async (name, path, meaning) => {
+    const client = await connectedClient();
+    const { tools } = await client.listTools();
+    const tool = tools.find((candidate) => candidate.name === name);
+
+    expect(fieldOf(tool?.outputSchema, path).description).toContain(meaning);
+  });
+});

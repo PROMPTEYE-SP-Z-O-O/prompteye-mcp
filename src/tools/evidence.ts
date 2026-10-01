@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { MAX_LIMIT, dateRangeShape, modelFilterShape, paginationShape } from "../schemas/common.js";
-import { AnswerSchema, CitationQualitySchema, CitedDomainSchema } from "../schemas/prompteye.js";
+import { AnswerSchema, CitationQualitySchema, CitedDomainSchema, NextCursorSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
 import { READ_ONLY, handled, ok, sampleData, type ToolContext } from "./result.js";
@@ -40,10 +40,10 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
       },
       outputSchema: {
         data: z.array(CitedDomainSchema),
-        nextCursor: z.string().nullable(),
+        nextCursor: NextCursorSchema,
         projectName: z.string(),
         brand: z.string(),
-        model: z.string().nullable(),
+        model: z.string().nullable().describe("The assistant the ranking is narrowed to. null = all assistants."),
       },
       _meta: widgetMeta(widgetUri(SOURCES_WIDGET), "Reading the citations…", "Read the citations"),
     },
