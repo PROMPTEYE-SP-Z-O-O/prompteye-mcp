@@ -13,10 +13,6 @@ const EXCLUSIONS_POINTER =
   "Brands kept out of competitor rankings are not part of the project payload; read them with " +
   "list_competitor_exclusions and change them with set_competitor_exclusions.";
 
-const describe = (project: Project): string =>
-  `${project.name} — label ${project.label ?? "—"}, brand ${project.brand} (${project.domain}) tracked in ${project.country}, ` +
-  `access ${project.accessRole} [id: ${project.id}]`;
-
 export function registerProjectTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
     "list_projects",
@@ -37,14 +33,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     async () =>
       handled(async () => {
         const list = await client.listProjects();
-        const lines = list.data.map((project) => `- ${describe(project)}`);
-
-        return ok(
-          list.data.length === 0
-            ? "This API key reaches no projects."
-            : `${list.data.length} project(s):\n${lines.join("\n")}`,
-          { ...list, data: list.data.map(toProjectOutput) }
-        );
+        return ok({ ...list, data: list.data.map(toProjectOutput) });
       })
   );
 
@@ -69,12 +58,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     async ({ projectId }) =>
       handled(async () => {
         const project = await session.select(projectId);
-
-        return ok(
-          `Active project is now ${describe(project)}.\n` +
-            "Every following tool call reports on this project until select_project is called again.",
-          toProjectOutput(project)
-        );
+        return ok(toProjectOutput(project));
       })
   );
 
@@ -99,7 +83,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
           );
         }
 
-        return ok(`Active project: ${describe(project)}.`, toProjectOutput(project));
+        return ok(toProjectOutput(project));
       })
   );
 
@@ -175,10 +159,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         const project = await client.createProject(args);
         await session.select(project.id);
 
-        return ok(
-          `Created ${describe(project)}.\nIt is now the active project.`,
-          toProjectOutput(project)
-        );
+        return ok(toProjectOutput(project));
       })
   );
 
@@ -224,7 +205,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         const project = await client.updateProject(current.id, args);
         await session.select(project.id);
 
-        return ok(`Updated project ${describe(project)}.`, toProjectOutput(project));
+        return ok(toProjectOutput(project));
       })
   );
 
@@ -244,13 +225,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
       handled(async () => {
         const project = await session.require();
         const knowledgeBase = await client.getKnowledgeBase(project.id);
-
-        return ok(
-          knowledgeBase.text === null
-            ? `${project.name} has no description of ${project.brand} yet.`
-            : `Knowledge base for ${project.brand} (updated ${knowledgeBase.updatedAt ?? "—"}):\n\n${knowledgeBase.text}`,
-          knowledgeBase
-        );
+        return ok(knowledgeBase);
       })
   );
 
@@ -286,11 +261,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
       handled(async () => {
         const project = await session.require();
         const knowledgeBase = await client.updateKnowledgeBase(project.id, args);
-
-        return ok(
-          `Updated knowledge base for ${project.brand} (updated ${knowledgeBase.updatedAt ?? "—"}):\n\n${knowledgeBase.text ?? "No description"}`,
-          knowledgeBase
-        );
+        return ok(knowledgeBase);
       })
   );
 }

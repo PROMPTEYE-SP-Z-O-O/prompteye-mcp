@@ -110,9 +110,6 @@ async function connect(brief: ContentBrief) {
   return { mcp, created };
 }
 
-const textOf = (result: Awaited<ReturnType<Client["callTool"]>>): string =>
-  (result.content as Array<{ type: string; text: string }>).map((part) => part.text).join("\n");
-
 describe("content generation", () => {
   it("tells the host that PromptEye generates content and closes the visibility loop", () => {
     expect(SERVER_INSTRUCTIONS).toMatch(/generates the content/);
@@ -139,40 +136,20 @@ describe("content generation", () => {
     });
 
     expect(created).toEqual([{ projectId: PROJECT.id, prompt: "best crm for small teams", trackerId: "p1" }]);
-    expect(textOf(result)).toContain("Brief id: b1");
-    expect(textOf(result)).toContain("get_content_brief");
-    expect(textOf(result)).toContain("https://app.prompteye.com/content");
+    expect(result.structuredContent).toEqual(PROCESSING_BRIEF);
+    expect(result.content).toEqual([{ type: "text", text: JSON.stringify(PROCESSING_BRIEF) }]);
   });
 
-  it("asks to poll a brief that is still being written", async () => {
-    const { mcp } = await connect(PROCESSING_BRIEF);
+  it.each([
+    ["still being written", PROCESSING_BRIEF],
+    ["ready", READY_BRIEF],
+    ["failed", { ...PROCESSING_BRIEF, status: "error", error: "The fan-out timed out." }],
+  ])("reads a brief that is %s as the API returns it", async (_state, brief) => {
+    const { mcp } = await connect(brief);
 
-    const text = textOf(await mcp.callTool({ name: "get_content_brief", arguments: { briefId: "b1" } }));
+    const result = await mcp.callTool({ name: "get_content_brief", arguments: { briefId: "b1" } });
 
-    expect(text).toContain("processing");
-    expect(text).toContain("Call get_content_brief again");
-    expect(text).not.toContain("Outline:");
-  });
-
-  it("reads a ready brief with its outline, phrases and the articles set aside", async () => {
-    const { mcp } = await connect(READY_BRIEF);
-
-    const text = textOf(await mcp.callTool({ name: "get_content_brief", arguments: { briefId: "b1" } }));
-
-    expect(text).toContain("Title: Best CRM for Small Teams in 2026");
-    expect(text).toContain("1 of 2 found by the fan-out (nodeshub): crm pricing.");
-    expect(text).toContain("  H2 What does a CRM cost? — Cover the free tier.");
-    expect(text).toContain("    H3 Per-seat pricing (names the brand)");
-    expect(text).toContain("      FAQ: Is there a free CRM?");
-    expect(text).toContain("The Best CRM Tools for Freelancers — phrase \"crm for freelancers\", priority 2, segment");
-    expect(text).toContain("https://app.prompteye.com/content");
-  });
-
-  it("says why a brief failed", async () => {
-    const { mcp } = await connect({ ...PROCESSING_BRIEF, status: "error", error: "The fan-out timed out." });
-
-    const text = textOf(await mcp.callTool({ name: "get_content_brief", arguments: { briefId: "b1" } }));
-
-    expect(text).toContain("Generation failed: The fan-out timed out.");
+    expect(result.structuredContent).toEqual(brief);
+    expect(result.content).toEqual([{ type: "text", text: JSON.stringify(brief) }]);
   });
 });

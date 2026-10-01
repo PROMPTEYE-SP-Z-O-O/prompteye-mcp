@@ -10,7 +10,7 @@ import {
   TrafficSitemapPageSchema,
 } from "../schemas/prompteye.js";
 import { BOT_TRAFFIC, INTEGRATION_STATE, VERIFIED } from "./glossary.js";
-import { READ_ONLY, handled, morePages, ok, type ToolContext } from "./result.js";
+import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
 
 const trafficRangeShape = {
   startDate: z
@@ -71,8 +71,6 @@ const statusShape = {
     .describe("An exact HTTP status code, or a class such as `4xx` to see only the failures."),
 };
 
-const time = (iso: string): string => iso.replace("T", " ").slice(0, 16);
-
 export function registerTrafficTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
     "list_bot_visits",
@@ -101,19 +99,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
       handled(async () => {
         const project = await session.require();
         const page = await client.listBotVisits(project.id, args);
-
-        const lines = page.data.map(
-          (event) =>
-            `- ${time(event.at)}  ${event.name}  ${event.path}  ${event.statusCode ?? "no status"}  ` +
-            `${event.verified ? "verified" : "unverified"}`
-        );
-
-        return ok(
-          `Requests to ${project.domain}, newest first ` +
-            `(${page.data.length}):\n${lines.join("\n")}` +
-            morePages(page.nextCursor),
-          page
-        );
+        return ok(page);
       })
   );
 
@@ -165,18 +151,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
       handled(async () => {
         const project = await session.require();
         const counts = await client.countBotVisits(project.id, args);
-
-        const lines = counts.data.map(
-          (row) =>
-            `- ${row.label ?? row.key} — ${row.count} request(s), ${row.uniquePaths} path(s), ` +
-            `last ${time(row.lastAt)}`
-        );
-
-        return ok(
-          `Requests to ${project.domain} by ${args.groupBy}, ` +
-            `largest first (partial: ${counts.partial}):\n${lines.join("\n")}`,
-          counts
-        );
+        return ok(counts);
       })
   );
 
@@ -205,19 +180,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
       handled(async () => {
         const project = await session.require();
         const page = await client.listCrawls(project.id, args);
-
-        const lines = page.data.map(
-          (row) =>
-            `- ${row.path}  ${row.name}  ${row.visitCount} visit(s), ` +
-            `${time(row.firstVisitAt)} → ${time(row.lastVisitAt)}, last ${row.lastStatusCode ?? "no status"}`
-        );
-
-        return ok(
-          `Pages of ${project.domain} bots have fetched, most recently visited first ` +
-            `(${page.data.length}):\n${lines.join("\n")}` +
-            morePages(page.nextCursor),
-          page
-        );
+        return ok(page);
       })
   );
 
@@ -248,20 +211,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
       handled(async () => {
         const project = await session.require();
         const result = await client.getSitemap(project.id, args);
-        const state = result.sitemap;
-
-        const lines = result.data.map(
-          (url) => `- ${url.path}${url.active ? "" : "  [dropped from the sitemap]"}`
-        );
-
-        return ok(
-          (state === null
-            ? `No sitemap is connected to ${project.name}. Connect one in the PromptEye app.`
-            : `${state.url} — ${state.status}, ${state.urlCount} address(es), last synced ` +
-              `${state.lastSyncedAt ?? "never"}${state.error ? ` (${state.error})` : ""}.\n` +
-              lines.join("\n")) + morePages(result.nextCursor),
-          result
-        );
+        return ok(result);
       })
   );
 }

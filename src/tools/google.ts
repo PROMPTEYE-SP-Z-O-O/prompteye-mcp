@@ -9,13 +9,9 @@ import {
   SearchPageSchema,
   SearchQuerySchema,
   SearchSummarySchema,
-  type AnalyticsPage,
-  type AnalyticsSource,
-  type SearchPage,
-  type SearchQuery,
 } from "../schemas/prompteye.js";
 import { GOOGLE_BINDING, GOOGLE_DATA, INTEGRATION_STATE } from "./glossary.js";
-import { READ_ONLY, handled, morePages, ok, type ToolContext } from "./result.js";
+import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
 
 /** Which axis a Search Console reading is split along, or the totals when omitted. */
 const SearchBreakdownSchema = z.enum(["query", "page"]);
@@ -45,16 +41,6 @@ const assistantShape = {
     ),
 };
 
-/** A rate between 0 and 1, as the percentage a reader expects. */
-const rate = (value: number): string => `${(value * 100).toFixed(2)}%`;
-
-/** The label a Search Console row is ranked under, whichever axis it came from. */
-const searchLabel = (row: SearchQuery | SearchPage): string =>
-  "query" in row ? `"${row.query}"` : row.page;
-
-const trafficLabel = (row: AnalyticsSource | AnalyticsPage): string =>
-  "source" in row ? row.source : row.page;
-
 /** What Google reports for the project's own site — bound to the project in the app. */
 export function registerGoogleTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
@@ -75,22 +61,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
       handled(async () => {
         const project = await session.require();
         const status = await client.getGoogleStatus(project.id);
-        const { searchConsole, analytics } = status;
-
-        const lines = [
-          `Google data for ${project.name} — ${project.brand} (${project.domain}):`,
-          `Search Console: connected ${searchConsole.connected}, site ${searchConsole.siteUrl ?? "none"}, ` +
-            `permission ${searchConsole.permissionLevel ?? "none"}, last synced ` +
-            `${searchConsole.sync?.lastSyncedAt ?? "never"}, failing since ` +
-            `${searchConsole.sync?.failedSince ?? "not failing"}${searchConsole.sync?.error ? ` (${searchConsole.sync.error})` : ""}.`,
-          `Analytics: connected ${analytics.connected}, property ` +
-            `${analytics.propertyName ?? analytics.propertyId ?? "none"}, account ` +
-            `${analytics.accountName ?? "none"}, last synced ${analytics.sync?.lastSyncedAt ?? "never"}, ` +
-            `failing since ${analytics.sync?.failedSince ?? "not failing"}` +
-            `${analytics.sync?.error ? ` (${analytics.sync.error})` : ""}.`,
-        ];
-
-        return ok(lines.join("\n"), status);
+        return ok(status);
       })
   );
 
@@ -129,13 +100,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
 
         if (by === undefined) {
           const summary = await client.getSearchSummary(project.id, range);
-          const text =
-            `${project.domain} in Google Search:\n` +
-            `${summary.clicks} click(s) from ${summary.impressions} impression(s) — ` +
-            `CTR ${rate(summary.ctr)}, average position ${summary.position}.\n` +
-            `${summary.timeline.length} day(s) of the timeline are in the structured output.`;
-
-          return ok(text, { by: null, summary, data: null, nextCursor: null });
+          return ok({ by: null, summary, data: null, nextCursor: null });
         }
 
         const page =
@@ -143,21 +108,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
             ? await client.listSearchQueries(project.id, { ...range, limit })
             : await client.listSearchPages(project.id, { ...range, limit });
 
-        const lines = page.data.map(
-          (row) =>
-            `- ${searchLabel(row)} — ${row.clicks} click(s), ${row.impressions} impression(s), ` +
-            `CTR ${rate(row.ctr)}, position ${row.position}`
-        );
-        const heading =
-          by === "query"
-            ? `Phrases people found ${project.domain} with`
-            : `Pages Google sends visitors to on ${project.domain}`;
-
-        return ok(
-          `${heading}, most clicked first (${page.data.length}):\n${lines.join("\n")}` +
-            morePages(page.nextCursor),
-          { by, summary: null, ...page }
-        );
+        return ok({ by, summary: null, ...page });
       })
   );
 
@@ -196,17 +147,10 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
     async ({ by, limit, assistant, ...range }) =>
       handled(async () => {
         const project = await session.require();
-        const only = assistant ? ` via ${assistant}` : "";
 
         if (by === undefined) {
           const summary = await client.getAiTrafficSummary(project.id, { ...range, assistant });
-          const text =
-            `Visits to ${project.domain} from AI assistants${only}:\n` +
-            `${summary.sessions} session(s), ${summary.engagedSessions} engaged ` +
-            `(${rate(summary.engagementRate)}), average ${summary.averageSessionDuration}s, ` +
-            `${summary.keyEvents} key event(s).`;
-
-          return ok(text, { assistant: assistant ?? null, by: null, summary, data: null, nextCursor: null });
+          return ok({ assistant: assistant ?? null, by: null, summary, data: null, nextCursor: null });
         }
 
         const query = { ...range, assistant, limit };
@@ -215,19 +159,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
             ? await client.listAiTrafficSources(project.id, query)
             : await client.listAiTrafficPages(project.id, query);
 
-        const lines = page.data.map(
-          (row) => `- ${trafficLabel(row)} — ${row.sessions} session(s), ${row.keyEvents} key event(s)`
-        );
-        const heading =
-          by === "source"
-            ? `Assistants that sent visitors to ${project.domain}${only}`
-            : `Pages AI visitors land on at ${project.domain}${only}`;
-
-        return ok(
-          `${heading}, most sessions first (${page.data.length}):\n${lines.join("\n")}` +
-            morePages(page.nextCursor),
-          { assistant: assistant ?? null, by, summary: null, ...page }
-        );
+        return ok({ assistant: assistant ?? null, by, summary: null, ...page });
       })
   );
 }

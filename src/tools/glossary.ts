@@ -91,7 +91,8 @@ export const GOOGLE_DATA =
   "ordinary Google results — ctr is a rate between 0 and 1, and position counts from 1, so lower is " +
   "better. AI traffic is Google Analytics sessions whose referrer was recognised as an assistant, " +
   "which undercounts by design: an assistant that names the brand without linking it sends nobody, " +
-  "and somebody who reads an answer and then types the domain arrives as direct traffic. Read a " +
+  "and somebody who reads an answer and then types the domain arrives as direct traffic. Its " +
+  "engagementRate is a rate between 0 and 1 too. Read a " +
   "rise here as people acting on the answers, never as how often the brand is named. Mind the two " +
   "senses of the phrase: the aiTraffic field on a prompt is the demand behind that question, while " +
   "get_ai_traffic counts sessions that reached the site.";
