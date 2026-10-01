@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { widgetMeta, widgetUri } from "../widgets.js";
-import { dateRangeShape, paginationShape, resolveDateRange } from "../schemas/common.js";
+import { dateRangeShape, paginationShape } from "../schemas/common.js";
 import {
   CategorySchema,
   NewPromptSchema,
@@ -12,9 +12,6 @@ import {
   PromptSchema,
   PromptSettingsSchema,
   PromptSuggestionSchema,
-  type Category,
-  type PromptGroupSettings,
-  type PromptSuggestion,
 } from "../schemas/prompteye.js";
 import {
   AI_TRAFFIC,
@@ -25,70 +22,11 @@ import {
   RELATIVE_VOLUME,
   VISIBILITY,
 } from "./glossary.js";
-import { whatNext } from "./journey.js";
-import { DELETES, READ_ONLY, WRITES, fail, handled, morePages, num, ok, signed, type ToolContext } from "./result.js";
-
-const PURCHASE_INTENT_STAGE: Record<number, string> = {
-  1: "educational",
-  2: "solution-seeking",
-  3: "comparison",
-  4: "decision",
-};
-
-/**
- * Top-level categories, each followed by its subcategories. A subcategory whose
- * parent is not in the list is shown at the top level rather than dropped.
- */
-function renderCategoryTree(categories: Category[]): string[] {
-  const ids = new Set(categories.map((category) => category.id));
-  const children = new Map<string, Category[]>();
-  const roots: Category[] = [];
-
-  for (const category of categories) {
-    if (category.parentId !== null && ids.has(category.parentId)) {
-      children.set(category.parentId, [...(children.get(category.parentId) ?? []), category]);
-    } else {
-      roots.push(category);
-    }
-  }
-
-  const line = (category: Category, indent: string): string =>
-    `${indent}- ${category.name} (added by ${category.source}) [id: ${category.id}]`;
-
-  return roots.flatMap((root) => [
-    line(root, ""),
-    ...(children.get(root.id) ?? []).map((child) => line(child, "  ")),
-  ]);
-}
-
-const renderPromptGroupSettings = (heading: string, group: PromptGroupSettings): string =>
-  [
-    `${heading} prompt group "${group.name}" [id: ${group.id}]:`,
-    `- Description: ${group.description ?? "none"}`,
-    `- Order: ${num(group.order)}`,
-    `- Prompts: ${group.promptCount}`,
-  ].join("\n");
-
-function renderSuggestion(suggestion: PromptSuggestion): string {
-  const stage = PURCHASE_INTENT_STAGE[suggestion.purchaseIntentLevel] ?? "unknown stage";
-
-  return [
-    `- "${suggestion.prompt}" (${suggestion.mode}) [id: ${suggestion.id}]`,
-    `  ${suggestion.whyText}`,
-    `  Group: ${suggestion.groupName ?? "—"} [id: ${suggestion.groupId}]. ` +
-      `Source phrase: "${suggestion.sourcePhrase}", demand ${num(suggestion.sourcePhraseVolume)}/month.`,
-    `  AI traffic: ${num(suggestion.aiTraffic)}. Demand in group: ${suggestion.relativeVolumeLabel} ` +
-      `(${suggestion.relativeVolumeScore}). Purchase intent: ${suggestion.purchaseIntentLevel} (${stage}).`,
-    `  Fit: ${suggestion.companyFitScore} — ${suggestion.companyFitReason}`,
-    `  Expires ${suggestion.expiresAt}.`,
-  ].join("\n");
-}
+import { DELETES, READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
 
 export const PROMPTS_WIDGET = "prompts";
 
-export function registerPromptTools(server: McpServer, context: ToolContext): void {
-  const { client, session } = context;
-
+export function registerPromptTools(server: McpServer, { client, session }: ToolContext): void {
   registerAppTool(
     server,
     "list_prompts",
@@ -119,31 +57,15 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
         nextCursor: z.string().nullable(),
         projectName: z.string(),
         brand: z.string(),
-        startDate: z.string(),
-        endDate: z.string(),
       },
       _meta: widgetMeta(widgetUri(PROMPTS_WIDGET), "Reading the prompts…", "Read the prompts"),
     },
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.listPrompts(project.id, { ...args, ...range });
+        const page = await client.listPrompts(project.id, args);
 
-        const lines = page.data.map(
-          (prompt) =>
-            `- "${prompt.prompt}" (${prompt.status}) — visibility ${num(prompt.metrics.visibility, "%")} ` +
-            `(${signed(prompt.change?.visibility ?? null, " pp")}), position ${num(prompt.metrics.averagePosition)}, ` +
-            `priority ${prompt.businessPriority ?? "—"} [id: ${prompt.id}]`
-        );
-
-        return ok(
-          (page.data.length === 0
-            ? `${project.name} tracks no prompts matching that.`
-            : `${page.data.length} prompt(s) in ${project.name}, ${range.startDate} to ${range.endDate}:\n` +
-              lines.join("\n")) + morePages(page.nextCursor),
-          { ...page, projectName: project.name, brand: project.brand, ...range }
-        );
+        return ok({ ...page, projectName: project.name, brand: project.brand });
       })
   );
 
@@ -168,26 +90,8 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
     async ({ promptId, ...range }) =>
       handled(async () => {
         const project = await session.require();
-        const prompt = await client.getPrompt(project.id, promptId, resolveDateRange(range));
-
-        const perModel = prompt.byModel.map(
-          (entry) =>
-            `  ${entry.model}: ${num(entry.metrics.visibility, "%")}, position ${num(entry.metrics.averagePosition)}`
-        );
-
-        return ok(
-          [
-            `"${prompt.prompt}" (${prompt.status})`,
-            `Keyword: ${prompt.keyword || "—"}. Categories: ${prompt.categories.join(", ") || "—"}.`,
-            `Visibility ${num(prompt.metrics.visibility, "%")} (${signed(prompt.change?.visibility ?? null, " pp")}), ` +
-              `reach index ${num(prompt.metrics.reachIndex)}, position ${num(prompt.metrics.averagePosition)}.`,
-            `AI traffic: ${num(prompt.aiTraffic)}. Business priority: ${prompt.businessPriority ?? "—"}` +
-              `${prompt.businessPriorityReason ? ` — set by hand: ${prompt.businessPriorityReason}` : ""}.`,
-            "By assistant:",
-            ...perModel,
-          ].join("\n"),
-          prompt
-        );
+        const prompt = await client.getPrompt(project.id, promptId, range);
+        return ok(prompt);
       })
   );
 
@@ -203,7 +107,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
         "reorders a group, and delete_prompt_group removes an empty one.\n\n" +
         "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         "aiTrafficTotal adds up the demand behind the prompts of the group that are still being asked, " +
-        "so a paused prompt contributes nothing.",
+        "so a paused prompt contributes nothing. It is null when none of those prompts has a measured figure.",
       annotations: READ_ONLY,
       inputSchema: { ...dateRangeShape, ...paginationShape },
       outputSchema: { data: z.array(PromptGroupSchema), nextCursor: z.string().nullable() },
@@ -211,24 +115,8 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.listPromptGroups(project.id, { ...args, ...range });
-
-        const lines = page.data.map(
-          (group) =>
-            `- ${group.name} (order ${num(group.order)}) — ${group.promptCount} prompt(s), ` +
-            `visibility ${num(group.metrics.visibility, "%")}, position ${num(group.metrics.averagePosition)}, ` +
-            `AI traffic ${num(group.aiTrafficTotal)} [id: ${group.id}]` +
-            (group.description ? `\n  ${group.description}` : "")
-        );
-
-        return ok(
-          (page.data.length === 0
-            ? `${project.name} has no prompt groups.`
-            : `${page.data.length} prompt group(s), ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`) +
-            morePages(page.nextCursor),
-          page
-        );
+        const page = await client.listPromptGroups(project.id, args);
+        return ok(page);
       })
   );
 
@@ -276,7 +164,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
 
         if (groupId !== undefined) {
           const updated = await client.updatePromptGroup(project.id, groupId, { name, description, order });
-          return ok(renderPromptGroupSettings("Updated", updated), updated);
+          return ok(updated);
         }
 
         if (name === undefined) {
@@ -290,7 +178,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
           description: description ?? undefined,
           order,
         });
-        return ok(renderPromptGroupSettings("Created", created), created);
+        return ok(created);
       })
   );
 
@@ -314,7 +202,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
         const project = await session.require();
         await client.deletePromptGroup(project.id, groupId);
 
-        return ok(`Deleted the prompt group [id: ${groupId}] from ${project.name}.`, { id: groupId });
+        return ok({ id: groupId });
       })
   );
 
@@ -323,8 +211,9 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
     {
       title: "List the categories the project files prompts under",
       description:
-        "Every category of the active project, two levels deep: top-level categories with their " +
-        "subcategories beneath, and whether PromptEye proposed each one or it was written by hand.",
+        "Every category of the active project, two levels deep: a subcategory carries the id of its " +
+        "top-level category in parentId, which is null on a top-level one, and source says whether " +
+        "PromptEye proposed it (`ai`) or it was written by hand (`manual`).",
       annotations: READ_ONLY,
       inputSchema: {},
       outputSchema: { data: z.array(CategorySchema) },
@@ -333,14 +222,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
       handled(async () => {
         const project = await session.require();
         const list = await client.listCategories(project.id);
-
-        return ok(
-          list.data.length === 0
-            ? `${project.name} files prompts under no categories.`
-            : `${list.data.length} ${list.data.length === 1 ? "category" : "categories"} in ${project.name}:\n` +
-                renderCategoryTree(list.data).join("\n"),
-          list
-        );
+        return ok(list);
       })
   );
 
@@ -370,13 +252,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
       handled(async () => {
         const project = await session.require();
         const list = await client.listPromptSuggestions(project.id, { groupId });
-
-        return ok(
-          list.data.length === 0
-            ? `PromptEye suggests nothing new for ${project.name} right now.`
-            : `${list.data.length} suggestion(s) for ${project.name}:\n${list.data.map(renderSuggestion).join("\n")}`,
-          list
-        );
+        return ok(list);
       })
   );
 
@@ -446,21 +322,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
       handled(async () => {
         const project = await session.require();
         const list = await client.addPrompts(project.id, prompts);
-
-        const lines = list.data.map(
-          (prompt) =>
-            `- "${prompt.prompt}"${prompt.groupName ? ` → group ${prompt.groupName}` : " (ungrouped)"} ` +
-            `[id: ${prompt.id}]`
-        );
-
-        return ok(
-          `Added ${list.data.length} prompt(s) to ${project.name}:\n${lines.join("\n")}\n\n` +
-            "They carry no demand, priority or fit yet — PromptEye computes those, and the first " +
-            "figures arrive after the next run. Check list_prompt_suggestions for the prompts it " +
-            "would have proposed instead." +
-            (await whatNext(context, project)),
-          list
-        );
+        return ok(list);
       })
   );
 
@@ -519,16 +381,7 @@ export function registerPromptTools(server: McpServer, context: ToolContext): vo
       handled(async () => {
         const project = await session.require();
         const updated = await client.updatePrompt(project.id, promptId, fields);
-
-        return ok(
-          `Updated prompt "${updated.prompt}" [id: ${updated.id}]:\n` +
-            `- Status: ${updated.status}\n` +
-            `- Group: ${updated.groupId ?? "ungrouped"}\n` +
-            `- Categories: ${updated.categories.join(", ") || "none"}\n` +
-            `- Priority: ${updated.businessPriority ?? "computed"}` +
-            (updated.businessPriorityReason ? ` (${updated.businessPriorityReason})` : ""),
-          updated
-        );
+        return ok(updated);
       })
   );
 }

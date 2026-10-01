@@ -1,7 +1,6 @@
-/** Brands answering alongside the project's own, ranked by visibility. */
+/** Brands answering alongside the project's own, ranked by visibility, then position. */
 function render(data) {
   const brands = data?.data ?? [];
-  setContext(data?.startDate ? `${data.startDate} → ${data.endDate}` : "");
 
   if (brands.length === 0) {
     empty("No brands were named on these prompts in this period.");
@@ -14,9 +13,9 @@ function render(data) {
 
   const headline = own
     ? `${own.brand} holds ${fmt(own.shareOfVoice, "%")} of the naming, ${
-        rank === 1 ? "ahead of everyone" : `behind ${esc(leader.brand)} at ${fmt(leader.shareOfVoice, "%")}`
+        rank === 1 ? "first by visibility" : `behind ${esc(leader.brand)}, first by visibility at ${fmt(leader.metrics?.visibility, "%")}`
       }.`
-    : `${esc(leader.brand)} leads with ${fmt(leader.shareOfVoice, "%")} of the naming.`;
+    : `${esc(leader.brand)} comes first by visibility, at ${fmt(leader.metrics?.visibility, "%")}.`;
 
   root.innerHTML = `
     <h1>${esc(data.brand ?? "Share of voice")}${data.model ? ` · ${esc(data.model)}` : ""}</h1>
@@ -24,14 +23,14 @@ function render(data) {
     ${
       own
         ? `<div class="tiles">
-             ${tile("Share of voice", own.shareOfVoice, "%", null, true)}
-             ${tile("Visibility", own.metrics?.visibility, "%", own.change?.visibility, true)}
-             ${tile("Avg position", own.metrics?.averagePosition, "", own.change?.averagePosition, false)}
+             ${tile("Share of voice", own.shareOfVoice, "%", null)}
+             ${tile("Visibility", own.metrics?.visibility, "%", own.change?.visibility)}
+             ${tile("Avg position", own.metrics?.averagePosition, "", own.change?.averagePosition)}
            </div>`
         : ""
     }
     <section>
-      <h2>Share of voice, ranked by visibility</h2>
+      <h2>Share of voice, ranked by visibility, then position</h2>
       ${rows(
         brands.map((brand) => ({
           name: brand.brand,

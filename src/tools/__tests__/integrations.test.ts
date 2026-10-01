@@ -36,42 +36,19 @@ const registeredTool = (client: Partial<PromptEyeClient>) => {
   return (name: string, args: Record<string, unknown> = {}) => handlers.get(name)!(args);
 };
 
-const textOf = (result: CallToolResult) => (result.content[0] as { text: string }).text;
-
 describe("get_integrations_status", () => {
-  it("lists every integration of the active project", async () => {
+  it("answers every integration of the active project as the API returns it", async () => {
     const status = {
       searchConsole: { connected: true, reason: null },
       analytics: { connected: true, reason: "sync_failing" },
       botLogs: NOT_CONNECTED,
-      sitemap: NOT_CONNECTED,
+      sitemap: { connected: true, reason: "quota_exceeded" },
     };
     const call = registeredTool({ getIntegrationsStatus: async () => status });
 
     const result = await call("get_integrations_status");
 
-    expect(textOf(result).split("\n")).toEqual([
-      "Integrations of Acme — Germany — Acme (acme.example):",
-      "- Search Console: connected",
-      "- Google Analytics: connected, but its last sync failed",
-      "- Bot tracker: not connected",
-      "- Sitemap: not connected",
-    ]);
     expect(result.structuredContent).toEqual(status);
-  });
-
-  it("names a reason it has never seen rather than hiding it", async () => {
-    const call = registeredTool({
-      getIntegrationsStatus: async () => ({
-        searchConsole: { connected: true, reason: "quota_exceeded" },
-        analytics: NOT_CONNECTED,
-        botLogs: NOT_CONNECTED,
-        sitemap: NOT_CONNECTED,
-      }),
-    });
-
-    const result = await call("get_integrations_status");
-
-    expect(textOf(result)).toContain("- Search Console: quota_exceeded");
+    expect(result.content).toEqual([{ type: "text", text: JSON.stringify(status) }]);
   });
 });

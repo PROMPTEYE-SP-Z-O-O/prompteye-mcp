@@ -1,19 +1,21 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
-import {
-  MAX_LIMIT,
-  dateRangeShape,
-  modelFilterShape,
-  paginationShape,
-  resolveDateRange,
-} from "../schemas/common.js";
+import { MAX_LIMIT, dateRangeShape, modelFilterShape, paginationShape } from "../schemas/common.js";
 import { AnswerSchema, CitationQualitySchema, CitedDomainSchema } from "../schemas/prompteye.js";
+import type { CitedDomain } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
-import { READ_ONLY, handled, morePages, num, ok, percent, sampleData, type ToolContext } from "./result.js";
+import { READ_ONLY, handled, ok, sampleData, type ToolContext } from "./result.js";
 
 export const SOURCES_WIDGET = "sources";
+
+const roundedToOneDecimal = (value: number): number => Number(value.toFixed(1));
+
+const toCitedDomainOutput = (domain: CitedDomain): CitedDomain => ({
+  ...domain,
+  share: roundedToOneDecimal(domain.share),
+});
 
 /** The domains behind the answers — served by the API. */
 export function registerSourceTools(server: McpServer, { client, session }: ToolContext): void {
@@ -49,8 +51,6 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         nextCursor: z.string().nullable(),
         projectName: z.string(),
         brand: z.string(),
-        startDate: z.string(),
-        endDate: z.string(),
         model: z.string().nullable(),
       },
       _meta: widgetMeta(widgetUri(SOURCES_WIDGET), "Reading the citations…", "Read the citations"),
@@ -58,28 +58,15 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.listSources(project.id, { ...args, ...range });
+        const page = await client.listSources(project.id, args);
 
-        const lines = page.data.map(
-          (domain) =>
-            `- ${domain.domain}${domain.ownDomain ? " ← own domain" : ""} — ${domain.sourceOccurrences} source occurrence(s), ` +
-            `${percent(domain.share)} share`
-        );
-
-        return ok(
-          (page.data.length === 0
-            ? `No domains were cited between ${range.startDate} and ${range.endDate}.`
-            : `Domains cited on ${project.brand}'s prompts, ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`) +
-            morePages(page.nextCursor),
-          {
-            ...page,
-            projectName: project.name,
-            brand: project.brand,
-            ...range,
-            model: args.model ?? null,
-          }
-        );
+        return ok({
+          ...page,
+          data: page.data.map(toCitedDomainOutput),
+          projectName: project.name,
+          brand: project.brand,
+          model: args.model ?? null,
+        });
       })
   );
 }
@@ -119,26 +106,8 @@ export function registerEvidenceTools(server: McpServer, { client, session }: To
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.listAnswers(project.id, { ...args, ...range });
-
-        const lines = page.data.map((answer) => {
-          const cited = answer.sources.map((source) => source.domain).join(", ") || "no sources";
-          return (
-            `${answer.date} ${answer.model} on "${answer.prompt}" — brand ${answer.brand}` +
-            (answer.position === null ? "" : ` at position ${answer.position}`) +
-            `\n  ${answer.text}\n  Cited: ${cited}`
-          );
-        });
-
-        return ok(
-          sampleData(
-            (page.data.length === 0
-              ? `No answers recorded for ${project.brand} between ${range.startDate} and ${range.endDate}.`
-              : `${page.data.length} answer(s):\n${lines.join("\n")}`) + morePages(page.nextCursor)
-          ),
-          page
-        );
+        const page = await client.listAnswers(project.id, args);
+        return sampleData(page);
       })
   );
 
@@ -158,23 +127,7 @@ export function registerEvidenceTools(server: McpServer, { client, session }: To
       handled(async () => {
         const project = await session.require();
         const quality = await client.getCitationQuality(project.id);
-
-        const render = (distribution: { key: string; count: number; percentage: number }[]): string[] =>
-          distribution.map((entry) => `  ${entry.key}: ${entry.count} (${num(entry.percentage, "%")})`);
-
-        return ok(
-          sampleData(
-            [
-              `How ${project.brand} is cited (analysed ${quality.analysedOn}):`,
-              `${quality.role.mentionedResponses} mention(s) across ${quality.role.totalResponses} analysed response(s).`,
-              "Role:",
-              ...render(quality.role.distribution),
-              "Sentiment:",
-              ...render(quality.sentiment.distribution),
-            ].join("\n")
-          ),
-          quality
-        );
+        return sampleData(quality);
       })
   );
 }

@@ -34,6 +34,11 @@ function queryString(query: Query = {}): string {
   return rendered === "" ? "" : `?${rendered}`;
 }
 
+const retryAfterSecondsOf = (response: Response): number | undefined => {
+  const seconds = Number(response.headers.get("Retry-After") ?? NaN);
+  return Number.isFinite(seconds) ? seconds : undefined;
+};
+
 export type Schema<T> = z.ZodType<T, z.ZodTypeDef, unknown>;
 
 export type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
@@ -117,7 +122,7 @@ export class HttpClient {
     });
     const responseBody: unknown = await response.json().catch(() => undefined);
 
-    if (!response.ok) throw new PromptEyeApiError(response.status, responseBody);
+    if (!response.ok) throw new PromptEyeApiError(response.status, responseBody, retryAfterSecondsOf(response));
     return { data: schema.parse(responseBody), status: response.status };
   }
 }

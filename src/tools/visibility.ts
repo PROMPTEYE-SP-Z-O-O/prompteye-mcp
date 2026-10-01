@@ -1,20 +1,14 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
-import {
-  MAX_LIMIT,
-  dateRangeShape,
-  modelFilterShape,
-  paginationShape,
-  resolveDateRange,
-} from "../schemas/common.js";
+import { MAX_LIMIT, dateRangeShape, modelFilterShape, paginationShape } from "../schemas/common.js";
 import {
   BreakdownSchema,
   VisibilityRowSchema,
   VisibilitySummarySchema,
 } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
-import { READ_ONLY, handled, morePages, num, ok, sampleData, signed, type ToolContext } from "./result.js";
+import { READ_ONLY, handled, sampleData, type ToolContext } from "./result.js";
 
 export const VISIBILITY_WIDGET = "visibility";
 
@@ -60,28 +54,9 @@ export function registerVisibilityTools(server: McpServer, { client, session }: 
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const summary = await client.getVisibilitySummary(project.id, { ...args, ...range });
+        const summary = await client.getVisibilitySummary(project.id, args);
 
-        const headline = [
-          `${project.brand} — ${range.startDate} to ${range.endDate}`,
-          `Visibility ${num(summary.totals.visibility, "%")} (${signed(summary.change?.visibility ?? null, " pp")})`,
-          `Reach index ${num(summary.totals.reachIndex)} (${signed(summary.change?.reachIndex ?? null)})`,
-          `Average position ${num(summary.totals.averagePosition)} (${signed(summary.change?.averagePosition ?? null)})`,
-          `Assistants: ${summary.models.join(", ")}`,
-        ];
-
-        if (summary.breakdown.length > 0) {
-          headline.push("", `Breakdown by ${args.by}:`);
-          for (const entry of summary.breakdown) {
-            headline.push(`  ${entry.label}: ${num(entry.metrics.visibility, "%")}`);
-          }
-          if (summary.breakdownTruncated) {
-            headline.push("  (truncated — raise `limit` to see more)");
-          }
-        }
-
-        return ok(sampleData(headline.join("\n")), {
+        return sampleData({
           ...summary,
           projectName: project.name,
           brand: project.brand,
@@ -113,23 +88,8 @@ export function registerVisibilityTools(server: McpServer, { client, session }: 
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const range = resolveDateRange(args);
-        const page = await client.getVisibility(project.id, { ...args, ...range });
-
-        const lines = page.data.map(
-          (row) =>
-            `${row.date} ${row.model} "${row.prompt}" → ${num(row.visibility, "%")}` +
-            (row.position === null ? " (not named)" : ` at position ${row.position}`)
-        );
-
-        return ok(
-          sampleData(
-            (page.data.length === 0
-              ? `No measurements for ${project.brand} between ${range.startDate} and ${range.endDate}.`
-              : `${page.data.length} measurement(s):\n${lines.join("\n")}`) + morePages(page.nextCursor)
-          ),
-          page
-        );
+        const page = await client.getVisibility(project.id, args);
+        return sampleData(page);
       })
   );
 }

@@ -1,6 +1,5 @@
 /** A human message for every error code the PromptEye API documents. */
 export const API_ERROR_MESSAGES: Record<string, string> = {
-  invalid_request: "The request failed validation.",
   unauthorized: "The API key is missing, malformed or revoked.",
   insufficient_scope: "The API key is valid but not allowed to do this.",
   plan_limit_exceeded: "The workspace plan does not allow this.",
@@ -25,9 +24,9 @@ export class PromptEyeApiError extends Error {
   readonly body: unknown;
   readonly code: string | undefined;
   readonly details: ApiErrorDetail[];
+  readonly retryAfterSeconds: number | undefined;
 
-  constructor(status: number, body: unknown) {
-    // `{ error: { code, message } }`, or a bare `{ error: "UNAUTHORIZED" }`.
+  constructor(status: number, body: unknown, retryAfterSeconds?: number) {
     const error = (body as ErrorBody | undefined)?.error;
     const envelope = typeof error === "object" ? error : undefined;
     const code = (typeof error === "string" ? error : envelope?.code)?.toLowerCase();
@@ -40,5 +39,6 @@ export class PromptEyeApiError extends Error {
     this.body = body;
     this.code = code;
     this.details = envelope?.details ?? [];
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }

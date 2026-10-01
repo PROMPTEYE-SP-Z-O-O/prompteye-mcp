@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 import { PromptEyeApi } from "../client.js";
 import { PromptEyeApiError } from "../errors.js";
 import type { FetchLike } from "../http.js";
+import { toolMessageFor } from "../../client/errors.js";
 
 const TOKEN = "pe_live_test_token";
 const BASE_URL = "https://example.convex.site";
@@ -94,6 +95,15 @@ describe("PromptEyeApi", () => {
     });
   });
 
+  it("shows the API's own message for a failed validation", async () => {
+    const message = "No prompt group with this identifier is in this project.";
+    const { api } = stubFetch(json(400, { error: { code: "invalid_request", message } }));
+
+    const error = await api.projects.get("p").catch((e: unknown) => e);
+
+    expect(toolMessageFor(error)).toContain(message);
+  });
+
   it("throws on a non-JSON failure too", async () => {
     const { api } = stubFetch(new Response("<html>Bad gateway</html>", { status: 502 }));
 
@@ -169,6 +179,29 @@ describe("PromptEyeApi", () => {
     expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/prompts/prompt1`);
     expect(calls[0].init.method).toBe("PATCH");
     expect(JSON.parse(calls[0].init.body as string)).toEqual({ status: "paused" });
+  });
+
+  it("keeps when the AI traffic was measured, and reads an API that does not send it yet", async () => {
+    const settings = {
+      id: "prompt1",
+      prompt: "best tools",
+      keyword: "",
+      status: "active",
+      categories: [],
+      subcategories: [],
+      groupId: null,
+      createdAt: "2026-09-10T09:24:11.000Z",
+      aiTraffic: 0,
+      aiTrafficMeasuredAt: "2026-09-29T10:00:00.000Z",
+      businessPriority: null,
+      businessPriorityReason: null,
+    };
+    const older = { ...settings, aiTrafficMeasuredAt: undefined };
+
+    await expect(stubFetch(json(200, settings)).api.prompts.update("p1", "prompt1", {})).resolves.toEqual(settings);
+    await expect(stubFetch(json(200, older)).api.prompts.update("p1", "prompt1", {})).resolves.not.toHaveProperty(
+      "aiTrafficMeasuredAt"
+    );
   });
 
   it("creates, changes and deletes a prompt group", async () => {

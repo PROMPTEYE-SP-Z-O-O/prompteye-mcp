@@ -3,16 +3,17 @@ import { z } from "zod";
 import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema } from "../schemas/prompteye.js";
 import type { Project } from "../schemas/prompteye.js";
 import { PROMPT_GENERATION } from "./glossary.js";
-import { whatNext } from "./journey.js";
 import { READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
 
-const describe = (project: Project): string =>
-  `${project.name} — label ${project.label ?? "—"}, brand ${project.brand} (${project.domain}) tracked in ${project.country}, ` +
-  `access ${project.accessRole} [id: ${project.id}]`;
+const ProjectOutputSchema = ProjectSchema.omit({ excludedCompetitors: true });
 
-export function registerProjectTools(server: McpServer, context: ToolContext): void {
-  const { client, session } = context;
+const toProjectOutput = (project: Project) => ProjectOutputSchema.parse(project);
 
+const EXCLUSIONS_POINTER =
+  "Brands kept out of competitor rankings are not part of the project payload; read them with " +
+  "list_competitor_exclusions and change them with set_competitor_exclusions.";
+
+export function registerProjectTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
     "list_projects",
     {
@@ -27,19 +28,12 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
         "and domains shown, and use the project id to select the confirmed one.",
       annotations: READ_ONLY,
       inputSchema: {},
-      outputSchema: { data: z.array(ProjectSchema) },
+      outputSchema: { data: z.array(ProjectOutputSchema) },
     },
     async () =>
       handled(async () => {
         const list = await client.listProjects();
-        const lines = list.data.map((project) => `- ${describe(project)}`);
-
-        return ok(
-          list.data.length === 0
-            ? "This API key reaches no projects."
-            : `${list.data.length} project(s):\n${lines.join("\n")}`,
-          list
-        );
+        return ok({ ...list, data: list.data.map(toProjectOutput) });
       })
   );
 
@@ -50,7 +44,8 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
       description:
         "Makes one project the active one. Every other tool reports on the active project and takes " +
         "no project argument, so call this once before asking about visibility, competitors, prompts, " +
-        "answers or sources. Call it again to switch projects mid-conversation.",
+        "answers or sources. Call it again to switch projects mid-conversation.\n\n" +
+        EXCLUSIONS_POINTER,
       annotations: READ_ONLY,
       inputSchema: {
         projectId: z
@@ -58,17 +53,12 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
           .min(1)
           .describe("Id of the project to make active, as list_projects reports it."),
       },
-      outputSchema: ProjectSchema.shape,
+      outputSchema: ProjectOutputSchema.shape,
     },
     async ({ projectId }) =>
       handled(async () => {
         const project = await session.select(projectId);
-
-        return ok(
-          `Active project is now ${describe(project)}.\n` +
-            "Every following tool call reports on this project until select_project is called again.",
-          project
-        );
+        return ok(toProjectOutput(project));
       })
   );
 
@@ -81,7 +71,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
         "the numbers in this conversation refer to.",
       annotations: READ_ONLY,
       inputSchema: {},
-      outputSchema: ProjectSchema.shape,
+      outputSchema: ProjectOutputSchema.shape,
     },
     async () =>
       handled(async () => {
@@ -93,7 +83,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
           );
         }
 
-        return ok(`Active project: ${describe(project)}.`, project);
+        return ok(toProjectOutput(project));
       })
   );
 
@@ -158,20 +148,18 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
           .optional()
           .describe(
             "Brands to keep out of the competitor set — agencies, resellers or anything that is not a " +
-              "rival, so share of voice is not diluted by them."
+              "rival, so share of voice is not diluted by them. Each name becomes one exclusion without " +
+              "aliases; list_competitor_exclusions reads them back and set_competitor_exclusions adds aliases."
           ),
       },
-      outputSchema: ProjectSchema.shape,
+      outputSchema: ProjectOutputSchema.shape,
     },
     async (args) =>
       handled(async () => {
         const project = await client.createProject(args);
         await session.select(project.id);
 
-        return ok(
-          `Created ${describe(project)}.\nIt is now the active project.${await whatNext(context, project)}`,
-          project
-        );
+        return ok(toProjectOutput(project));
       })
   );
 
@@ -187,7 +175,8 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
         "historical measurements depend on them (a different brand/market is a separate project).\n\n" +
         "Before changing alternativeBrandNames, warn the user that historical visibility metrics will be rebuilt. " +
         "The rebuild may take up to an hour. During that time, aggregated reads such as list_competitors and " +
-        "list_prompt_groups may be temporarily unavailable.",
+        "list_prompt_groups may be temporarily unavailable.\n\n" +
+        EXCLUSIONS_POINTER,
       annotations: WRITES,
       inputSchema: {
         name: z.string().min(1).max(120).optional().describe("Display name of the project. Defaults to the brand name."),
@@ -208,7 +197,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
           .optional()
           .describe("Further domains owned by the brand whose citations count as its own. Replaces the existing list."),
       },
-      outputSchema: ProjectSchema.shape,
+      outputSchema: ProjectOutputSchema.shape,
     },
     async (args) =>
       handled(async () => {
@@ -216,7 +205,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
         const project = await client.updateProject(current.id, args);
         await session.select(project.id);
 
-        return ok(`Updated project ${describe(project)}.`, project);
+        return ok(toProjectOutput(project));
       })
   );
 
@@ -236,13 +225,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
       handled(async () => {
         const project = await session.require();
         const knowledgeBase = await client.getKnowledgeBase(project.id);
-
-        return ok(
-          knowledgeBase.text === null
-            ? `${project.name} has no description of ${project.brand} yet.`
-            : `Knowledge base for ${project.brand} (updated ${knowledgeBase.updatedAt ?? "—"}):\n\n${knowledgeBase.text}`,
-          knowledgeBase
-        );
+        return ok(knowledgeBase);
       })
   );
 
@@ -278,12 +261,7 @@ export function registerProjectTools(server: McpServer, context: ToolContext): v
       handled(async () => {
         const project = await session.require();
         const knowledgeBase = await client.updateKnowledgeBase(project.id, args);
-
-        return ok(
-          `Updated knowledge base for ${project.brand} (updated ${knowledgeBase.updatedAt ?? "—"}):\n\n${knowledgeBase.text ?? "No description"}` +
-            (await whatNext(context, project)),
-          knowledgeBase
-        );
+        return ok(knowledgeBase);
       })
   );
 }

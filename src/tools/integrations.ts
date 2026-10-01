@@ -1,14 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { IntegrationsStatusSchema, type Integration } from "../schemas/prompteye.js";
+import { IntegrationsStatusSchema } from "../schemas/prompteye.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
-
-const STATES: Record<string, string> = {
-  not_connected: "not connected",
-  sync_failing: "connected, but its last sync failed",
-};
-
-const stateOf = (integration: Integration): string =>
-  integration.reason === null ? "connected" : (STATES[integration.reason] ?? integration.reason);
 
 export function registerIntegrationTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
@@ -35,16 +27,7 @@ export function registerIntegrationTools(server: McpServer, { client, session }:
       handled(async () => {
         const project = await session.require();
         const status = await client.getIntegrationsStatus(project.id);
-
-        const lines = [
-          `Integrations of ${project.name} — ${project.brand} (${project.domain}):`,
-          `- Search Console: ${stateOf(status.searchConsole)}`,
-          `- Google Analytics: ${stateOf(status.analytics)}`,
-          `- Bot tracker: ${stateOf(status.botLogs)}`,
-          `- Sitemap: ${stateOf(status.sitemap)}`,
-        ];
-
-        return ok(lines.join("\n"), status);
+        return ok(status);
       })
   );
 }

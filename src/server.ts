@@ -1,11 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { createClient, requireSettings, serverName, serverVersion } from "./config.js";
+import { ListToolsRequestSchema, type ListToolsRequest, type ListToolsResult, type Tool } from "@modelcontextprotocol/sdk/types.js";
+import { createClient, serverName, serverVersion, type ApiCredentials } from "./config.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
 import { registerPromptWorkflows } from "./prompts.js";
 import { ProjectSession } from "./session.js";
 import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
-import { registerGettingStartedTools } from "./tools/getting-started.js";
 import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
 import { registerContentTools } from "./tools/content.js";
 import { registerFeedbackTools } from "./tools/feedback.js";
@@ -31,55 +31,48 @@ import type { ToolContext } from "./tools/result.js";
  */
 const SAMPLE_TOOLS = false;
 
-/**
- * The SDK's Zod v3 converter emits draft-07 output schemas. Claude Desktop
- * accepts draft 2020-12 only, so omit the optional output schemas rather than
- * advertising a dialect the client rejects. Tool results still include their
- * structured content.
- */
-function withoutOutputSchemas(server: McpServer): McpServer {
-  const originalRegisterTool = server.registerTool.bind(server) as (
-    name: string,
-    config: Record<string, unknown>,
-    handler: unknown
-  ) => unknown;
+const JSON_SCHEMA_2020_12 = "https://json-schema.org/draft/2020-12/schema";
 
-  return new Proxy(server, {
-    get(target, property, receiver) {
-      if (property !== "registerTool") return Reflect.get(target, property, receiver);
+const withDraft202012OutputSchema = (tool: Tool): Tool =>
+  tool.outputSchema === undefined ? tool : { ...tool, outputSchema: { ...tool.outputSchema, $schema: JSON_SCHEMA_2020_12 } };
 
-      return (name: string, config: Record<string, unknown>, handler: unknown) => {
-        const compatibleConfig = { ...config };
-        delete compatibleConfig.outputSchema;
-        return originalRegisterTool(name, compatibleConfig, handler);
-      };
-    },
-  }) as McpServer;
+type ToolListing = (request: ListToolsRequest, extra: unknown) => ListToolsResult | Promise<ListToolsResult>;
+
+const listingDraft202012OutputSchemas =
+  (listTools: ToolListing): ToolListing =>
+  async (request, extra) => {
+    const result = await listTools(request, extra);
+    return { ...result, tools: result.tools.map(withDraft202012OutputSchema) };
+  };
+
+function advertiseDraft202012OutputSchemas(server: McpServer): void {
+  const protocol = server.server;
+  const setRequestHandler = protocol.setRequestHandler.bind(protocol) as (schema: object, handler: ToolListing) => void;
+
+  protocol.setRequestHandler = ((schema: object, handler: ToolListing) =>
+    setRequestHandler(
+      schema,
+      schema === ListToolsRequestSchema ? listingDraft202012OutputSchemas(handler) : handler
+    )) as typeof protocol.setRequestHandler;
 }
 
-/**
- * Builds one MCP server, and with it one project selection.
- *
- * Callers create a server per session — one per process over stdio, one per
- * `mcp-session-id` over HTTP — so the active project never leaks between clients.
- */
-export function createMcpServer(): McpServer {
+export function buildToolContext(credentials: ApiCredentials): ToolContext {
+  const client = createClient(credentials);
+  return { client, session: new ProjectSession(client), baseUrl: credentials.baseUrl };
+}
+
+export function createMcpServer(context: ToolContext): McpServer {
   const server = new McpServer(
     { name: serverName, version: serverVersion },
     { capabilities: { resources: {}, prompts: {} }, instructions: SERVER_INSTRUCTIONS }
   );
 
-  const client = createClient();
-  const { baseUrl } = requireSettings();
-  const context: ToolContext = { client, session: new ProjectSession(client), baseUrl };
-  const toolServer = withoutOutputSchemas(server);
+  advertiseDraft202012OutputSchemas(server);
 
-  // First, so a host reading the tool list meets the orientation tool before the rest.
-  registerGettingStartedTools(toolServer, context);
   registerPromptWorkflows(server);
 
-  registerAccountTools(toolServer, context);
-  registerProjectTools(toolServer, context);
+  registerAccountTools(server, context);
+  registerProjectTools(server, context);
 
   registerWidget(
     server,
@@ -87,7 +80,7 @@ export function createMcpServer(): McpServer {
     "PromptEye Prompts",
     "The prompts a project is tracked on, with the visibility each earned in the period"
   );
-  registerPromptTools(toolServer, context);
+  registerPromptTools(server, context);
 
   // Each page is registered next to the tool that renders it.
   registerWidget(
@@ -96,22 +89,22 @@ export function createMcpServer(): McpServer {
     "PromptEye Sources",
     "The domains the assistants cite on a project's prompts, ranked by share of citations"
   );
-  registerSourceTools(toolServer, context);
+  registerSourceTools(server, context);
 
   registerWidget(
     server,
     COMPETITORS_WIDGET,
     "PromptEye Competitors",
-    "The brands answering alongside a project's own, ranked by visibility"
+    "The brands answering alongside a project's own, ranked by visibility, then position"
   );
-  registerCompetitorTools(toolServer, context);
-  registerContentTools(toolServer, context);
-  registerIntegrationTools(toolServer, context);
-  registerGoogleTools(toolServer, context);
-  registerTrafficTools(toolServer, context);
-  registerReportTools(toolServer, context);
-  registerHelpTools(toolServer);
-  registerFeedbackTools(toolServer, context);
+  registerCompetitorTools(server, context);
+  registerContentTools(server, context);
+  registerIntegrationTools(server, context);
+  registerGoogleTools(server, context);
+  registerTrafficTools(server, context);
+  registerReportTools(server, context);
+  registerHelpTools(server);
+  registerFeedbackTools(server, context);
 
   if (SAMPLE_TOOLS) {
     registerWidget(
@@ -120,8 +113,8 @@ export function createMcpServer(): McpServer {
       "PromptEye Visibility",
       "Visibility totals, period-over-period change and breakdown for a project"
     );
-    registerVisibilityTools(toolServer, context);
-    registerEvidenceTools(toolServer, context);
+    registerVisibilityTools(server, context);
+    registerEvidenceTools(server, context);
   }
 
   return server;

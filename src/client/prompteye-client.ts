@@ -1,4 +1,4 @@
-import type { ModelKey, Page, ResolvedRange } from "../schemas/common.js";
+import type { DateRange, ModelKey, Page } from "../schemas/common.js";
 import type { BrandPresence } from "../schemas/prompteye.js";
 import type {
   Account,
@@ -53,7 +53,7 @@ import type {
 
 export type PageQuery = { limit?: number; cursor?: string };
 
-export type RangeQuery = ResolvedRange & { model?: ModelKey };
+export type RangeQuery = DateRange & { model?: ModelKey };
 
 export type VisibilitySummaryQuery = RangeQuery & {
   by?: Breakdown;
@@ -71,21 +71,21 @@ export type SourceQuery = RangeQuery & { limit?: number };
 
 export type CompetitorQuery = RangeQuery & { limit?: number };
 
-export type PromptQuery = ResolvedRange & PageQuery & { groupId?: string; categoryId?: string };
+export type PromptQuery = DateRange & PageQuery & { groupId?: string; categoryId?: string };
 
-export type PromptGroupQuery = ResolvedRange & PageQuery;
+export type PromptGroupQuery = DateRange & PageQuery;
 
 export type SuggestionQuery = { groupId?: string };
 
 /** A Search Console ranking: the period, and how many rows to rank. */
-export type SearchRankingQuery = ResolvedRange & { limit?: number };
+export type SearchRankingQuery = DateRange & { limit?: number };
 
 /**
  * Narrows a reading of the AI traffic to one assistant, matched without regard
  * to case against the referrer: `openai` also matches chatgpt, `anthropic`
  * matches claude, `google` matches gemini, `microsoft` matches copilot and bing.
  */
-export type AiTrafficQuery = ResolvedRange & { assistant?: string };
+export type AiTrafficQuery = DateRange & { assistant?: string };
 
 export type AiTrafficRankingQuery = AiTrafficQuery & { limit?: number };
 
@@ -101,8 +101,8 @@ export type BotTrafficFilters = {
   path?: string;
 };
 
-export type BotVisitQuery = ResolvedRange & BotTrafficFilters & PageQuery;
-export type BotCountQuery = ResolvedRange & BotTrafficFilters & { groupBy: TrafficGroup; limit?: number };
+export type BotVisitQuery = DateRange & BotTrafficFilters & PageQuery;
+export type BotCountQuery = DateRange & BotTrafficFilters & { groupBy: TrafficGroup; limit?: number };
 export type CrawlQuery = PageQuery & Omit<BotTrafficFilters, "status">;
 export type SitemapQuery = PageQuery & { active?: "true" | "false" };
 
@@ -125,7 +125,7 @@ export interface PromptEyeClient {
   listPromptSuggestions(projectId: string, query: SuggestionQuery): Promise<List<PromptSuggestion>>;
 
   listPrompts(projectId: string, query: PromptQuery): Promise<Page<Prompt>>;
-  getPrompt(projectId: string, promptId: string, range: ResolvedRange): Promise<PromptDetail>;
+  getPrompt(projectId: string, promptId: string, range: DateRange): Promise<PromptDetail>;
   addPrompts(projectId: string, prompts: PromptInput[]): Promise<List<NewPrompt>>;
   updatePrompt(projectId: string, promptId: string, input: UpdatePromptInput): Promise<PromptSettings>;
   listPromptGroups(projectId: string, query: PromptGroupQuery): Promise<Page<PromptGroup>>;
@@ -160,7 +160,7 @@ export interface PromptEyeClient {
    * either integration is bound — without it, zeros are ambiguous.
    */
   getGoogleStatus(projectId: string): Promise<GoogleStatus>;
-  getSearchSummary(projectId: string, query: ResolvedRange): Promise<SearchSummary>;
+  getSearchSummary(projectId: string, query: DateRange): Promise<SearchSummary>;
   listSearchQueries(projectId: string, query: SearchRankingQuery): Promise<Page<SearchQuery>>;
   listSearchPages(projectId: string, query: SearchRankingQuery): Promise<Page<SearchPage>>;
   getAiTrafficSummary(projectId: string, query: AiTrafficQuery): Promise<AnalyticsSummary>;

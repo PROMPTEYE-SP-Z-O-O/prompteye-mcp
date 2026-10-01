@@ -9,8 +9,12 @@
 export const AI_TRAFFIC =
   "aiTraffic is the demand behind a prompt: PromptEye expands the question into the phrasings people " +
   "actually use for it, weighs each one by how much of the question it carries, and adds up how much " +
-  "demand they attract per month. It is a property of the prompt, not a measurement of a period, and " +
-  "is null when nothing could be measured for it. It is not what get_ai_traffic reports: that tool " +
+  "demand they attract per month. It is a property of the prompt, not a measurement of a period. 0 " +
+  "means it was measured and the demand is below the reporting floor of 50 searches a month. null means " +
+  "there is no figure: with aiTrafficMeasuredAt null it has not been measured yet, with a date it was " +
+  "measured and none of the phrasings came back with a volume, so it is unknown rather than zero. " +
+  "aiTrafficMeasuredAt is when the figure was last measured; a failed refresh keeps the earlier figure " +
+  "and its date. It is not what get_ai_traffic reports: that tool " +
   "counts sessions that actually reached the site from an assistant, while this counts the demand " +
   "behind the question.";
 
@@ -87,7 +91,8 @@ export const GOOGLE_DATA =
   "ordinary Google results — ctr is a rate between 0 and 1, and position counts from 1, so lower is " +
   "better. AI traffic is Google Analytics sessions whose referrer was recognised as an assistant, " +
   "which undercounts by design: an assistant that names the brand without linking it sends nobody, " +
-  "and somebody who reads an answer and then types the domain arrives as direct traffic. Read a " +
+  "and somebody who reads an answer and then types the domain arrives as direct traffic. Its " +
+  "engagementRate is a rate between 0 and 1 too. Read a " +
   "rise here as people acting on the answers, never as how often the brand is named. Mind the two " +
   "senses of the phrase: the aiTraffic field on a prompt is the demand behind that question, while " +
   "get_ai_traffic counts sessions that reached the site.";

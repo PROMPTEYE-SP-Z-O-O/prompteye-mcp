@@ -2,16 +2,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { paginationShape } from "../schemas/common.js";
 import { REPORT_REACH, ReportDetailSchema, ReportSchema } from "../schemas/prompteye.js";
-import type { Report } from "../schemas/prompteye.js";
 import { PUBLIC_REPORTS } from "./glossary.js";
-import { READ_ONLY, WRITES, handled, morePages, num, ok, type ToolContext } from "./result.js";
-
-const line = (report: Report): string =>
-  `- ${report.brand}${report.domain ? ` (${report.domain})` : ""} — ${report.status}` +
-  `${report.score === null ? "" : `, score ${report.score}%`}` +
-  `, lead ${report.leadStatus}` +
-  `${report.contactCount > 0 ? `, ${report.contactCount} contact request(s)` : ""}` +
-  `${report.projectId ? ", converted to a project" : ""} [id: ${report.id}]`;
+import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
 
 export function registerReportTools(server: McpServer, { client, baseUrl }: ToolContext): void {
   server.registerTool(
@@ -66,19 +58,7 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
         const { id: agencyId } = await client.getAccount();
         const { report, reused } = await client.createReport({ agencyId, ...input });
 
-        return ok(
-          [
-            reused
-              ? `A report for ${report.brand} was already generated in the last 30 days, so it was sent to ${report.email} again rather than built anew.`
-              : `Report for ${report.brand} started; it is ${report.status} and will be emailed to ${report.email} when it is done.`,
-            `Page: ${report.url}`,
-            reused
-              ? `Score ${num(report.score, "%")}, ready ${report.readyAt ?? "—"}.`
-              : "The score and the competitor list arrive with the finished report — read them later with get_report.",
-            `Report id: ${report.id}`,
-          ].join("\n"),
-          { ...report, reused }
-        );
+        return ok({ ...report, reused });
       })
   );
 
@@ -110,7 +90,7 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
     },
     async () =>
       handled(async () => {
-        const { id: agencyId, email } = await client.getAccount();
+        const { id: agencyId } = await client.getAccount();
         const endpoint = `${baseUrl.replace(/\/+$/, "")}/v1/reports`;
         const exampleBody = {
           brand: "Example Corp",
@@ -141,32 +121,7 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
           "};",
         ].join("\n");
 
-        return ok(
-          [
-            `Agency id: ${agencyId}`,
-            `It is the id of the account this API key belongs to (${email}), and the whole of what ` +
-              "the endpoint needs to know whose report it is and whose quota to spend. Pass it as " +
-              "`agencyId` in every request.",
-            "",
-            `Endpoint: POST ${endpoint}`,
-            "Public: no Authorization header, no API key. Never put the PromptEye API key in a page " +
-              "or form a browser can read — the agency id is what belongs there instead.",
-            "",
-            "Body:",
-            JSON.stringify(exampleBody, null, 2),
-            "",
-            "cURL:",
-            curl,
-            "",
-            "TypeScript:",
-            typescript,
-            "",
-            "The response comes back with the report still processing and no score; the finished " +
-              "page is emailed to the address given, and every report the form produces is read back " +
-              "here with list_reports and get_report.",
-          ].join("\n"),
-          { agencyId, endpoint, method: "POST", exampleBody, curl, typescript }
-        );
+        return ok({ agencyId, endpoint, method: "POST", exampleBody, curl, typescript });
       })
   );
 
@@ -187,15 +142,7 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
     async (args) =>
       handled(async () => {
         const page = await client.listReports(args);
-        const waiting = page.data.filter((report) => report.contactCount > 0).length;
-
-        return ok(
-          (page.data.length === 0
-            ? "This account has generated no public reports."
-            : `${page.data.length} report(s)${waiting > 0 ? `, ${waiting} with a contact request` : ""}:\n` +
-              page.data.map(line).join("\n")) + morePages(page.nextCursor),
-          page
-        );
+        return ok(page);
       })
   );
 
@@ -218,44 +165,7 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
     async ({ reportId }) =>
       handled(async () => {
         const report = await client.getReport(reportId);
-
-        const competitors = report.competitors
-          .slice(0, 5)
-          .map((competitor) => `  ${competitor.name}: ${competitor.score}%`);
-        const models = report.models.map(
-          (model) =>
-            `  ${model.model}: ${num(model.score, "%")}, ${num(model.answers)} answer(s), position ${num(model.averagePosition)}`
-        );
-        const contacts = report.contacts.map(
-          (contact) =>
-            `  ${contact.createdAt} — ${contact.type}${contact.email ? ` (${contact.email})` : ""}` +
-            `${contact.phone ? ` (${contact.phone})` : ""}${contact.meetingAt ? `, meeting ${contact.meetingAt}` : ""}`
-        );
-
-        const lines = [
-          `${report.brand}${report.domain ? ` (${report.domain})` : ""} — ${report.status}, score ${num(report.score, "%")}`,
-          `Industry: ${report.industry ?? "—"}. Monthly searches: ${num(report.monthlySearches)}. Reach: ${report.reach ?? "—"}.`,
-          `${report.prompts.length} prompt(s) asked, ${report.examples.length} example answer(s) kept.`,
-          `Page: ${report.url}`,
-        ];
-
-        if (competitors.length > 0) lines.push("Competitors:", ...competitors);
-        if (models.length > 0) lines.push("By assistant:", ...models);
-
-        lines.push(
-          contacts.length > 0
-            ? `Contact requests (${report.contactCount}) — this is a warm lead:`
-            : "No contact request from this report yet.",
-          ...contacts
-        );
-
-        lines.push(
-          report.projectId
-            ? `Converted into project ${report.projectId}.`
-            : "Not converted into a tracked project yet; that is done in the PromptEye app."
-        );
-
-        return ok(lines.join("\n"), report);
+        return ok(report);
       })
   );
 }

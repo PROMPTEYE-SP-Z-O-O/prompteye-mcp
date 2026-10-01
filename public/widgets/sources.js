@@ -3,7 +3,6 @@ const oneDecimal = (value) => (value === null || value === undefined ? value : M
 
 function render(data) {
   const domains = data?.data ?? [];
-  setContext(data?.startDate ? `${data.startDate} → ${data.endDate}` : "");
 
   if (domains.length === 0) {
     empty("No domains were cited on these prompts in this period.");
