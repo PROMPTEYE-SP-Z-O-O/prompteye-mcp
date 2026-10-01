@@ -6,6 +6,7 @@ import { dateRangeShape, paginationShape } from "../schemas/common.js";
 import {
   CategorySchema,
   NewPromptSchema,
+  NextCursorSchema,
   PromptDetailSchema,
   PromptGroupSchema,
   PromptGroupSettingsSchema,
@@ -54,7 +55,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
       },
       outputSchema: {
         data: z.array(PromptSchema),
-        nextCursor: z.string().nullable(),
+        nextCursor: NextCursorSchema,
         projectName: z.string(),
         brand: z.string(),
       },
@@ -110,7 +111,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "so a paused prompt contributes nothing. It is null when none of those prompts has a measured figure.",
       annotations: READ_ONLY,
       inputSchema: { ...dateRangeShape, ...paginationShape },
-      outputSchema: { data: z.array(PromptGroupSchema), nextCursor: z.string().nullable() },
+      outputSchema: { data: z.array(PromptGroupSchema), nextCursor: NextCursorSchema },
     },
     async (args) =>
       handled(async () => {

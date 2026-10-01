@@ -76,7 +76,11 @@ export function registerHelpTools(server: McpServer, help: HelpCenter = new Help
       inputSchema: {
         path: z.string().min(1).describe("The article's path from list_help_articles, e.g. /help/raw/public-reports/reports/score.md."),
       },
-      outputSchema: { path: z.string(), url: z.string().nullable(), markdown: z.string() },
+      outputSchema: {
+        path: z.string(),
+        url: z.string().nullable().describe("The article's page link. null = the path is not in the list_help_articles index."),
+        markdown: z.string(),
+      },
     },
     async ({ path }) =>
       handled(async () => {

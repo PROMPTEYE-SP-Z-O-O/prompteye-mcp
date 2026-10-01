@@ -2,7 +2,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { MAX_LIMIT, MAX_TRAFFIC_RANGE_DAYS, paginationShape } from "../schemas/common.js";
 import {
-  TrafficCountSchema,
+  NextCursorSchema,
+  TrafficCountPageSchema,
   TrafficCrawlSchema,
   TrafficEventSchema,
   TrafficGroupSchema,
@@ -93,7 +94,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         ...statusShape,
         ...paginationShape,
       },
-      outputSchema: { data: z.array(TrafficEventSchema), nextCursor: z.string().nullable() },
+      outputSchema: { data: z.array(TrafficEventSchema), nextCursor: NextCursorSchema },
     },
     async (args) =>
       handled(async () => {
@@ -141,11 +142,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
           .optional()
           .describe(`How many groups to return, at most ${MAX_LIMIT}.`),
       },
-      outputSchema: {
-        data: z.array(TrafficCountSchema),
-        nextCursor: z.string().nullable(),
-        partial: z.boolean(),
-      },
+      outputSchema: TrafficCountPageSchema.shape,
     },
     async (args) =>
       handled(async () => {
@@ -174,7 +171,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         `${BOT_TRAFFIC}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
       inputSchema: { ...kindShape, ...botShape, ...pathShape, ...paginationShape },
-      outputSchema: { data: z.array(TrafficCrawlSchema), nextCursor: z.string().nullable() },
+      outputSchema: { data: z.array(TrafficCrawlSchema), nextCursor: NextCursorSchema },
     },
     async (args) =>
       handled(async () => {
