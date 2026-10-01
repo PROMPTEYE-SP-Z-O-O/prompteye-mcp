@@ -35,17 +35,17 @@ export type ToolContext = {
   /**
    * The API root the client talks to. Tools that hand out a request for
    * somebody else to make — the public reports endpoint an agency's own site
-   * posts to — need the URL in the text they return.
+   * posts to — need the URL in what they return.
    */
   baseUrl: string;
 };
 
 /**
- * A successful result: prose the model reads, plus the structured payload the
- * widget and any downstream tool call read.
+ * A successful result: the structured payload the widget and any downstream
+ * tool call read, and the same payload serialized for the model.
  */
-export function ok(text: string, structuredContent: Record<string, unknown>): CallToolResult {
-  return { content: [{ type: "text", text }], structuredContent };
+export function ok(structuredContent: Record<string, unknown>): CallToolResult {
+  return { content: [{ type: "text", text: JSON.stringify(structuredContent) }], structuredContent };
 }
 
 /** A failure the model can act on rather than an exception that ends the turn. */
@@ -69,29 +69,15 @@ export async function handled(run: () => Promise<CallToolResult>): Promise<CallT
 }
 
 /**
- * Marks the text of a tool whose endpoint the PromptEye API does not serve yet,
+ * Marks the result of a tool whose endpoint the PromptEye API does not serve yet,
  * so the model never presents illustrative figures as measurements of the
  * user's project.
  */
-export const sampleData = (text: string): string =>
-  `${text}\n\nNote: sample data. The PromptEye API does not serve this yet, so these figures are ` +
-  "illustrative and were not measured for this project. Say so when relaying them.";
+export function sampleData(structuredContent: Record<string, unknown>): CallToolResult {
+  const result = ok(structuredContent);
+  const note =
+    "Note: sample data. The PromptEye API does not serve this yet, so these figures are " +
+    "illustrative and were not measured for this project. Say so when relaying them.";
 
-/** Renders a number for the model, keeping `null` legible as "no data". */
-export const num = (value: number | null, suffix = ""): string =>
-  value === null ? "—" : `${value}${suffix}`;
-
-export const aiTrafficText = (prompt: { aiTraffic: number | null; aiTrafficMeasuredAt?: string | null }): string => {
-  if (prompt.aiTrafficMeasuredAt === undefined) return num(prompt.aiTraffic);
-  if (prompt.aiTrafficMeasuredAt === null) return prompt.aiTraffic === null ? "not measured yet" : num(prompt.aiTraffic);
-  const figure = prompt.aiTraffic === null ? "no data" : String(prompt.aiTraffic);
-  return `${figure} (measured ${prompt.aiTrafficMeasuredAt.slice(0, 10)})`;
-};
-
-/** Renders a change with an explicit sign, so a drop never reads as a gain. */
-export const signed = (value: number | null, suffix = ""): string =>
-  value === null ? "—" : `${value > 0 ? "+" : ""}${value}${suffix}`;
-
-/** The trailing line a paginated listing adds so the model knows more exists. */
-export const morePages = (nextCursor: string | null): string =>
-  nextCursor === null ? "" : `\n\nMore entries follow. Pass cursor="${nextCursor}" to read the next page.`;
+  return { ...result, content: [...result.content, { type: "text", text: note }] };
+}

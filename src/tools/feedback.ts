@@ -46,11 +46,7 @@ export function registerFeedbackTools(server: McpServer, { client }: ToolContext
     async ({ need, attemptedAction }) =>
       handled(async () => {
         const feedback = await client.reportMissingCapability({ need, attemptedAction });
-
-        return ok(
-          `Sent to the PromptEye team [id: ${feedback.id}]. Tell the user their report was received.`,
-          feedback
-        );
+        return ok(feedback);
       })
   );
 }

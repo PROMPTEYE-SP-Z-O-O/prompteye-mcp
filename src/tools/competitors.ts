@@ -5,7 +5,7 @@ import { MAX_LIMIT, dateRangeShape, modelFilterShape } from "../schemas/common.j
 import { CompetitorExclusionSchema, CompetitorSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
-import { READ_ONLY, WRITES, handled, num, ok, signed, type ToolContext } from "./result.js";
+import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
 
 export const COMPETITORS_WIDGET = "competitors";
 
@@ -52,26 +52,12 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
         const project = await session.require();
         const page = await client.listCompetitors(project.id, args);
 
-        const lines = page.data.map((competitor, index) => {
-          const mark = competitor.ownBrand ? " ← this project" : "";
-          return (
-            `${index + 1}. ${competitor.brand}${mark} — share of voice ${num(competitor.shareOfVoice, "%")}, ` +
-            `visibility ${num(competitor.metrics.visibility, "%")} (${signed(competitor.change?.visibility ?? null, " pp")}), ` +
-            `cited in ${num(competitor.citedAnswers)} answer(s)`
-          );
+        return ok({
+          ...page,
+          projectName: project.name,
+          brand: project.brand,
+          model: args.model ?? null,
         });
-
-        return ok(
-          page.data.length === 0
-            ? `No brands were named on ${project.brand}'s prompts.`
-            : `Brands answering alongside ${project.brand}:\n${lines.join("\n")}`,
-          {
-            ...page,
-            projectName: project.name,
-            brand: project.brand,
-            model: args.model ?? null,
-          }
-        );
       })
   );
 
@@ -92,17 +78,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
       handled(async () => {
         const project = await session.require();
         const list = await client.listCompetitorExclusions(project.id);
-        const lines = list.data.map((ex) => {
-          const aliases = ex.aliases.length > 0 ? ` (aliases: ${ex.aliases.join(", ")})` : "";
-          return `- ${ex.name}${aliases}`;
-        });
-
-        return ok(
-          list.data.length === 0
-            ? `No competitor exclusions configured for ${project.name}.`
-            : `Excluded competitors for ${project.name} (${list.data.length}):\n${lines.join("\n")}`,
-          list
-        );
+        return ok(list);
       })
   );
 
@@ -137,17 +113,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
       handled(async () => {
         const project = await session.require();
         const result = await client.replaceCompetitorExclusions(project.id, exclusions);
-        const lines = result.data.map((ex) => {
-          const aliases = ex.aliases.length > 0 ? ` (aliases: ${ex.aliases.join(", ")})` : "";
-          return `- ${ex.name}${aliases}`;
-        });
-
-        return ok(
-          result.data.length === 0
-            ? `Cleared all competitor exclusions for ${project.name}.`
-            : `Updated competitor exclusions for ${project.name} (${result.data.length}):\n${lines.join("\n")}`,
-          result
-        );
+        return ok(result);
       })
   );
 }

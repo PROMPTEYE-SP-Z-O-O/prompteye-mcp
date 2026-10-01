@@ -23,7 +23,7 @@ export function registerHelpTools(server: McpServer, help: HelpCenter = new Help
     async () =>
       handled(async () => {
         const markdown = await help.fullKnowledgeBase();
-        return ok(markdown, {
+        return ok({
           source: "https://app.prompteye.com/help/llms-full.txt",
           markdown,
         });
@@ -58,20 +58,7 @@ export function registerHelpTools(server: McpServer, help: HelpCenter = new Help
     async () =>
       handled(async () => {
         const articles = await help.articles();
-
-        const lines = articles.map(
-          (article) => `- [${article.section}] ${article.title} — path: ${article.path} — page: ${article.url}`
-        );
-
-        return ok(
-          [
-            `${articles.length} article(s) in the PromptEye help center (${help.homeUrl}):`,
-            ...lines,
-            "",
-            "Read the one that fits with read_help_article, passing its path.",
-          ].join("\n"),
-          { home: help.homeUrl, articles }
-        );
+        return ok({ home: help.homeUrl, articles });
       })
   );
 
@@ -96,10 +83,7 @@ export function registerHelpTools(server: McpServer, help: HelpCenter = new Help
         const markdown = await help.article(path);
         const known = (await help.articles().catch(() => [])).find((article) => article.path === path);
 
-        return ok(
-          `${known ? `Page for the user: ${known.url}\n\n` : ""}${markdown}`,
-          { path, url: known?.url ?? null, markdown }
-        );
+        return ok({ path, url: known?.url ?? null, markdown });
       })
   );
 }
