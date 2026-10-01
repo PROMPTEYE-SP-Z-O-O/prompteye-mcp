@@ -113,6 +113,7 @@ export const PromptSchema = z.object({
   groupId: z.string().nullable(),
   createdAt: z.string(),
   aiTraffic: z.number().nullable(),
+  aiTrafficMeasuredAt: z.string().nullable().optional(),
   /** `very_high`, `high`, `medium`, `low`, `very_low`, or `null` before it is ranked. */
   businessPriority: z.string().nullable(),
   /** Why someone set the priority by hand; `null` when it is the computed one. */
@@ -408,6 +409,7 @@ export const PromptSettingsSchema = z.object({
   groupId: z.string().nullable(),
   createdAt: z.string(),
   aiTraffic: z.number().nullable(),
+  aiTrafficMeasuredAt: z.string().nullable().optional(),
   businessPriority: z.string().nullable(),
   businessPriorityReason: z.string().nullable().optional(),
 });
