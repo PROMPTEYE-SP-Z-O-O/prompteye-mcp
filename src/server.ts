@@ -6,6 +6,8 @@ import { registerPromptWorkflows } from "./prompts.js";
 import { ProjectSession } from "./session.js";
 import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
+import { registerAuditTools } from "./tools/audits.js";
+import { registerBrandAnalysisTools } from "./tools/analysis.js";
 import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
 import { registerContentTools } from "./tools/content.js";
 import { registerFeedbackTools } from "./tools/feedback.js";
@@ -13,23 +15,13 @@ import { registerHelpTools } from "./tools/help.js";
 import { registerGoogleTools } from "./tools/google.js";
 import { registerIntegrationTools } from "./tools/integrations.js";
 import { registerTrafficTools } from "./tools/traffic.js";
-import { SOURCES_WIDGET, registerEvidenceTools, registerSourceTools } from "./tools/evidence.js";
+import { SOURCES_WIDGET, registerSourceTools } from "./tools/evidence.js";
 import { PROMPTS_WIDGET, registerPromptTools } from "./tools/prompts.js";
 import { registerProjectTools } from "./tools/projects.js";
 import { registerReportTools } from "./tools/reports.js";
-import { VISIBILITY_WIDGET, registerVisibilityTools } from "./tools/visibility.js";
+import { registerTopicalMapTools } from "./tools/maps.js";
+import { registerWorkspaceTools } from "./tools/workspaces.js";
 import type { ToolContext } from "./tools/result.js";
-
-/**
- * Whether to register the tools the PromptEye API does not serve yet —
- * visibility, answers and citation quality — which answer from the sample data
- * in `src/fixtures`.
- *
- * Off, so nothing offers a figure that was not measured for the user's project.
- * Flip it to true to demo those tools; delete it, with the fixtures, once the
- * API serves them and the methods move to `live-client.ts`.
- */
-const SAMPLE_TOOLS = false;
 
 const JSON_SCHEMA_2020_12 = "https://json-schema.org/draft/2020-12/schema";
 
@@ -72,6 +64,7 @@ export function createMcpServer(context: ToolContext): McpServer {
   registerPromptWorkflows(server);
 
   registerAccountTools(server, context);
+  registerWorkspaceTools(server, context);
   registerProjectTools(server, context);
 
   registerWidget(
@@ -102,20 +95,12 @@ export function createMcpServer(context: ToolContext): McpServer {
   registerIntegrationTools(server, context);
   registerGoogleTools(server, context);
   registerTrafficTools(server, context);
+  registerBrandAnalysisTools(server, context);
+  registerAuditTools(server, context);
+  registerTopicalMapTools(server, context);
   registerReportTools(server, context);
   registerHelpTools(server);
   registerFeedbackTools(server, context);
-
-  if (SAMPLE_TOOLS) {
-    registerWidget(
-      server,
-      VISIBILITY_WIDGET,
-      "PromptEye Visibility",
-      "Visibility totals, period-over-period change and breakdown for a project"
-    );
-    registerVisibilityTools(server, context);
-    registerEvidenceTools(server, context);
-  }
 
   return server;
 }

@@ -1,18 +1,16 @@
-import { z } from "zod";
-import { MetricsSchema, ModelSchema, NullableChangeSchema } from "./common.js";
-
-/*
- * The models the PromptEye API already serves live in the API client, which is
- * the single source of truth for them. The rest are mirrored here until the
- * API grows the endpoints, and are answered from sample data meanwhile.
- */
 export {
+  AcceptedPromptSuggestionSchema,
   AccountSchema,
   AnalyticsPageSchema,
   AnalyticsSourceSchema,
   AnalyticsSummarySchema,
+  AuditSchema,
+  AuditUsageSchema,
+  BrandAnalysisAvailabilitySchema,
+  BrandAnalysisRunSchema,
   CategorySchema,
   CitedDomainSchema,
+  CitedPageSchema,
   CompanyProfileSchema,
   CompetitorExclusionListSchema,
   CompetitorExclusionSchema,
@@ -43,10 +41,15 @@ export {
   SearchPageSchema,
   SearchQuerySchema,
   SearchSummarySchema,
+  SuggestionRunAvailabilitySchema,
+  SuggestionRunSchema,
+  TopicalMapSchema,
+  TopicalMapSummarySchema,
   TRAFFIC_GROUPS,
   TrafficCategorySchema,
   TrafficCountPageSchema,
   TrafficCountSchema,
+  TrafficCrawlHealthSchema,
   TrafficCrawlSchema,
   TrafficEventSchema,
   TrafficGroupSchema,
@@ -57,12 +60,20 @@ export {
   UpdateKnowledgeBaseRequestSchema,
   UpdateProjectRequestSchema,
   UpdatePromptRequestSchema,
+  WorkspaceSchema,
+  type AcceptPromptSuggestionInput,
+  type AcceptedPromptSuggestion,
   type Account,
   type AnalyticsPage,
   type AnalyticsSource,
   type AnalyticsSummary,
+  type Audit,
+  type AuditUsage,
+  type BrandAnalysisAvailability,
+  type BrandAnalysisRun,
   type Category,
   type CitedDomain,
+  type CitedPage,
   type CompanyProfile,
   type Competitor,
   type CompetitorExclusion,
@@ -70,10 +81,13 @@ export {
   type ContentBriefOutlineItem,
   type ContentBriefPhrase,
   type ContentBriefSeparateArticle,
+  type CreateAuditInput,
+  type CreateCategoryInput,
   type CreateContentBriefInput,
   type CreateFeedbackInput,
   type CreateProjectInput,
   type CreatePromptGroupInput,
+  type CreateTopicalMapInput,
   type Feedback,
   type GoogleStatus,
   type GoogleSync,
@@ -90,13 +104,19 @@ export {
   type PromptInput,
   type PromptSettings,
   type PromptSuggestion,
+  type RegenerateTopicalMapClusterInput,
   type SearchPage,
   type SearchQuery,
   type SearchSummary,
+  type SuggestionRun,
+  type SuggestionRunAvailability,
+  type TopicalMap,
+  type TopicalMapSummary,
   type TrafficCategory,
   type TrafficCount,
   type TrafficCountPage,
   type TrafficCrawl,
+  type TrafficCrawlHealth,
   type TrafficEvent,
   type TrafficGroup,
   type TrafficKind,
@@ -113,81 +133,5 @@ export {
   type UpdateProjectInput,
   type UpdatePromptGroupInput,
   type UpdatePromptInput,
+  type Workspace,
 } from "../api/schemas.js";
-
-export const BREAKDOWN_KEYS = ["day", "model", "prompt"] as const;
-export const BreakdownSchema = z.enum(BREAKDOWN_KEYS);
-
-export const BreakdownEntrySchema = z.object({
-  key: z.string(),
-  label: z.string(),
-  metrics: MetricsSchema,
-});
-
-export const VisibilitySummarySchema = z.object({
-  startDate: z.string(),
-  endDate: z.string(),
-  models: z.array(ModelSchema),
-  totals: MetricsSchema,
-  change: NullableChangeSchema,
-  aiTrafficTotal: z.number().nullable(),
-  breakdown: z.array(BreakdownEntrySchema),
-  breakdownTruncated: z.boolean(),
-});
-
-export const VisibilityRowSchema = z.object({
-  date: z.string(),
-  promptId: z.string(),
-  prompt: z.string(),
-  model: ModelSchema,
-  answered: z.boolean().nullable(),
-  visibility: z.number(),
-  position: z.number().nullable(),
-});
-
-export const SourceSchema = z.object({
-  url: z.string(),
-  domain: z.string(),
-  title: z.string().nullable(),
-});
-
-export const AnswerSchema = z.object({
-  id: z.string(),
-  date: z.string(),
-  promptId: z.string(),
-  prompt: z.string(),
-  model: ModelSchema,
-  brand: z.enum(["named", "missing"]),
-  position: z.number().nullable(),
-  text: z.string(),
-  sources: z.array(SourceSchema),
-});
-
-const DistributionEntrySchema = z.object({
-  key: z.string(),
-  count: z.number(),
-  percentage: z.number(),
-});
-
-export const CitationQualitySchema = z.object({
-  analysedOn: z.string(),
-  role: z.object({
-    totalResponses: z.number(),
-    mentionedResponses: z.number(),
-    distribution: z.array(DistributionEntrySchema),
-  }),
-  sentiment: z.object({
-    totalResponses: z.number(),
-    mentionedResponses: z.number(),
-    distribution: z.array(DistributionEntrySchema),
-  }),
-});
-
-export type Breakdown = z.infer<typeof BreakdownSchema>;
-export type VisibilitySummary = z.infer<typeof VisibilitySummarySchema>;
-export type VisibilityRow = z.infer<typeof VisibilityRowSchema>;
-export type Answer = z.infer<typeof AnswerSchema>;
-export type CitationQuality = z.infer<typeof CitationQualitySchema>;
-
-/** Whether an answer named the brand. */
-export type BrandPresence = z.infer<typeof AnswerSchema>["brand"];

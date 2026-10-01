@@ -142,9 +142,11 @@ export function registerPromptWorkflows(server: McpServer): void {
           "wrong — industry, product category, target audience, ICP, operating area, and a description of " +
           "what the brand does — and save their answers with update_knowledge_base. Write down what they " +
           "tell you; do not research the brand yourself or fill a field they left blank.\n\n" +
-          "3. The prompts. Call list_prompt_suggestions and walk the user through the first set; accepting " +
-          "them happens in the PromptEye app. A new project often has none yet, because suggestions are " +
-          "generated inside a prompt group from the app — say so plainly and point the user there. Only " +
+          "3. The prompts. Call list_prompt_suggestions and walk the user through the first set; accept " +
+          "the ones they choose with accept_prompt_suggestion. A new project often has none yet, because " +
+          "suggestions are generated per prompt group: once a group exists (upsert_prompt_group), " +
+          "get_prompt_suggestion_availability says whether generate_prompt_suggestions would run, and the " +
+          "proposals land in list_prompt_suggestions a minute or more later. Only " +
           "if the user already has prompts of their own that must be tracked verbatim, and says so, use " +
           "add_prompts.\n\n" +
           "4. The articles. Once prompts are tracked, offer to outline articles for the ones that matter " +

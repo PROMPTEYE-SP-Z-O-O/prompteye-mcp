@@ -69,22 +69,3 @@ export type Page<T> = {
   data: T[];
   nextCursor: string | null;
 };
-
-/** Each figure is null until it is measured. */
-export const MetricsSchema = z.object({
-  visibility: z.number().nullable(),
-  reachIndex: z.number().nullable(),
-  averagePosition: z.number().nullable(),
-});
-
-export const MetricsChangeSchema = z.object({
-  visibility: z.number().nullable(),
-  reachIndex: z.number().nullable(),
-  averagePosition: z.number().nullable(),
-});
-
-/** Movement against the previous period — null when there was nothing to compare against. */
-export const NullableChangeSchema = MetricsChangeSchema.nullable();
-
-export type Metrics = z.infer<typeof MetricsSchema>;
-export type MetricsChange = z.infer<typeof MetricsChangeSchema>;

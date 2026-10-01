@@ -4,6 +4,7 @@ import { MAX_LIMIT, MAX_TRAFFIC_RANGE_DAYS, paginationShape } from "../schemas/c
 import {
   NextCursorSchema,
   TrafficCountPageSchema,
+  TrafficCrawlHealthSchema,
   TrafficCrawlSchema,
   TrafficEventSchema,
   TrafficGroupSchema,
@@ -149,6 +150,43 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         const project = await session.require();
         const counts = await client.countBotVisits(project.id, args);
         return ok(counts);
+      })
+  );
+
+  server.registerTool(
+    "get_crawl_health",
+    {
+      title: "Score how well bots can crawl the site",
+      description:
+        "The requests of list_bot_visits for one `kind`, turned into a verdict by the API: how many were " +
+        "errors or redirects, how fast the site answered, and the worst problems behind those numbers.\n\n" +
+        "`assessments` holds four fixed checks — the 3xx, 4xx and 5xx rates and the average response " +
+        "time — each scored `ok`, `warning` or `critical` against a fixed threshold the API sets " +
+        "(`unknown` only for the response-time check, when nothing was ever timed). `issues` lists up " +
+        "to 20 distinct problems (a bot, a path, a status and, for a redirect, where it pointed), worst " +
+        "first: a 5xx before a 4xx before a 3xx, then the one hit most often, then the one hit most " +
+        "recently. An assistant that cannot fetch a page answers from something else, so each issue is " +
+        "a citation that went elsewhere.\n\n" +
+        "`kind` is required: `ai` scores what AI assistants and their bots found, `seo` what search " +
+        "engines and SEO tools found, and the two are never combined into one score. Only the newest " +
+        "4 000 requests of the period are read, so narrow the period on a busy project rather than " +
+        "trusting a score built from a partial read.\n\n" +
+        `${BOT_TRAFFIC}\n\n${INTEGRATION_STATE}`,
+      annotations: READ_ONLY,
+      inputSchema: {
+        ...trafficRangeShape,
+        kind: TrafficKindSchema.describe(
+          "`ai` for AI assistants and their bots, `seo` for search engines and SEO tools. Required: there is no combined health."
+        ),
+        vendor: botShape.vendor,
+      },
+      outputSchema: TrafficCrawlHealthSchema.shape,
+    },
+    async (args) =>
+      handled(async () => {
+        const project = await session.require();
+        const health = await client.getCrawlHealth(project.id, args);
+        return ok(health);
       })
   );
 

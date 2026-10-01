@@ -1,6 +1,5 @@
 import { PromptEyeApi, type FetchLike } from "../../api/index.js";
 import { ProjectSession } from "../../session.js";
-import { createFixturesClient } from "../fixtures-client.js";
 import { createLiveClient } from "../live-client.js";
 
 const LIVE_PROJECT = {
@@ -226,7 +225,7 @@ function liveClient() {
   };
 
   const api = new PromptEyeApi({ token: "pe_live_test", baseUrl: "https://example.convex.site", fetch });
-  return { client: createLiveClient(api, createFixturesClient()), calls };
+  return { client: createLiveClient(api), calls };
 }
 
 describe("createLiveClient", () => {
@@ -342,19 +341,6 @@ describe("createLiveClient", () => {
       method: "POST",
       body: { need: "Export prompts as CSV", attemptedAction: "Exporting prompts" },
     });
-  });
-
-  it("serves what has no endpoint from sample data, without calling the API", async () => {
-    const { client, calls } = liveClient();
-
-    const summary = await client.getVisibilitySummary(LIVE_PROJECT.id, RANGE);
-    const answers = await client.listAnswers(LIVE_PROJECT.id, RANGE);
-    const quality = await client.getCitationQuality(LIVE_PROJECT.id);
-
-    expect(summary.totals.visibility).not.toBeNull();
-    expect(answers.data.length).toBeGreaterThan(0);
-    expect(quality.role.distribution.length).toBeGreaterThan(0);
-    expect(calls).toEqual([]);
   });
 
   it("reads Google's own figures for the project's site", async () => {

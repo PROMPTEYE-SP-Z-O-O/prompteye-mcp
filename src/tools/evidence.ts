@@ -1,15 +1,14 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
-import { MAX_LIMIT, dateRangeShape, modelFilterShape, paginationShape } from "../schemas/common.js";
-import { AnswerSchema, CitationQualitySchema, CitedDomainSchema, NextCursorSchema } from "../schemas/prompteye.js";
+import { MAX_LIMIT, dateRangeShape, modelFilterShape } from "../schemas/common.js";
+import { CitedDomainSchema, CitedPageSchema, NextCursorSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
-import { READ_ONLY, handled, ok, sampleData, type ToolContext } from "./result.js";
+import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
 
 export const SOURCES_WIDGET = "sources";
 
-/** The domains behind the answers — served by the API. */
 export function registerSourceTools(server: McpServer, { client, session }: ToolContext): void {
   registerAppTool(
     server,
@@ -60,65 +59,41 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         });
       })
   );
-}
 
-/**
- * The answers themselves and what the brand was to them. Both still come from
- * sample data, so they are registered only when `SAMPLE_TOOLS` is on.
- */
-export function registerEvidenceTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
-    "list_answers",
+    "list_source_pages",
     {
-      title: "Read the answers behind the numbers",
+      title: "List the exact pages assistants cite",
       description:
-        "The answers the assistants actually gave on the active project's prompts, each with whether " +
-        "the brand was named, in which position, and which sources the answer cited. Call this when " +
-        "a visibility figure needs explaining rather than restating.",
+        "The individual pages behind list_sources — each row is one URL, not a domain, so a host cited " +
+        "on several different pages shows up once per page instead of folded into one domain total. " +
+        "Call this when the domain ranking does not say enough: which page of a review site carries " +
+        "the brand, or which own page the assistants actually quote.\n\n" +
+        "A citation is not visibility: an answer can cite the brand's own domain without naming the " +
+        "brand, and name the brand while citing nobody. Read this beside list_prompts and " +
+        "list_competitors, not instead of them.\n\n" +
+        "The ranking is built by adding up the period, so it answers with the `limit` most cited pages " +
+        "rather than a list to walk to the end of; `share` is each page's slice of the occurrences across " +
+        "the pages reported. `model` narrows it to one assistant.",
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
         ...modelFilterShape,
-        ...paginationShape,
-        promptId: z.string().optional().describe("Only answers to this prompt."),
-        brand: z
-          .enum(["named", "missing"])
-          .optional()
-          .describe("Only answers that named the brand, or only those that did not."),
-        search: z
-          .string()
+        limit: z
+          .number()
+          .int()
           .min(1)
-          .max(200)
+          .max(MAX_LIMIT)
           .optional()
-          .describe("Only answers whose text contains this phrase."),
+          .describe(`How many pages to return, at most ${MAX_LIMIT}.`),
       },
-      outputSchema: { data: z.array(AnswerSchema), nextCursor: z.string().nullable() },
+      outputSchema: { data: z.array(CitedPageSchema), nextCursor: NextCursorSchema },
     },
     async (args) =>
       handled(async () => {
         const project = await session.require();
-        const page = await client.listAnswers(project.id, args);
-        return sampleData(page);
-      })
-  );
-
-  server.registerTool(
-    "get_citation_quality",
-    {
-      title: "Read how the brand is cited",
-      description:
-        "What the brand is to the answers that mention it — recommended, compared, cited as an expert, " +
-        "or merely mentioned in passing — and with what sentiment. Visibility says how often the brand " +
-        "appears; this says what appearing is worth.",
-      annotations: READ_ONLY,
-      inputSchema: {},
-      outputSchema: CitationQualitySchema.shape,
-    },
-    async () =>
-      handled(async () => {
-        const project = await session.require();
-        const quality = await client.getCitationQuality(project.id);
-        return sampleData(quality);
+        const page = await client.listSourcePages(project.id, args);
+        return ok(page);
       })
   );
 }

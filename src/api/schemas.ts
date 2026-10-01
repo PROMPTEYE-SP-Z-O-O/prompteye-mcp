@@ -285,11 +285,255 @@ export const ProjectListSchema = listOf(ProjectSchema);
 export const CategoryListSchema = listOf(CategorySchema);
 export const PromptSuggestionListSchema = listOf(PromptSuggestionSchema);
 export const NewPromptListSchema = listOf(NewPromptSchema);
+
+export const WorkspaceSchema = z.object({
+  id: z
+    .string()
+    .describe("Pass it as workspaceId to create_project to create a project there, or to list_projects to list only its projects."),
+  name: z.string(),
+  kind: z.string().describe("personal = the workspace every account has of its own, team = one shared with others."),
+  role: z
+    .string()
+    .describe("What the account may do in the workspace: OWNER, ADMIN and MEMBER may create projects there; VIEWER reads only."),
+  scoped: z
+    .boolean()
+    .describe(
+      "Whether the account reaches only the projects it was invited to rather than the whole workspace. A scoped seat cannot create projects in the workspace."
+    ),
+});
+
+export const WorkspacePageSchema = pageOf(WorkspaceSchema);
+
+export const AcceptedPromptSuggestionSchema = z.object({
+  trackerId: z.string().nullable().describe("Id of the prompt the suggestion became, as list_prompts reports it."),
+});
+
+export const SuggestionRunSchema = z.object({
+  runId: z.string().nullable().describe("Id of the run that was scheduled. null = nothing was scheduled, see skipped."),
+  skipped: z
+    .string()
+    .nullable()
+    .describe(
+      "Why no run was scheduled; set exactly when runId is null. not_eligible = the project's plan does not currently pay for background work, " +
+        "cooldown = the last run finished less than 7 days ago and its proposals still await a decision, " +
+        "nothing_to_suggest = the group is already healthy: no funnel gap to fill and nothing worth imitating."
+    ),
+});
+
+export const SuggestionRunAvailabilitySchema = z.object({
+  canRun: z.boolean().describe("Whether generate_prompt_suggestions would schedule a run right now."),
+  reason: z
+    .string()
+    .describe(
+      "Why a run would or would not be scheduled: not_eligible = the project's plan does not currently pay for background work, " +
+        "no_slots = no free prompt slots remain on the plan, running = a run is already in progress for this group, " +
+        "cooldown = the last run finished less than 7 days ago and its proposals still await a decision, " +
+        "nothing_to_suggest = the group is already healthy, ready = nothing is blocking a new run."
+    ),
+  pendingSuggestionCount: z.number().describe("Suggestions from this group still awaiting a decision."),
+  availableSlots: z.number().describe("Free prompt slots left on the plan; a run proposes at most this many."),
+  lastRun: z
+    .object({
+      status: z.string().describe("running, completed or failed."),
+      startedAt: timestamp("When the run started"),
+      finishedAt: z.string().nullable().describe("When it finished, ISO 8601 in UTC. null = still running."),
+    })
+    .nullable()
+    .describe("This group's most recent run. null = it never had one."),
+});
 export const PromptPageSchema = pageOf(PromptSchema);
 export const PromptGroupPageSchema = pageOf(PromptGroupSchema);
 export const PromptGroupSettingsSchema = PromptGroupSchema.omit({ aiTrafficTotal: true, metrics: true });
 export const CitedDomainPageSchema = pageOf(CitedDomainSchema);
 export const CompetitorPageSchema = pageOf(CompetitorSchema);
+
+export const CitedPageSchema = z.object({
+  url: z.string().describe("The exact page the assistants cited."),
+  domain: z.string().describe("Host the page belongs to, without www."),
+  sourceOccurrences: z
+    .number()
+    .describe("Times this exact page appeared among an answer's sources in the period; a count of sources, not answers."),
+  share: z
+    .number()
+    .describe(
+      "The page's share of the source occurrences across the pages reported, in percent 0-100 with up to five decimals. " +
+        "A page cited only below the limit cut is not in the denominator."
+    ),
+  ownDomain: z.boolean().describe("Whether the page's domain belongs to the brand, its own or an alternative one."),
+});
+
+export const CitedPagePageSchema = pageOf(CitedPageSchema);
+
+export const BrandAnalysisRankingEvidenceSchema = z.object({
+  brand: z.string(),
+  visibility: z.number().describe("Share of observations naming this brand, 0-100."),
+  visibleCount: z.number(),
+  observationCount: z.number(),
+  averagePosition: z.number().nullable(),
+});
+
+export const BrandAnalysisGapSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  bestBrand: z.string().describe("The brand that best answers this topic today."),
+  gapScore: z.number().describe("How far behind the leader this topic is, 0-100."),
+  whyLeaderWins: z.string(),
+  whyWeMiss: z.string(),
+  sourceResultIds: z.array(z.string()).describe("The tracking results this topic was derived from."),
+  rankingEvidence: z.array(BrandAnalysisRankingEvidenceSchema).nullable(),
+});
+
+export const BrandAnalysisSentimentSchema = z.object({
+  overallSentiment: z.string().describe("positive, neutral or negative."),
+  positiveScore: z.number(),
+  negativeScore: z.number(),
+  neutralScore: z.number(),
+  positiveAttributes: z.array(z.string()),
+  negativeAttributes: z.array(z.string()),
+  neutralAttributes: z.array(z.string()),
+  summary: z.string(),
+});
+
+export const BrandAnalysisRunSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  status: z
+    .string()
+    .describe("processing the moment it is requested, then ready, or error / corrupted_response when it failed — see error."),
+  createdAt: timestamp("When the run was requested"),
+  updatedAt: timestamp("When the run last changed"),
+  activePromptCount: z.number().describe("How many active tracked prompts fed this run."),
+  usedResultCount: z.number().describe("How many tracking results fed this run."),
+  maxContextGaps: z.number().nullable().describe("How many gaps this run may report at most."),
+  gaps: z.array(BrandAnalysisGapSchema).describe("The topics where a competitor answers better than this brand. Empty until ready."),
+  sentiment: BrandAnalysisSentimentSchema.nullable().describe(
+    "How the assistants talk about the brand when they mention it. null until ready."
+  ),
+  totalCost: z.number().nullable(),
+  error: z.string().nullable().describe("Why the run failed. null unless status is error or corrupted_response."),
+});
+
+export const BrandAnalysisAvailabilitySchema = z.object({
+  canRun: z.boolean().describe("Whether a new run can be started right now."),
+  reason: z
+    .string()
+    .describe(
+      "Why a new run can or cannot be started: no_project = the project could not be reached, " +
+        "no_prompts = the project has no active tracked prompts yet, no_results = the active prompts have not produced tracking results yet, " +
+        "processing = a run is already in progress, up_to_date = the latest run already reflects the current tracking results, " +
+        "retry_error / retry_corrupted_response = the latest run failed and running again is allowed, ready = nothing is blocking a new run."
+    ),
+  activePromptCount: z.number(),
+  usedResultCount: z.number(),
+  latestTrackScoreResultTimestamp: z
+    .string()
+    .nullable()
+    .describe("When the most recent tracking result of the project was taken. null = none yet."),
+});
+
+const auditPresenceCheck = z
+  .object({
+    present: z.boolean().describe("Whether the page has this element."),
+    status: z.boolean().describe("Whether it passes the check."),
+    message: z.string().nullable().describe("Explanation of the finding."),
+  })
+  .nullable();
+
+export const AuditAnalysisSchema = z.object({
+  howToSchema: auditPresenceCheck,
+  organisation: auditPresenceCheck,
+  breadcrumb: auditPresenceCheck,
+  faqSchema: auditPresenceCheck,
+  contentStructure: z.object({ h1: z.boolean(), headings: z.boolean(), rawMessage: z.string().nullable() }).nullable(),
+  crawlability: z
+    .object({ metaRobotsTag: z.boolean(), canonicalTag: z.boolean(), rawMessage: z.string().nullable() })
+    .nullable(),
+  authoritySignals: z
+    .object({
+      authorInfo: z.boolean(),
+      outboundLinks: z.boolean(),
+      reputableOutboundLinks: z.boolean(),
+      missingItems: z.array(z.string()).nullable(),
+      rawMessage: z.string().nullable(),
+    })
+    .nullable(),
+  readingLevel: z
+    .object({
+      readingAge: z.number(),
+      recommendedMinAge: z.number(),
+      recommendedMaxAge: z.number(),
+      notes: z.string().nullable(),
+    })
+    .nullable(),
+  writingStyle: z
+    .object({ declarativePercent: z.number(), descriptivePercent: z.number(), notes: z.string().nullable() })
+    .nullable(),
+});
+
+export const AuditUrlResultSchema = z.object({
+  url: z.string(),
+  status: z.string().describe("pending, success or error."),
+  error: z.string().nullable(),
+  totalCost: z.number().nullable(),
+  analysis: AuditAnalysisSchema.nullable().describe(
+    "The nine content checks run on the URL. null until status is success."
+  ),
+});
+
+export const AuditSchema = z.object({
+  id: z.string(),
+  projectId: z.string().nullable().describe("The project this audit was billed to. null = run without one."),
+  status: z
+    .string()
+    .describe(
+      "pending the moment it is requested; success once every URL succeeded, partial when only some did, error when none did."
+    ),
+  startDate: timestamp("When the audit started"),
+  endDate: z.string().nullable().describe("When it finished, ISO 8601 in UTC. null = not finished yet."),
+  duration: z.number().nullable().describe("How long the audit took, in seconds."),
+  numberOfUrls: z.number(),
+  results: z.array(AuditUrlResultSchema),
+});
+
+export const AuditUsageSchema = z.object({
+  limit: z.number().describe("How many URLs the plan allows to audit this calendar month."),
+  used: z.number(),
+  remaining: z.number(),
+});
+
+const topicalMapStatus = z
+  .string()
+  .describe("processing the moment it is requested, then ready — pillar and clusters filled in — or error, see errorMessage.");
+
+export const TopicalMapSummarySchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  topic: z.string(),
+  language: z.string(),
+  status: topicalMapStatus,
+  createdAt: timestamp("When the map was requested"),
+  generationCost: z.number().nullable().describe("Cost of the generation, in USD."),
+});
+
+export const TopicalMapClusterSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  category: z.string().describe("The group this article belongs to."),
+  intent: z
+    .string()
+    .describe("What a reader searching for this title is trying to do: Informational, Navigational or Transactional."),
+});
+
+export const TopicalMapSchema = TopicalMapSummarySchema.extend({
+  pillar: z
+    .object({ title: z.string(), description: z.string() })
+    .nullable()
+    .describe("The compendium page. null until ready."),
+  clusters: z.array(TopicalMapClusterSchema).describe("The supporting article titles, grouped by category. Empty until ready."),
+  errorMessage: z.string().nullable().describe("Why generation failed. null unless status is error."),
+});
+
+export const TopicalMapListSchema = listOf(TopicalMapSummarySchema);
 
 /** How wide the brand competes, which decides the prompts a report is built from. */
 export const REPORT_REACH = ["local", "regional", "national"] as const;
@@ -556,9 +800,32 @@ export type CreateProjectInput = {
   alternativeBrandNames?: string[];
   alternativeDomains?: string[];
   excludedCompetitors?: string[];
+  workspaceId?: string;
 };
 
 export type UpdateProjectInput = z.infer<typeof UpdateProjectRequestSchema>;
+
+export type CreateCategoryInput = { name: string; parentCategoryId?: string };
+
+export type AcceptPromptSuggestionInput = { promptText?: string };
+
+export type CreateAuditInput = { urls: string[]; projectId?: string };
+
+export type CreateTopicalMapInput = { topic: string; language: string };
+
+export type RegenerateTopicalMapClusterInput = { category: string };
+
+export type Workspace = z.infer<typeof WorkspaceSchema>;
+export type AcceptedPromptSuggestion = z.infer<typeof AcceptedPromptSuggestionSchema>;
+export type SuggestionRun = z.infer<typeof SuggestionRunSchema>;
+export type SuggestionRunAvailability = z.infer<typeof SuggestionRunAvailabilitySchema>;
+export type CitedPage = z.infer<typeof CitedPageSchema>;
+export type BrandAnalysisRun = z.infer<typeof BrandAnalysisRunSchema>;
+export type BrandAnalysisAvailability = z.infer<typeof BrandAnalysisAvailabilitySchema>;
+export type Audit = z.infer<typeof AuditSchema>;
+export type AuditUsage = z.infer<typeof AuditUsageSchema>;
+export type TopicalMapSummary = z.infer<typeof TopicalMapSummarySchema>;
+export type TopicalMap = z.infer<typeof TopicalMapSchema>;
 
 /** One prompt to track, as handed to the API. */
 export type PromptInput = {
@@ -823,6 +1090,64 @@ export const TrafficSitemapPageSchema = z.object({
 export const TrafficEventPageSchema = pageOf(TrafficEventSchema);
 export const TrafficCrawlPageSchema = pageOf(TrafficCrawlSchema);
 
+export const TrafficCrawlHealthAssessmentSchema = z.object({
+  key: z.string().describe("Which check this is: 3xx, 4xx, 5xx (a class of status code) or responseTime."),
+  level: z
+    .string()
+    .describe(
+      "ok, warning or critical against a fixed threshold for this check; unknown when there is nothing to judge it against (no response time was recorded)."
+    ),
+  count: z.number().nullable().describe("Requests in this status class. null for the responseTime check."),
+  rate: z
+    .number()
+    .nullable()
+    .describe("That count as a share of every request read for the period, 0 to 1. null for the responseTime check."),
+  averageResponseTimeMs: z
+    .number()
+    .nullable()
+    .describe("The average response time this check judges, in milliseconds. Set only for the responseTime check."),
+});
+
+export const TrafficCrawlIssueSchema = z.object({
+  botId: z.string(),
+  botName: z.string(),
+  path: z.string(),
+  statusCode: z.number().describe("The status the site answered with."),
+  redirectLocation: z.string().nullable().describe("Where a redirect pointed, for a 3xx status. null otherwise."),
+  count: z.number().describe("How many times this bot hit this exact problem."),
+  lastSeenAt: timestamp("The most recent time this bot hit this exact problem"),
+  averageResponseTimeMs: z.number().nullable().describe("Average response time of the requests behind this problem, in milliseconds."),
+  pathType: z
+    .string()
+    .describe(
+      "What the path looks like it was for: secret, code, technical, asset, content or other. secret and code are the shapes only a vulnerability scanner asks for."
+    ),
+});
+
+export const TrafficCrawlHealthSchema = z.object({
+  total: z.number().describe("Requests read for the period."),
+  success: z.number().describe("Requests answered with a 2xx status."),
+  redirects: z.number().describe("Requests answered with a 3xx status."),
+  clientErrors: z.number().describe("Requests answered with a 4xx status."),
+  serverErrors: z.number().describe("Requests answered with a 5xx status."),
+  unknown: z.number().describe("Requests the site never answered with any status code."),
+  scanRequests: z
+    .number()
+    .describe("Requests for a path that only a vulnerability scanner would ask for, counted apart from the rest."),
+  averageResponseTimeMs: z
+    .number()
+    .nullable()
+    .describe("Average response time across the requests that reported one, in milliseconds. null = none reported one."),
+  assessments: z
+    .array(TrafficCrawlHealthAssessmentSchema)
+    .describe("Four fixed checks: the 3xx, 4xx and 5xx rates, and the average response time."),
+  issues: z
+    .array(TrafficCrawlIssueSchema)
+    .describe(
+      "Up to 20 distinct problems (status 300 or above), worst first: 5xx before 4xx before 3xx, then the most frequent, then the most recent."
+    ),
+});
+
 export type TrafficKind = z.infer<typeof TrafficKindSchema>;
 export type TrafficCategory = z.infer<typeof TrafficCategorySchema>;
 export type TrafficGroup = z.infer<typeof TrafficGroupSchema>;
@@ -833,6 +1158,7 @@ export type TrafficCrawl = z.infer<typeof TrafficCrawlSchema>;
 export type TrafficSitemapUrl = z.infer<typeof TrafficSitemapUrlSchema>;
 export type TrafficSitemapState = z.infer<typeof TrafficSitemapStateSchema>;
 export type TrafficSitemapPage = z.infer<typeof TrafficSitemapPageSchema>;
+export type TrafficCrawlHealth = z.infer<typeof TrafficCrawlHealthSchema>;
 
 export const FeedbackSchema = z.object({
   id: z.string(),
