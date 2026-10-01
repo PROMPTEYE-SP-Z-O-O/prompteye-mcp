@@ -4,6 +4,7 @@ import { z } from "zod";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { dateRangeShape, paginationShape } from "../schemas/common.js";
 import {
+  AcceptedPromptSuggestionSchema,
   CategorySchema,
   NewPromptSchema,
   NextCursorSchema,
@@ -13,6 +14,8 @@ import {
   PromptSchema,
   PromptSettingsSchema,
   PromptSuggestionSchema,
+  SuggestionRunAvailabilitySchema,
+  SuggestionRunSchema,
 } from "../schemas/prompteye.js";
 import {
   AI_TRAFFIC,
@@ -228,6 +231,38 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
   );
 
   server.registerTool(
+    "create_category",
+    {
+      title: "Create a category to file prompts under",
+      description:
+        "Adds a category the active project can file prompts under. Pass an existing top-level category " +
+        "as parentCategoryId to create a subcategory instead; only one level of nesting is supported. " +
+        "Every category made this way is recorded as written by hand (source `manual`), never as one " +
+        "PromptEye proposed. update_prompt with categoryId files an existing prompt under it. A category " +
+        "with the same name at the same level is refused.",
+      annotations: WRITES,
+      inputSchema: {
+        name: z.string().min(1).max(200).describe("Name for the category."),
+        parentCategoryId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            "An existing top-level category to file this one under, as list_categories reports it, which makes it a subcategory. " +
+              "Left out, a top-level category is created."
+          ),
+      },
+      outputSchema: CategorySchema.shape,
+    },
+    async (input) =>
+      handled(async () => {
+        const project = await session.require();
+        const category = await client.createCategory(project.id, input);
+        return ok(category);
+      })
+  );
+
+  server.registerTool(
     "list_prompt_suggestions",
     {
       title: "List the prompts worth adding next",
@@ -238,7 +273,8 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "already perform. Grouped by the prompt group each would join, strongest demand first. Call " +
         "this when asked what to monitor next, and before ever writing prompts by hand.\n\n" +
         `${AI_TRAFFIC}\n\n${RELATIVE_VOLUME}\n\n${PURCHASE_INTENT}\n\n${COMPANY_FIT}\n\n` +
-        "Accepting a suggestion is done in the PromptEye app; this tool only reads them.",
+        "accept_prompt_suggestion turns one into a tracked prompt; generate_prompt_suggestions asks " +
+        "PromptEye for new ones for a group.",
       annotations: READ_ONLY,
       inputSchema: {
         groupId: z
@@ -254,6 +290,89 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         const project = await session.require();
         const list = await client.listPromptSuggestions(project.id, { groupId });
         return ok(list);
+      })
+  );
+
+  server.registerTool(
+    "accept_prompt_suggestion",
+    {
+      title: "Accept a suggested prompt",
+      description:
+        "Turns one suggestion from list_prompt_suggestions into a tracked prompt of the active project, " +
+        "the same way accepting it in the PromptEye app does. promptText edits the wording before it " +
+        "starts being asked; leave it out to accept the suggestion exactly as written.\n\n" +
+        "The suggestion leaves the pending list; its siblings from the same cycle are left untouched. " +
+        "The new prompt counts against the workspace plan and is measured from the next run on, like " +
+        "any prompt — get_account says when that starts.",
+      annotations: WRITES,
+      inputSchema: {
+        suggestionId: z.string().min(1).describe("Id of the suggestion, as list_prompt_suggestions reports it."),
+        promptText: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Wording to track instead of the suggestion as written. Left out, the suggestion is tracked verbatim."),
+      },
+      outputSchema: AcceptedPromptSuggestionSchema.shape,
+    },
+    async ({ suggestionId, promptText }) =>
+      handled(async () => {
+        const project = await session.require();
+        const accepted = await client.acceptPromptSuggestion(project.id, suggestionId, { promptText });
+        return ok(accepted);
+      })
+  );
+
+  server.registerTool(
+    "get_prompt_suggestion_availability",
+    {
+      title: "Check whether new suggestions can be generated for a group",
+      description:
+        "Whether generate_prompt_suggestions would schedule a new run for one prompt group of the active " +
+        "project right now, and if not, why — the same check that tool runs itself, without scheduling " +
+        "anything.",
+      annotations: READ_ONLY,
+      inputSchema: {
+        groupId: z.string().min(1).describe("Id of the prompt group, as list_prompt_groups reports it."),
+      },
+      outputSchema: SuggestionRunAvailabilitySchema.shape,
+    },
+    async ({ groupId }) =>
+      handled(async () => {
+        const project = await session.require();
+        const availability = await client.getPromptSuggestionAvailability(project.id, groupId);
+        return ok(availability);
+      })
+  );
+
+  server.registerTool(
+    "generate_prompt_suggestions",
+    {
+      title: "Generate new prompt suggestions for a group",
+      description:
+        "Asks PromptEye to propose new prompts for one prompt group of the active project, the same " +
+        "cycle the app runs when Generate is pressed on a group: it reads what the group is missing, " +
+        "drafts candidate phrases, checks their demand, expands them into questions and scores each one. " +
+        PROMPT_GENERATION +
+        "\n\nScheduling a run is instant; the cycle itself runs in the background for a minute or more " +
+        "and is not waited on here. Call list_prompt_suggestions with the groupId afterwards for what " +
+        "it produced.\n\n" +
+        "A run is not always worth scheduling — the group might already be healthy, the plan's paid " +
+        "work might not currently cover it, or the last run might still have proposals awaiting a " +
+        "decision. Then nothing is scheduled and runId comes back null with `skipped` saying why; that " +
+        "is not an error. A run already in progress, or no free plan slots left, is refused by the API " +
+        "instead — call get_prompt_suggestion_availability first to know which case applies.",
+      annotations: WRITES,
+      inputSchema: {
+        groupId: z.string().min(1).describe("Id of the prompt group, as list_prompt_groups reports it."),
+      },
+      outputSchema: SuggestionRunSchema.shape,
+    },
+    async ({ groupId }) =>
+      handled(async () => {
+        const project = await session.require();
+        const run = await client.generatePromptSuggestions(project.id, groupId);
+        return ok(run);
       })
   );
 

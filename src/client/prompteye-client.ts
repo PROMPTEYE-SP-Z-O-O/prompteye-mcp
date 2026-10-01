@@ -1,23 +1,29 @@
 import type { DateRange, ModelKey, Page } from "../schemas/common.js";
-import type { BrandPresence } from "../schemas/prompteye.js";
 import type {
+  AcceptPromptSuggestionInput,
+  AcceptedPromptSuggestion,
   Account,
   AnalyticsPage,
   AnalyticsSource,
   AnalyticsSummary,
-  Answer,
-  Breakdown,
+  Audit,
+  AuditUsage,
+  BrandAnalysisAvailability,
+  BrandAnalysisRun,
   Category,
-  CitationQuality,
   CitedDomain,
+  CitedPage,
   Competitor,
   CompetitorExclusion,
   ContentBrief,
+  CreateAuditInput,
+  CreateCategoryInput,
   CreateContentBriefInput,
   CreateFeedbackInput,
   CreateProjectInput,
   CreatePromptGroupInput,
   CreateReportInput,
+  CreateTopicalMapInput,
   Feedback,
   GoogleStatus,
   IntegrationsStatus,
@@ -32,13 +38,19 @@ import type {
   PromptInput,
   PromptSettings,
   PromptSuggestion,
+  RegenerateTopicalMapClusterInput,
   Report,
   ReportDetail,
   SearchPage,
   SearchQuery,
   SearchSummary,
+  SuggestionRun,
+  SuggestionRunAvailability,
+  TopicalMap,
+  TopicalMapSummary,
   TrafficCountPage,
   TrafficCrawl,
+  TrafficCrawlHealth,
   TrafficEvent,
   TrafficGroup,
   TrafficKind,
@@ -47,24 +59,14 @@ import type {
   UpdateProjectInput,
   UpdatePromptGroupInput,
   UpdatePromptInput,
-  VisibilityRow,
-  VisibilitySummary,
+  Workspace,
 } from "../schemas/prompteye.js";
 
 export type PageQuery = { limit?: number; cursor?: string };
 
 export type RangeQuery = DateRange & { model?: ModelKey };
 
-export type VisibilitySummaryQuery = RangeQuery & {
-  by?: Breakdown;
-  limit?: number;
-  promptId?: string;
-};
-
-export type VisibilityQuery = RangeQuery & PageQuery & { promptId?: string };
-
-export type AnswerQuery = RangeQuery &
-  PageQuery & { promptId?: string; brand?: BrandPresence; search?: string };
+export type ProjectQuery = { workspaceId?: string };
 
 /** Sources rank rather than page: `limit` strongest domains, no cursor. */
 export type SourceQuery = RangeQuery & { limit?: number };
@@ -103,26 +105,35 @@ export type BotTrafficFilters = {
 
 export type BotVisitQuery = DateRange & BotTrafficFilters & PageQuery;
 export type BotCountQuery = DateRange & BotTrafficFilters & { groupBy: TrafficGroup; limit?: number };
+export type CrawlHealthQuery = DateRange & { kind: TrafficKind; vendor?: string };
 export type CrawlQuery = PageQuery & Omit<BotTrafficFilters, "status">;
 export type SitemapQuery = PageQuery & { active?: "true" | "false" };
 
+export type AuditUsageQuery = { projectId?: string };
+
 /**
- * Every call the MCP server makes against PromptEye.
- *
- * Tools depend on this interface and never on a transport. The first block is
- * served by the PromptEye API and shaped exactly as it answers; the rest is
- * answered from sample data until the API grows those endpoints.
+ * Every call the MCP server makes against PromptEye, shaped exactly as the API
+ * answers. Tools depend on this interface and never on a transport.
  */
 export interface PromptEyeClient {
   getAccount(): Promise<Account>;
-  listProjects(): Promise<List<Project>>;
+  listWorkspaces(query: PageQuery): Promise<Page<Workspace>>;
+  listProjects(query?: ProjectQuery): Promise<List<Project>>;
   getProject(projectId: string): Promise<Project>;
   createProject(input: CreateProjectInput): Promise<Project>;
   updateProject(projectId: string, input: UpdateProjectInput): Promise<Project>;
   getKnowledgeBase(projectId: string): Promise<KnowledgeBase>;
   updateKnowledgeBase(projectId: string, input: UpdateKnowledgeBaseInput): Promise<KnowledgeBase>;
   listCategories(projectId: string): Promise<List<Category>>;
+  createCategory(projectId: string, input: CreateCategoryInput): Promise<Category>;
   listPromptSuggestions(projectId: string, query: SuggestionQuery): Promise<List<PromptSuggestion>>;
+  acceptPromptSuggestion(
+    projectId: string,
+    suggestionId: string,
+    input: AcceptPromptSuggestionInput
+  ): Promise<AcceptedPromptSuggestion>;
+  getPromptSuggestionAvailability(projectId: string, groupId: string): Promise<SuggestionRunAvailability>;
+  generatePromptSuggestions(projectId: string, groupId: string): Promise<SuggestionRun>;
 
   listPrompts(projectId: string, query: PromptQuery): Promise<Page<Prompt>>;
   getPrompt(projectId: string, promptId: string, range: DateRange): Promise<PromptDetail>;
@@ -132,9 +143,6 @@ export interface PromptEyeClient {
   createPromptGroup(projectId: string, input: CreatePromptGroupInput): Promise<PromptGroupSettings>;
   updatePromptGroup(projectId: string, groupId: string, input: UpdatePromptGroupInput): Promise<PromptGroupSettings>;
   deletePromptGroup(projectId: string, groupId: string): Promise<void>;
-
-  getVisibilitySummary(projectId: string, query: VisibilitySummaryQuery): Promise<VisibilitySummary>;
-  getVisibility(projectId: string, query: VisibilityQuery): Promise<Page<VisibilityRow>>;
 
   listCompetitors(projectId: string, query: CompetitorQuery): Promise<Page<Competitor>>;
   listCompetitorExclusions(projectId: string): Promise<List<CompetitorExclusion>>;
@@ -173,13 +181,29 @@ export interface PromptEyeClient {
    */
   listBotVisits(projectId: string, query: BotVisitQuery): Promise<Page<TrafficEvent>>;
   countBotVisits(projectId: string, query: BotCountQuery): Promise<TrafficCountPage>;
+  getCrawlHealth(projectId: string, query: CrawlHealthQuery): Promise<TrafficCrawlHealth>;
   listCrawls(projectId: string, query: CrawlQuery): Promise<Page<TrafficCrawl>>;
   /** Takes no period: the sitemap is a standing inventory. */
   getSitemap(projectId: string, query: SitemapQuery): Promise<TrafficSitemapPage>;
   getIntegrationsStatus(projectId: string): Promise<IntegrationsStatus>;
 
-  listAnswers(projectId: string, query: AnswerQuery): Promise<Page<Answer>>;
   listSources(projectId: string, query: SourceQuery): Promise<Page<CitedDomain>>;
-  /** Takes no period: the API reports the latest analysis it has. */
-  getCitationQuality(projectId: string): Promise<CitationQuality>;
+  listSourcePages(projectId: string, query: SourceQuery): Promise<Page<CitedPage>>;
+
+  createBrandAnalysisRun(projectId: string): Promise<BrandAnalysisRun>;
+  getBrandAnalysisAvailability(projectId: string): Promise<BrandAnalysisAvailability>;
+  getBrandAnalysisRun(projectId: string, runId: string): Promise<BrandAnalysisRun>;
+
+  createAudit(input: CreateAuditInput): Promise<Audit>;
+  getAudit(auditId: string): Promise<Audit>;
+  getAuditUsage(query: AuditUsageQuery): Promise<AuditUsage>;
+
+  createTopicalMap(projectId: string, input: CreateTopicalMapInput): Promise<TopicalMap>;
+  listTopicalMaps(projectId: string): Promise<List<TopicalMapSummary>>;
+  getTopicalMap(projectId: string, mapId: string): Promise<TopicalMap>;
+  regenerateTopicalMapCluster(
+    projectId: string,
+    mapId: string,
+    input: RegenerateTopicalMapClusterInput
+  ): Promise<TopicalMap>;
 }

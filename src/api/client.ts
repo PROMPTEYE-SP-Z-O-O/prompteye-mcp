@@ -1,6 +1,8 @@
 import { HttpClient, type FetchLike } from "./http.js";
 import {
   AccountResource,
+  AuditsResource,
+  BrandAnalysisResource,
   CategoriesResource,
   CompetitorsResource,
   ContentBriefsResource,
@@ -14,7 +16,9 @@ import {
   PromptSuggestionsResource,
   ReportsResource,
   SourcesResource,
+  TopicalMapsResource,
   TrafficResource,
+  WorkspacesResource,
 } from "./resources.js";
 
 export const DEFAULT_TIMEOUT_MS = 30_000;
@@ -42,6 +46,7 @@ export interface PromptEyeApiOptions {
  */
 export class PromptEyeApi {
   readonly account: AccountResource;
+  readonly workspaces: WorkspacesResource;
   readonly projects: ProjectsResource;
   readonly knowledgeBase: KnowledgeBaseResource;
   readonly categories: CategoriesResource;
@@ -56,6 +61,9 @@ export class PromptEyeApi {
   readonly traffic: TrafficResource;
   readonly integrations: IntegrationsResource;
   readonly feedback: FeedbackResource;
+  readonly brandAnalysis: BrandAnalysisResource;
+  readonly audits: AuditsResource;
+  readonly topicalMaps: TopicalMapsResource;
 
   constructor(options: PromptEyeApiOptions) {
     if (!options.token?.trim()) throw new TypeError("token is required.");
@@ -70,6 +78,7 @@ export class PromptEyeApi {
     });
 
     this.account = new AccountResource(http);
+    this.workspaces = new WorkspacesResource(http);
     this.projects = new ProjectsResource(http);
     this.knowledgeBase = new KnowledgeBaseResource(http);
     this.categories = new CategoriesResource(http);
@@ -84,5 +93,8 @@ export class PromptEyeApi {
     this.traffic = new TrafficResource(http);
     this.integrations = new IntegrationsResource(http);
     this.feedback = new FeedbackResource(http);
+    this.brandAnalysis = new BrandAnalysisResource(http);
+    this.audits = new AuditsResource(http);
+    this.topicalMaps = new TopicalMapsResource(http);
   }
 }

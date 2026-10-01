@@ -39,15 +39,20 @@ Every one of these calls the PromptEye API.
 | Tool | Endpoint |
 |---|---|
 | `get_account` | `GET /v1/me` |
+| `list_workspaces` | `GET /v1/workspaces` |
 | `list_projects` | `GET /v1/projects` |
 | `select_project`, `get_active_project` | `GET /v1/projects/{projectId}` |
 | `create_project` | `POST /v1/projects` |
 | `get_knowledge_base` | `GET /v1/projects/{projectId}/knowledge-base` |
 | `list_categories` | `GET /v1/projects/{projectId}/categories` |
+| `create_category` | `POST /v1/projects/{projectId}/categories` |
 | `list_prompts` | `GET /v1/projects/{projectId}/prompts` |
 | `get_prompt` | `GET /v1/projects/{projectId}/prompts/{promptId}` |
 | `list_prompt_groups` | `GET /v1/projects/{projectId}/groups` |
 | `list_prompt_suggestions` | `GET /v1/projects/{projectId}/prompt-suggestions` |
+| `accept_prompt_suggestion` | `POST /v1/projects/{projectId}/prompt-suggestions/{suggestionId}/accept` |
+| `get_prompt_suggestion_availability` | `GET /v1/projects/{projectId}/prompt-groups/{groupId}/suggestions/availability` |
+| `generate_prompt_suggestions` | `POST /v1/projects/{projectId}/prompt-groups/{groupId}/suggestions/generate` |
 | `add_prompts` | `POST /v1/projects/{projectId}/prompts` |
 | `upsert_prompt_group` | `POST /v1/projects/{projectId}/groups`, or `PATCH …/groups/{groupId}` with a `groupId` |
 | `delete_prompt_group` | `DELETE /v1/projects/{projectId}/groups/{groupId}` — empty groups only |
@@ -58,6 +63,7 @@ Every one of these calls the PromptEye API.
 | `create_content_brief` | `POST /v1/content/briefs` |
 | `get_content_brief` | `GET /v1/content/briefs/{briefId}` |
 | `list_sources` | `GET /v1/projects/{projectId}/sources` |
+| `list_source_pages` | `GET /v1/projects/{projectId}/sources/pages` |
 | `list_competitors` | `GET /v1/projects/{projectId}/competitors` |
 | `get_integrations_status` | `GET /v1/projects/{projectId}/integrations/status` |
 | `get_google_status` | `GET /v1/projects/{projectId}/traffic/google/status` |
@@ -65,18 +71,29 @@ Every one of these calls the PromptEye API.
 | `get_ai_traffic` | `GET /v1/projects/{projectId}/traffic/google/analytics`, `…/analytics/sources`, `…/analytics/pages` |
 | `list_bot_visits` | `GET /v1/projects/{projectId}/traffic/events` |
 | `count_bot_visits` | `GET /v1/projects/{projectId}/traffic/events/count` |
+| `get_crawl_health` | `GET /v1/projects/{projectId}/traffic/health` |
 | `list_crawls` | `GET /v1/projects/{projectId}/traffic/crawls` |
 | `get_sitemap` | `GET /v1/projects/{projectId}/traffic/sitemap` |
+| `create_brand_analysis_run` | `POST /v1/projects/{projectId}/analysis/runs` |
+| `get_brand_analysis_availability` | `GET /v1/projects/{projectId}/analysis/availability` |
+| `get_brand_analysis_run` | `GET /v1/projects/{projectId}/analysis/runs/{runId}` |
+| `create_audit` | `POST /v1/audits` |
+| `get_audit_usage` | `GET /v1/audits/usage` |
+| `get_audit` | `GET /v1/audits/{auditId}` |
+| `create_topical_map` | `POST /v1/projects/{projectId}/maps` |
+| `list_topical_maps` | `GET /v1/projects/{projectId}/maps` |
+| `get_topical_map` | `GET /v1/projects/{projectId}/maps/{mapId}` |
+| `regenerate_topical_map_cluster` | `POST /v1/projects/{projectId}/maps/{mapId}/regenerate` |
 | `report_missing_capability` | `POST /v1/feedback` — only after the user agrees to send it |
 
 Periods default to the last 30 days and are capped at 366 — except the bot traffic, which the API
-reads a month at a time, so `list_bot_visits` and `count_bot_visits` cap theirs at 31 days.
+reads a month at a time, so `list_bot_visits`, `count_bot_visits` and `get_crawl_health` cap theirs at 31 days.
 
 ### The bot traffic
 
 One tool per endpoint: `list_bot_visits` is the evidence, `count_bot_visits` the totals the API
-computed, `list_crawls` what each bot has ever fetched, `get_sitemap` what the site offers for
-reading. Paths in the last two are in the same form, so comparing them is the caller's job — the
+computed, `get_crawl_health` the API's scored verdict on them, `list_crawls` what each bot has ever
+fetched, `get_sitemap` what the site offers for reading. Paths in the last two are in the same form, so comparing them is the caller's job — the
 tools do not join anything.
 
 Every request carries `verified`, which says whether the origin checked out as the bot it names. A
@@ -138,25 +155,10 @@ a cURL line and the request typed out, ready to hand to a developer. The snippet
 key, which is what makes it safe in a browser.
 
 `list_prompt_suggestions` is the way to add prompts: PromptEye generates them from real
-demand and from how people actually put questions to assistants. `add_prompts` tracks
-hand-written prompts instead, skipping that, so it says as much in its own description and
-requires `confirmBypassPromptIntelligence: true`.
-
-### The tools that are switched off
-
-Visibility, answers and citation quality are not wired to the API yet. Their
-tools, their sample data in `src/fixtures/` and the widget are still in the repository but
-are **not registered**, so no client can call them and nothing reports a figure that was
-never measured. The switch is one constant:
-
-```ts
-// src/server.ts
-const SAMPLE_TOOLS = false;   // true to demo them from sample data
-```
-
-When the API serves those endpoints: add them to the client in `src/api/`, move the methods
-from `src/client/fixtures-client.ts` to `src/client/live-client.ts`, then delete the
-constant and the fixtures.
+demand and from how people actually put questions to assistants; `generate_prompt_suggestions`
+asks for a new set for a group and `accept_prompt_suggestion` turns one into a tracked prompt.
+`add_prompts` tracks hand-written prompts instead, skipping that, so it says as much in its own
+description and requires `confirmBypassPromptIntelligence: true`.
 
 ## The branded pages
 
@@ -371,13 +373,12 @@ src/
     sessions.ts       SessionRegistry — sessions bound to a key, idle sweep, per-key cap
     rate-limit.ts     RequestBudget — requests per minute, per key and per client address
     logging.ts        one JSON line per event and per request, never a key or a header
-  server.ts           builds one server from a ToolContext: session, tools, SAMPLE_TOOLS switch
+  server.ts           builds one server from a ToolContext: session and tools
   session.ts          ProjectSession — which project the tools report on
   config.ts           environment, credentials, and the client factory
-  client/             PromptEyeClient interface; live (API) and fixture implementations
-  schemas/            zod mirrors of the models the API does not serve yet
+  client/             PromptEyeClient interface, implemented over the API client
+  schemas/            the input shapes tools share, and the API schemas re-exported for them
   tools/              one module per group of tools, plus the glossary they quote
-  fixtures/           sample data, for the switched-off tools only
   widgets.ts          composes and registers the branded pages tools render
 public/
   widget-shell.html        the brand: mark, palette, and both host handshakes

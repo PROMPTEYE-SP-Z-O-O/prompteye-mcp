@@ -1,11 +1,18 @@
 import type { HttpClient, RequestOptions } from "./http.js";
 import {
+  AcceptedPromptSuggestionSchema,
   AccountSchema,
   AnalyticsPagePageSchema,
   AnalyticsSourcePageSchema,
   AnalyticsSummarySchema,
+  AuditSchema,
+  AuditUsageSchema,
+  BrandAnalysisAvailabilitySchema,
+  BrandAnalysisRunSchema,
   CategoryListSchema,
+  CategorySchema,
   CitedDomainPageSchema,
+  CitedPagePageSchema,
   CompetitorExclusionListSchema,
   CompetitorPageSchema,
   ContentBriefSchema,
@@ -28,24 +35,40 @@ import {
   SearchPagePageSchema,
   SearchQueryPageSchema,
   SearchSummarySchema,
+  SuggestionRunAvailabilitySchema,
+  SuggestionRunSchema,
+  TopicalMapListSchema,
+  TopicalMapSchema,
   TrafficCountPageSchema,
+  TrafficCrawlHealthSchema,
   TrafficCrawlPageSchema,
   TrafficEventPageSchema,
   TrafficSitemapPageSchema,
+  WorkspacePageSchema,
+  type AcceptPromptSuggestionInput,
+  type AcceptedPromptSuggestion,
   type Account,
   type AnalyticsPage,
   type AnalyticsSource,
   type AnalyticsSummary,
+  type Audit,
+  type AuditUsage,
+  type BrandAnalysisAvailability,
+  type BrandAnalysisRun,
   type Category,
   type CitedDomain,
+  type CitedPage,
   type Competitor,
   type CompetitorExclusion,
   type ContentBrief,
+  type CreateAuditInput,
+  type CreateCategoryInput,
   type CreateContentBriefInput,
   type CreateFeedbackInput,
   type CreateProjectInput,
   type CreatePromptGroupInput,
   type CreateReportInput,
+  type CreateTopicalMapInput,
   type Feedback,
   type GoogleStatus,
   type IntegrationsStatus,
@@ -63,11 +86,17 @@ import {
   type PromptInput,
   type PromptSettings,
   type PromptSuggestion,
+  type RegenerateTopicalMapClusterInput,
   type SearchPage,
   type SearchQuery,
   type SearchSummary,
+  type SuggestionRun,
+  type SuggestionRunAvailability,
+  type TopicalMap,
+  type TopicalMapSummary,
   type TrafficCountPage,
   type TrafficCrawl,
+  type TrafficCrawlHealth,
   type TrafficEvent,
   type TrafficGroup,
   type TrafficKind,
@@ -76,12 +105,16 @@ import {
   type UpdateProjectInput,
   type UpdatePromptGroupInput,
   type UpdatePromptInput,
+  type Workspace,
 } from "./schemas.js";
 
 const projectPath = (projectId: string): string => `/v1/projects/${encodeURIComponent(projectId)}`;
 
 const promptGroupPath = (projectId: string, groupId: string): string =>
   `${projectPath(projectId)}/groups/${encodeURIComponent(groupId)}`;
+
+const suggestionsPath = (projectId: string, groupId: string): string =>
+  `${projectPath(projectId)}/prompt-groups/${encodeURIComponent(groupId)}/suggestions`;
 
 /** The period a listing reports on. Defaults to the last 30 days. */
 export type DateRange = { startDate?: string; endDate?: string };
@@ -98,12 +131,22 @@ export class AccountResource {
   }
 }
 
+export class WorkspacesResource {
+  constructor(private readonly http: HttpClient) {}
+
+  list(params: Pagination = {}, options?: RequestOptions): Promise<Page<Workspace>> {
+    return this.http.get("/v1/workspaces", WorkspacePageSchema, { ...options, query: params });
+  }
+}
+
+export type ProjectListParams = { workspaceId?: string };
+
 export class ProjectsResource {
   constructor(private readonly http: HttpClient) {}
 
   /** `GET /v1/projects` — every project the token reaches, newest first. */
-  list(options?: RequestOptions): Promise<List<Project>> {
-    return this.http.get("/v1/projects", ProjectListSchema, options);
+  list(params: ProjectListParams = {}, options?: RequestOptions): Promise<List<Project>> {
+    return this.http.get("/v1/projects", ProjectListSchema, { ...options, query: params });
   }
 
   /** `GET /v1/projects/{projectId}` */
@@ -142,6 +185,10 @@ export class CategoriesResource {
   /** `GET /v1/projects/{projectId}/categories` — categories and subcategories, top-level first. */
   list(projectId: string, options?: RequestOptions): Promise<List<Category>> {
     return this.http.get(`${projectPath(projectId)}/categories`, CategoryListSchema, options);
+  }
+
+  create(projectId: string, input: CreateCategoryInput, options?: RequestOptions): Promise<Category> {
+    return this.http.post(`${projectPath(projectId)}/categories`, input, CategorySchema, options);
   }
 }
 
@@ -243,6 +290,13 @@ export class SourcesResource {
    */
   list(projectId: string, params: RankingParams = {}, options?: RequestOptions): Promise<Page<CitedDomain>> {
     return this.http.get(`${projectPath(projectId)}/sources`, CitedDomainPageSchema, {
+      ...options,
+      query: params,
+    });
+  }
+
+  listPages(projectId: string, params: RankingParams = {}, options?: RequestOptions): Promise<Page<CitedPage>> {
+    return this.http.get(`${projectPath(projectId)}/sources/pages`, CitedPagePageSchema, {
       ...options,
       query: params,
     });
@@ -349,6 +403,100 @@ export class PromptSuggestionsResource {
       ...options,
       query: params,
     });
+  }
+
+  accept(
+    projectId: string,
+    suggestionId: string,
+    input: AcceptPromptSuggestionInput,
+    options?: RequestOptions
+  ): Promise<AcceptedPromptSuggestion> {
+    return this.http.post(
+      `${projectPath(projectId)}/prompt-suggestions/${encodeURIComponent(suggestionId)}/accept`,
+      input,
+      AcceptedPromptSuggestionSchema,
+      options
+    );
+  }
+
+  availability(projectId: string, groupId: string, options?: RequestOptions): Promise<SuggestionRunAvailability> {
+    return this.http.get(`${suggestionsPath(projectId, groupId)}/availability`, SuggestionRunAvailabilitySchema, options);
+  }
+
+  generate(projectId: string, groupId: string, options?: RequestOptions): Promise<SuggestionRun> {
+    return this.http.post(`${suggestionsPath(projectId, groupId)}/generate`, undefined, SuggestionRunSchema, options);
+  }
+}
+
+export class BrandAnalysisResource {
+  constructor(private readonly http: HttpClient) {}
+
+  private path(projectId: string, rest: string): string {
+    return `${projectPath(projectId)}/analysis${rest}`;
+  }
+
+  createRun(projectId: string, options?: RequestOptions): Promise<BrandAnalysisRun> {
+    return this.http.post(this.path(projectId, "/runs"), undefined, BrandAnalysisRunSchema, options);
+  }
+
+  availability(projectId: string, options?: RequestOptions): Promise<BrandAnalysisAvailability> {
+    return this.http.get(this.path(projectId, "/availability"), BrandAnalysisAvailabilitySchema, options);
+  }
+
+  getRun(projectId: string, runId: string, options?: RequestOptions): Promise<BrandAnalysisRun> {
+    return this.http.get(this.path(projectId, `/runs/${encodeURIComponent(runId)}`), BrandAnalysisRunSchema, options);
+  }
+}
+
+export type AuditUsageParams = { projectId?: string };
+
+export class AuditsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  create(input: CreateAuditInput, options?: RequestOptions): Promise<Audit> {
+    return this.http.post("/v1/audits", input, AuditSchema, options);
+  }
+
+  get(auditId: string, options?: RequestOptions): Promise<Audit> {
+    return this.http.get(`/v1/audits/${encodeURIComponent(auditId)}`, AuditSchema, options);
+  }
+
+  usage(params: AuditUsageParams = {}, options?: RequestOptions): Promise<AuditUsage> {
+    return this.http.get("/v1/audits/usage", AuditUsageSchema, { ...options, query: params });
+  }
+}
+
+export class TopicalMapsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  private path(projectId: string, rest = ""): string {
+    return `${projectPath(projectId)}/maps${rest}`;
+  }
+
+  create(projectId: string, input: CreateTopicalMapInput, options?: RequestOptions): Promise<TopicalMap> {
+    return this.http.post(this.path(projectId), input, TopicalMapSchema, options);
+  }
+
+  list(projectId: string, options?: RequestOptions): Promise<List<TopicalMapSummary>> {
+    return this.http.get(this.path(projectId), TopicalMapListSchema, options);
+  }
+
+  get(projectId: string, mapId: string, options?: RequestOptions): Promise<TopicalMap> {
+    return this.http.get(this.path(projectId, `/${encodeURIComponent(mapId)}`), TopicalMapSchema, options);
+  }
+
+  regenerateCluster(
+    projectId: string,
+    mapId: string,
+    input: RegenerateTopicalMapClusterInput,
+    options?: RequestOptions
+  ): Promise<TopicalMap> {
+    return this.http.post(
+      this.path(projectId, `/${encodeURIComponent(mapId)}/regenerate`),
+      input,
+      TopicalMapSchema,
+      options
+    );
   }
 }
 
@@ -485,6 +633,7 @@ export type TrafficCrawlParams = Pagination & {
   path?: string;
 };
 export type TrafficSitemapParams = Pagination & { active?: "true" | "false" };
+export type TrafficCrawlHealthParams = DateRange & { kind: TrafficKind; vendor?: string };
 
 /**
  * What bots did on the tracked site. Where the Google endpoints count the
@@ -546,6 +695,10 @@ export class TrafficResource {
       ...options,
       query: params,
     });
+  }
+
+  health(projectId: string, params: TrafficCrawlHealthParams, options?: RequestOptions): Promise<TrafficCrawlHealth> {
+    return this.http.get(this.path(projectId, "/health"), TrafficCrawlHealthSchema, { ...options, query: params });
   }
 
   /** `GET /v1/projects/{projectId}/traffic/sitemap` — the connected sitemap and its addresses. */

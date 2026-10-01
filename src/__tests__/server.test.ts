@@ -75,13 +75,36 @@ const SEARCH_SUMMARY = { clicks: 0, impressions: 0, ctr: 0, position: 0, timelin
 
 const NO_SITEMAP = { sitemap: null, data: [], nextCursor: null };
 
+const WORKSPACES = {
+  data: [{ id: "w1", name: "Acme", kind: "personal", role: "OWNER", scoped: false }],
+  nextCursor: null,
+};
+
+const CRAWL_HEALTH = {
+  total: 0,
+  success: 0,
+  redirects: 0,
+  clientErrors: 0,
+  serverErrors: 0,
+  unknown: 0,
+  scanRequests: 0,
+  averageResponseTimeMs: null,
+  assessments: [{ key: "responseTime", level: "unknown", count: null, rate: null, averageResponseTimeMs: null }],
+  issues: [],
+};
+
+const SUGGESTION_RUN = { runId: null, skipped: "nothing_to_suggest" };
+
 const fakeClient = {
   listProjects: async () => ({ data: [PROJECT] }),
   getAccount: async () => ACCOUNT,
+  listWorkspaces: async () => WORKSPACES,
   listPrompts: async () => PROMPTS,
   listCompetitors: async () => COMPETITORS,
   getSearchSummary: async () => SEARCH_SUMMARY,
   getSitemap: async () => NO_SITEMAP,
+  getCrawlHealth: async () => CRAWL_HEALTH,
+  generatePromptSuggestions: async () => SUGGESTION_RUN,
 } as unknown as PromptEyeClient;
 
 async function connectedClient(): Promise<Client> {
@@ -130,6 +153,9 @@ describe("tool results", () => {
     ["list_competitors", {}, { ...COMPETITORS, projectName: PROJECT.name, brand: PROJECT.brand, model: null }],
     ["get_search_performance", {}, { by: null, summary: SEARCH_SUMMARY, data: null, nextCursor: null }],
     ["get_sitemap", {}, NO_SITEMAP],
+    ["list_workspaces", {}, WORKSPACES],
+    ["get_crawl_health", { kind: "ai" }, CRAWL_HEALTH],
+    ["generate_prompt_suggestions", { groupId: "g1" }, SUGGESTION_RUN],
   ])("%s answers the API data as structured content and as its serialized JSON", async (name, args, expected) => {
     const client = await connectedClient();
     const result = (await client.callTool({ name, arguments: args })) as CallToolResult;
@@ -163,6 +189,12 @@ describe("output schema descriptions", () => {
     ["get_report", ["score"], "null = the report is not ready yet"],
     ["get_content_brief", ["outline"], "null until ready"],
     ["get_sitemap", ["sitemap"], "null = no sitemap is connected"],
+    ["list_workspaces", ["data", "[]", "role"], "VIEWER reads only"],
+    ["get_crawl_health", ["assessments", "[]", "level"], "ok, warning or critical"],
+    ["generate_prompt_suggestions", ["skipped"], "set exactly when runId is null"],
+    ["get_brand_analysis_run", ["sentiment"], "null until ready"],
+    ["get_audit", ["results", "[]", "analysis"], "null until status is success"],
+    ["get_topical_map", ["pillar"], "null until ready"],
   ])("%s advertises what %j means", async (name, path, meaning) => {
     const client = await connectedClient();
     const { tools } = await client.listTools();

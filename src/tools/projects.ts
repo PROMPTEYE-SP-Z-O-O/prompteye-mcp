@@ -27,12 +27,20 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         "based only on similar brand names. When unsure which one the user means, ask using the labels " +
         "and domains shown, and use the project id to select the confirmed one.",
       annotations: READ_ONLY,
-      inputSchema: {},
+      inputSchema: {
+        workspaceId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            "Only the projects of this workspace, as list_workspaces reports it. A workspace the key does not reach lists nothing."
+          ),
+      },
       outputSchema: { data: z.array(ProjectOutputSchema) },
     },
-    async () =>
+    async (args) =>
       handled(async () => {
-        const list = await client.listProjects();
+        const list = await client.listProjects(args);
         return ok({ ...list, data: list.data.map(toProjectOutput) });
       })
   );
@@ -150,6 +158,15 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
             "Brands to keep out of the competitor set — agencies, resellers or anything that is not a " +
               "rival, so share of voice is not diluted by them. Each name becomes one exclusion without " +
               "aliases; list_competitor_exclusions reads them back and set_competitor_exclusions adds aliases."
+          ),
+        workspaceId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            "Workspace to create the project in, as list_workspaces reports it. Defaults to the personal " +
+              "workspace of the account behind the key, or to its only workspace when it has no personal one; " +
+              "an account that belongs to several and has no personal one must name one."
           ),
       },
       outputSchema: ProjectOutputSchema.shape,

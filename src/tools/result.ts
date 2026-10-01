@@ -67,17 +67,3 @@ export async function handled(run: () => Promise<CallToolResult>): Promise<CallT
     return fail(message);
   }
 }
-
-/**
- * Marks the result of a tool whose endpoint the PromptEye API does not serve yet,
- * so the model never presents illustrative figures as measurements of the
- * user's project.
- */
-export function sampleData(structuredContent: Record<string, unknown>): CallToolResult {
-  const result = ok(structuredContent);
-  const note =
-    "Note: sample data. The PromptEye API does not serve this yet, so these figures are " +
-    "illustrative and were not measured for this project. Say so when relaying them.";
-
-  return { ...result, content: [...result.content, { type: "text", text: note }] };
-}

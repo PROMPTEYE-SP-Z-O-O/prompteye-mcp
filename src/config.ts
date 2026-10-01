@@ -1,5 +1,4 @@
 import { PromptEyeApi } from "./api/index.js";
-import { createFixturesClient } from "./client/fixtures-client.js";
 import { createLiveClient } from "./client/live-client.js";
 import type { PromptEyeClient } from "./client/prompteye-client.js";
 
@@ -41,7 +40,7 @@ export function createClient({ token, baseUrl }: ApiCredentials): PromptEyeClien
     baseUrl,
     headers: { "User-Agent": `${serverName}/${serverVersion}` },
   });
-  return createLiveClient(api, createFixturesClient());
+  return createLiveClient(api);
 }
 
 export const describeDataSource = (baseUrl: string): string => `using the PromptEye API at ${baseUrl}`;
