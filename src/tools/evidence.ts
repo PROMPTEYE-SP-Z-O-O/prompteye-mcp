@@ -3,19 +3,11 @@ import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { MAX_LIMIT, dateRangeShape, modelFilterShape, paginationShape } from "../schemas/common.js";
 import { AnswerSchema, CitationQualitySchema, CitedDomainSchema } from "../schemas/prompteye.js";
-import type { CitedDomain } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
 import { READ_ONLY, handled, ok, sampleData, type ToolContext } from "./result.js";
 
 export const SOURCES_WIDGET = "sources";
-
-const roundedToOneDecimal = (value: number): number => Number(value.toFixed(1));
-
-const toCitedDomainOutput = (domain: CitedDomain): CitedDomain => ({
-  ...domain,
-  share: roundedToOneDecimal(domain.share),
-});
 
 /** The domains behind the answers — served by the API. */
 export function registerSourceTools(server: McpServer, { client, session }: ToolContext): void {
@@ -62,7 +54,6 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
 
         return ok({
           ...page,
-          data: page.data.map(toCitedDomainOutput),
           projectName: project.name,
           brand: project.brand,
           model: args.model ?? null,
