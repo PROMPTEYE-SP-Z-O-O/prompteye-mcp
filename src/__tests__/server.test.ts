@@ -133,6 +133,16 @@ const draft07Keywords = (schema: unknown): string[] => {
   ]);
 };
 
+describe("initialize", () => {
+  it("introduces the server with the PromptEye icon", async () => {
+    const client = await connectedClient();
+
+    expect(client.getServerVersion()?.icons).toEqual([
+      expect.objectContaining({ src: expect.stringMatching(/^data:image\/png;base64,iVBOR/), mimeType: "image/png" }),
+    ]);
+  });
+});
+
 describe("tools/list", () => {
   it("advertises an output schema in JSON Schema 2020-12 for every tool", async () => {
     const client = await connectedClient();
