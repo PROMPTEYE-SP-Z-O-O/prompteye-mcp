@@ -217,6 +217,22 @@ describe("createHttpApp", () => {
     expect(tools.tools.map((tool) => tool.name)).toContain("select_project");
   });
 
+  it("accepts the key from X-API-Key", async () => {
+    const { client } = await connect(app.url, { "X-API-Key": KEY_B });
+    clients.push(client);
+
+    const tools = await client.listTools();
+    expect(tools.tools.map((tool) => tool.name)).toContain("select_project");
+  });
+
+  it("prefers X-API-Key over a bearer token that is not a PromptEye key", async () => {
+    const { client } = await connect(app.url, { Authorization: "Bearer oauth-token-from-the-client", "X-API-Key": KEY_B });
+    clients.push(client);
+
+    const tools = await client.listTools();
+    expect(tools.tools.map((tool) => tool.name)).toContain("select_project");
+  });
+
   it("answers /healthz without the data source or the session count", async () => {
     const response = await fetch(`${app.url}/healthz`);
     const body = await response.json();

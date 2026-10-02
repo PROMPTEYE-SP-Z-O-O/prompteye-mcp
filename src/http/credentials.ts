@@ -5,13 +5,13 @@ import { createClient, type ApiCredentials } from "../config.js";
 import { describeError, type Logger } from "./logging.js";
 import { REJECTIONS, tooManyRequests, type Rejection } from "./rejections.js";
 
-const CREDENTIAL_HEADERS = ["authorization", "x-prompteye-key"] as const;
+const CREDENTIAL_HEADERS = ["authorization", "x-prompteye-key", "x-api-key"] as const;
 
 const BEARER_SCHEME = /^Bearer\s+(.+)$/i;
 
 const KEY_REJECTING_STATUSES = new Set([401, 403]);
 
-const [AUTHORIZATION_HEADER, KEY_HEADER] = CREDENTIAL_HEADERS;
+const [AUTHORIZATION_HEADER, ...KEY_HEADERS] = CREDENTIAL_HEADERS;
 
 export const firstValue = (headers: IncomingHttpHeaders, name: string): string | undefined => {
   const value = headers[name];
@@ -21,9 +21,11 @@ export const firstValue = (headers: IncomingHttpHeaders, name: string): string |
 const readBearerToken = (authorization: string | undefined): string | undefined =>
   authorization?.match(BEARER_SCHEME)?.[1]?.trim() || undefined;
 
+const readKeyHeader = (headers: IncomingHttpHeaders): string | undefined =>
+  KEY_HEADERS.map((name) => firstValue(headers, name)?.trim()).find((value) => !!value);
+
 export function readApiKey(headers: IncomingHttpHeaders): string | undefined {
-  const bearer = readBearerToken(firstValue(headers, AUTHORIZATION_HEADER));
-  return bearer ?? (firstValue(headers, KEY_HEADER)?.trim() || undefined);
+  return readKeyHeader(headers) ?? readBearerToken(firstValue(headers, AUTHORIZATION_HEADER));
 }
 
 export function fingerprintOf(token: string): string {
