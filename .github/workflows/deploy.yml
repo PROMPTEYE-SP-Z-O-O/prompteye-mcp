@@ -1,0 +1,92 @@
+name: Deploy (Cloud Run)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  ENVIRONMENT: research
+  SUFFIX: RESEARCH
+  PROJECT_ID: prompteye-analytics
+  REGION: europe-central2
+  SERVICE: mcp
+  REPOSITORY: mcp
+
+concurrency:
+  group: mcp-deploy-research
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Nothing to deploy to yet
+        if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] == ''
+        run: |
+          {
+            echo "## MCP — ${ENVIRONMENT}"
+            echo
+            echo 'No deploy: `GCP_MCP_DEPLOYER_'"${SUFFIX}"'` is not set.'
+            echo 'Set it from `terraform output -raw mcp_deployer_service_account` in'
+            echo 'prompteye-vibe infra/gcp/envs/'"${ENVIRONMENT}"'.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Authenticate to Google Cloud
+        if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars[format('GCP_WIF_PROVIDER_{0}', env.SUFFIX)] }}
+          service_account: ${{ vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] }}
+
+      - name: Setup gcloud
+        if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] != ''
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate Docker to Artifact Registry
+        if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] != ''
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push
+        if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] != ''
+        run: |
+          image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE}"
+          docker build --tag "${image}:${GITHUB_SHA}" --tag "${image}:latest" .
+          docker push "${image}:${GITHUB_SHA}"
+          docker push "${image}:latest"
+
+      - name: Deploy the revision
+        if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] != ''
+        run: |
+          image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE}"
+          gcloud run deploy "${SERVICE}" \
+            --image="${image}:${GITHUB_SHA}" \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}" \
+            --quiet
+
+      - name: Summary
+        if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] != ''
+        run: |
+          url="$(gcloud run services describe "${SERVICE}" \
+            --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.url)')"
+          revision="$(gcloud run services describe "${SERVICE}" \
+            --region="${REGION}" --project="${PROJECT_ID}" \
+            --format='value(status.latestReadyRevisionName)')"
+          {
+            echo "## MCP — ${ENVIRONMENT}"
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Revision | \`${revision}\` |"
+            echo "| Image | \`${GITHUB_SHA}\` |"
+            echo "| URL | \`${url}/mcp\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
