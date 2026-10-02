@@ -10,15 +10,15 @@ permissions:
   id-token: write
 
 env:
-  ENVIRONMENT: research
-  SUFFIX: RESEARCH
-  PROJECT_ID: prompteye-analytics
+  ENVIRONMENT: prod
+  SUFFIX: PROD
+  PROJECT_ID: prompteye
   REGION: europe-central2
   SERVICE: mcp
   REPOSITORY: mcp
 
 concurrency:
-  group: mcp-deploy-research
+  group: mcp-deploy-prod
   cancel-in-progress: false
 
 jobs:
