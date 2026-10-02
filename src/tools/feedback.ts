@@ -9,9 +9,9 @@ export function registerFeedbackTools(server: McpServer, { client }: ToolContext
     {
       title: "Tell the PromptEye team about a missing capability",
       description:
-        "Sends the PromptEye team a short note that the user needs something this server or the " +
-        "PromptEye API cannot do today.\n\n" +
-        "Use it only when the user wants the PromptEye team to know about the gap. Ask the user " +
+        "Sends the PromptEye team a short note from the user: something this server or the PromptEye " +
+        "API cannot do today, something that does not work, or any other feedback, praise included.\n\n" +
+        "Use it only when the user wants the PromptEye team to hear it. Ask the user " +
         "first and send nothing until they agree in this conversation; never send a report on your " +
         "own initiative.\n\n" +
         "Send only a short description of the need and of what you were trying to do. Never include " +
