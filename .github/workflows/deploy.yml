@@ -1,10 +1,5 @@
 name: Deploy (Cloud Run)
 
-# Builds the HTTP server image and rolls a Cloud Run revision. It never creates the service:
-# its shape -- env, scaling, timeout, public access -- is Terraform's, `module "mcp"` in
-# prompteye-vibe infra/gcp/envs/research, and the deployer identity holds `run.developer` on
-# that one service only, so a deploy against a service Terraform has not made fails instead
-# of inventing one.
 on:
   push:
     branches: [main]
@@ -15,7 +10,6 @@ permissions:
   id-token: write
 
 env:
-  # research is the only environment with the module; envs/prod does not include it yet.
   ENVIRONMENT: research
   SUFFIX: RESEARCH
   PROJECT_ID: prompteye-analytics
@@ -35,8 +29,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # The deployer identity comes from the Terraform apply in prompteye-vibe. Until its
-      # email is set here there is nothing to become, so say so instead of failing red.
       - name: Nothing to deploy to yet
         if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] == ''
         run: |
@@ -48,9 +40,6 @@ jobs:
             echo 'prompteye-vibe infra/gcp/envs/'"${ENVIRONMENT}"'.'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Keyless, through the pool prompteye-vibe's bootstrap.sh created. The deployer can
-      # write to one Artifact Registry repository, update one Cloud Run service and act as
-      # one runtime identity.
       - name: Authenticate to Google Cloud
         if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] != ''
         uses: google-github-actions/auth@v2
@@ -66,9 +55,6 @@ jobs:
         if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] != ''
         run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
-      # Tagged with the commit, so a revision names its source, and with `latest` for anyone
-      # reaching for the newest by hand. The revision is deployed by the commit tag: a
-      # rollback that follows a moving tag is not a rollback.
       - name: Build and push
         if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] != ''
         run: |
@@ -77,8 +63,6 @@ jobs:
           docker push "${image}:${GITHUB_SHA}"
           docker push "${image}:latest"
 
-      # Only the image. Everything else about the service is Terraform's, and
-      # `gcloud run deploy` leaves untouched what the command does not name.
       - name: Deploy the revision
         if: vars[format('GCP_MCP_DEPLOYER_{0}', env.SUFFIX)] != ''
         run: |
