@@ -11,7 +11,7 @@ export const REJECTIONS = {
     status: 401,
     code: -32001,
     message:
-      "Missing PromptEye API key. Send it as Authorization: Bearer pe_live_… (or X-PromptEye-Key). " +
+      "Missing PromptEye API key. Send it as Authorization: Bearer pe_live_… (or X-PromptEye-Key, or X-API-Key). " +
       `Keys: ${INTEGRATIONS_URL}`,
     headers: { "WWW-Authenticate": WWW_AUTHENTICATE },
   },

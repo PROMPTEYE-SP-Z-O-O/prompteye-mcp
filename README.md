@@ -203,11 +203,13 @@ During development, `npm run dev` and `npm run dev:http` watch and reload.
 ### Hosted / HTTP mode
 
 The HTTP server holds no key of its own. Each request brings the caller's PromptEye API key in
-one of two headers — `Authorization` wins when both are present:
+one of three headers — `X-PromptEye-Key` or `X-API-Key` wins over `Authorization`, so a client
+that also sends a bearer token of its own still reaches the key:
 
 ```http
 Authorization: Bearer pe_live_…
 X-PromptEye-Key: pe_live_…
+X-API-Key: pe_live_…
 ```
 
 What happens with it:
@@ -368,7 +370,7 @@ src/
     app.ts            the express app: wires the middleware chain — CORS, logging, JSON body, then the /mcp steps
     steps.ts          the /mcp steps as express handlers: IP limit, POST for new sessions, key required, key limit, error guard
     mcp.ts            routes a request to its session: verifies the key and starts one at initialize, resumes by Mcp-Session-Id
-    credentials.ts    reads the key from Authorization / X-PromptEye-Key, fingerprints it, verifies it at initialize
+    credentials.ts    reads the key from X-PromptEye-Key / X-API-Key / Authorization, fingerprints it, verifies it at initialize
     rejections.ts     every refusal the app answers with — status, JSON-RPC code, message, headers
     sessions.ts       SessionRegistry — sessions bound to a key, idle sweep, per-key cap
     rate-limit.ts     RequestBudget — requests per minute, per key and per client address
