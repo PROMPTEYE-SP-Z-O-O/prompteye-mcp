@@ -281,6 +281,16 @@ export class PromptGroupsResource {
 /** Narrows a ranking to one assistant, and caps how many entries come back. */
 export type RankingParams = DateRange & { limit?: number; model?: string };
 
+/**
+ * Narrows a ranking to a slice of the project's prompts. Give at most one of
+ * `promptId`, `groupId` or `categoryId` (with `subcategoryId` beside it);
+ * combining them answers 400.
+ */
+export type PromptScope = { promptId?: string; groupId?: string; categoryId?: string; subcategoryId?: string };
+
+/** A ranking that can also be scoped to one prompt, group or category. */
+export type ScopedRankingParams = RankingParams & PromptScope;
+
 export class SourcesResource {
   constructor(private readonly http: HttpClient) {}
 
@@ -288,7 +298,7 @@ export class SourcesResource {
    * `GET /v1/projects/{projectId}/sources` — the domains the assistants leaned
    * on when answering the project's prompts, most cited first.
    */
-  list(projectId: string, params: RankingParams = {}, options?: RequestOptions): Promise<Page<CitedDomain>> {
+  list(projectId: string, params: ScopedRankingParams = {}, options?: RequestOptions): Promise<Page<CitedDomain>> {
     return this.http.get(`${projectPath(projectId)}/sources`, CitedDomainPageSchema, {
       ...options,
       query: params,
@@ -310,7 +320,7 @@ export class CompetitorsResource {
    * `GET /v1/projects/{projectId}/competitors` — every brand named alongside the
    * project's own, ranked by visibility, then by position. The project's brand is in the list.
    */
-  list(projectId: string, params: RankingParams = {}, options?: RequestOptions): Promise<Page<Competitor>> {
+  list(projectId: string, params: ScopedRankingParams = {}, options?: RequestOptions): Promise<Page<Competitor>> {
     return this.http.get(`${projectPath(projectId)}/competitors`, CompetitorPageSchema, {
       ...options,
       query: params,

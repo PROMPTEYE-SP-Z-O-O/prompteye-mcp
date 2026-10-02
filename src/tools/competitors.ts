@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
-import { MAX_LIMIT, dateRangeShape, modelFilterShape } from "../schemas/common.js";
+import { MAX_LIMIT, dateRangeShape, modelFilterShape, promptScopeShape } from "../schemas/common.js";
 import { CompetitorExclusionSchema, CompetitorSchema, NextCursorSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
@@ -25,11 +25,17 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
         `${SHARE_OF_VOICE}\n\n${VISIBILITY}\n\n` +
         "The ranking answers with the strongest brands rather than a list to walk to the end of, so " +
         "raise `limit` to see further down. `model` narrows it to one assistant, which is how to tell " +
-        "a brand that dominates everywhere from one that owns a single assistant.",
+        "a brand that dominates everywhere from one that owns a single assistant.\n\n" +
+        "Narrow the ranking to one prompt (`promptId`), one prompt group (`groupId`), or one category — " +
+        "`categoryId` alone, or `categoryId` with `subcategoryId` — the same way the app's own visibility " +
+        "screen narrows it. Give at most one of these; combining them fails. There is no single call for " +
+        "'which prompts does competitor X outrank us on' — call list_prompts for the prompt ids, then this " +
+        "tool once per `promptId`, and keep the ones where the named competitor's position beats the brand's.",
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
         ...modelFilterShape,
+        ...promptScopeShape("Rank"),
         limit: z
           .number()
           .int()
