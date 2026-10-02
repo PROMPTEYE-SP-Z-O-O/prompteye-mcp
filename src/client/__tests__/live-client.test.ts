@@ -14,6 +14,8 @@ const LIVE_PROJECT = {
   alternativeDomains: [],
   excludedCompetitors: [],
   accessRole: "READ_ONLY",
+  organisationId: "o1live",
+  organisationName: "Acme GmbH",
   createdAt: "2026-09-01T10:00:00.000Z",
 };
 
@@ -43,6 +45,60 @@ const LIVE_GROUP = {
 };
 
 const LIVE_DOMAIN = { domain: "acme.example", citations: 18, share: 5, ownDomain: true };
+
+const LIVE_CITED_PAGE = {
+  url: "https://acme.example/blog/pricing-guide",
+  domain: "acme.example",
+  citations: 4,
+  share: 9,
+  ownDomain: true,
+};
+
+const LIVE_CONTENT_BRIEF = {
+  id: "cb1-ready",
+  status: "ready",
+  projectId: LIVE_PROJECT.id,
+  trackerId: null,
+  prompt: "best crm for agencies",
+  error: null,
+  title: "Best CRM for Agencies in 2026",
+  originalTitle: null,
+  titleChangeAnnotation: null,
+  fanoutSource: "nodeshub",
+  fanoutError: null,
+  fanoutVariants: [{ keyword: "crm pricing", type: "comparison", confidence: 0.82 }],
+  phrasesForArticle: [{ keyword: "crm pricing", type: "comparison", confidence: 0.82 }],
+  separateArticles: [],
+  outline: [
+    {
+      level: "H2",
+      text: "What does a CRM cost?",
+      annotation: "Cover the free tier.",
+      sourcePhrases: ["crm pricing"],
+      includesBrand: false,
+      faqQuestions: null,
+      origin: null,
+      originalHeading: null,
+      originalHasDirectAnswer: null,
+    },
+  ],
+  sourceTextMatchPercentage: null,
+  requestedAt: "2026-09-28T09:24:11.000Z",
+  readyAt: "2026-09-28T09:26:48.000Z",
+};
+
+const LIVE_CONTENT_BRIEF_CREATED = {
+  ...LIVE_CONTENT_BRIEF,
+  id: "cb2-processing",
+  status: "processing",
+  title: null,
+  fanoutSource: null,
+  fanoutVariants: null,
+  phrasesForArticle: null,
+  separateArticles: null,
+  outline: null,
+  readyAt: null,
+};
 
 const LIVE_COMPETITOR = {
   brand: "Rival",
@@ -99,6 +155,73 @@ const LIVE_ANALYTICS = {
 const LIVE_ANALYTICS_SOURCE = { source: "chatgpt.com", sessions: 78, keyEvents: 6 };
 const LIVE_ANALYTICS_PAGE = { page: "/pricing", sessions: 22, keyEvents: 3 };
 
+const LIVE_CATEGORY_CREATED = { id: "c2", name: "Pricing tiers", parentId: "c1", source: "manual" };
+
+const LIVE_ACCEPTED_SUGGESTION = { trackerId: "m1" };
+
+const LIVE_GROUP_SETTINGS = { id: "g2", name: "Problem queries", order: 2, promptCount: 0, aiTrafficTotal: 0 };
+
+const LIVE_BRAND_ANALYSIS_RUN = {
+  id: "r1",
+  projectId: LIVE_PROJECT.id,
+  status: "ready",
+  createdAt: "2026-09-28T09:24:11.000Z",
+  updatedAt: "2026-09-28T09:26:48.000Z",
+  activePromptCount: 12,
+  usedResultCount: 10,
+  maxContextGaps: 5,
+  gaps: [],
+  sentiment: null,
+  totalCost: 0.04,
+  error: null,
+};
+
+const LIVE_BRAND_ANALYSIS_AVAILABILITY = {
+  canRun: true,
+  reason: "ready",
+  activePromptCount: 12,
+  usedResultCount: 10,
+  latestTrackScoreResultTimestamp: "2026-09-28T09:00:00.000Z",
+};
+
+const LIVE_SUGGESTION_RUN = { runId: "u1", skipped: null };
+
+const LIVE_SUGGESTION_AVAILABILITY = {
+  canRun: true,
+  reason: "ready",
+  pendingSuggestionCount: 0,
+  availableSlots: 5,
+  lastRun: null,
+};
+
+const LIVE_AUDIT = {
+  id: "a1",
+  projectId: LIVE_PROJECT.id,
+  status: "pending",
+  startDate: "2026-09-28T09:24:11.000Z",
+  endDate: null,
+  duration: null,
+  numberOfUrls: 1,
+  results: [
+    { url: "https://acme.example/pricing", status: "pending", error: null, totalCost: null, analysis: null },
+  ],
+};
+
+const LIVE_AUDIT_USAGE = { limit: 100, used: 12, remaining: 88 };
+
+const LIVE_TOPICAL_MAP = {
+  id: "m1",
+  projectId: LIVE_PROJECT.id,
+  topic: "cloud backup for small teams",
+  language: "en",
+  status: "ready",
+  createdAt: "2026-09-28T09:24:11.000Z",
+  generationCost: 0.03,
+  pillar: { title: "The Complete Guide to Cloud Backup", description: "…" },
+  clusters: [{ id: "cl1", title: "How much does cloud backup cost?", category: "Pricing", intent: "Informational" }],
+  errorMessage: null,
+};
+
 /**
  * The Google endpoints, matched on the segment after `/google/` and tried
  * before the rest: `/traffic/google/analytics/sources` ends exactly like `/sources`.
@@ -134,10 +257,32 @@ function liveClient() {
     });
 
     if (init.method === "POST") {
+      if (pathname === `/v1/projects/${LIVE_PROJECT.id}/prompt-suggestions/s1/accept`) {
+        return new Response(JSON.stringify(LIVE_ACCEPTED_SUGGESTION), { status: 200 });
+      }
+      if (pathname === `/v1/projects/${LIVE_PROJECT.id}/maps/${LIVE_TOPICAL_MAP.id}/regenerate`) {
+        return new Response(JSON.stringify(LIVE_TOPICAL_MAP), { status: 200 });
+      }
+      if (pathname === `/v1/projects/${LIVE_PROJECT.id}/prompt-groups/${LIVE_GROUP_SETTINGS.id}/suggestions/generate`) {
+        return new Response(JSON.stringify(LIVE_SUGGESTION_RUN), { status: 201 });
+      }
+
       const created =
         pathname === "/v1/projects"
           ? LIVE_PROJECT
-          : { data: [{ id: "p2", prompt: "how much does acme cost", groupName: "Pricing" }] };
+          : pathname === "/v1/content/briefs"
+            ? LIVE_CONTENT_BRIEF_CREATED
+            : pathname === `/v1/projects/${LIVE_PROJECT.id}/categories`
+              ? LIVE_CATEGORY_CREATED
+              : pathname === `/v1/projects/${LIVE_PROJECT.id}/prompt-groups`
+                ? LIVE_GROUP_SETTINGS
+                : pathname === `/v1/projects/${LIVE_PROJECT.id}/analysis/runs`
+                  ? LIVE_BRAND_ANALYSIS_RUN
+                  : pathname === "/v1/audits"
+                    ? LIVE_AUDIT
+                    : pathname === `/v1/projects/${LIVE_PROJECT.id}/maps`
+                      ? LIVE_TOPICAL_MAP
+                      : { data: [{ id: "p2", prompt: "how much does acme cost", groupName: "Pricing" }] };
       return new Response(JSON.stringify(created), { status: 201 });
     }
 
@@ -149,7 +294,9 @@ function liveClient() {
             ? { text: "KB text", updatedAt: null }
             : pathname === `/v1/projects/${LIVE_PROJECT.id}/prompts/${LIVE_PROMPT.id}`
               ? LIVE_PROMPT
-              : undefined;
+              : pathname === `/v1/projects/${LIVE_PROJECT.id}/prompt-groups/${LIVE_GROUP_SETTINGS.id}`
+                ? { ...LIVE_GROUP_SETTINGS, name: "Comparison queries" }
+                : undefined;
       return patched === undefined
         ? new Response(JSON.stringify({ error: { code: "not_found", message: "No endpoint matches this path." } }), {
             status: 404,
@@ -175,7 +322,23 @@ function liveClient() {
         ? { data: [LIVE_PROJECT] }
         : pathname === `/v1/projects/${LIVE_PROJECT.id}`
           ? LIVE_PROJECT
-          : pathname.endsWith("/knowledge-base")
+          : pathname === `/v1/content/briefs/${LIVE_CONTENT_BRIEF.id}`
+            ? LIVE_CONTENT_BRIEF
+            : pathname === `/v1/projects/${LIVE_PROJECT.id}/analysis/availability`
+              ? LIVE_BRAND_ANALYSIS_AVAILABILITY
+              : pathname === `/v1/projects/${LIVE_PROJECT.id}/analysis/runs/${LIVE_BRAND_ANALYSIS_RUN.id}`
+                ? LIVE_BRAND_ANALYSIS_RUN
+                : pathname === `/v1/projects/${LIVE_PROJECT.id}/prompt-groups/${LIVE_GROUP_SETTINGS.id}/suggestions/availability`
+                  ? LIVE_SUGGESTION_AVAILABILITY
+                  : pathname === `/v1/audits/${LIVE_AUDIT.id}`
+                  ? LIVE_AUDIT
+                  : pathname === "/v1/audits/usage"
+                    ? LIVE_AUDIT_USAGE
+                    : pathname === `/v1/projects/${LIVE_PROJECT.id}/maps`
+                      ? { data: [LIVE_TOPICAL_MAP] }
+                      : pathname === `/v1/projects/${LIVE_PROJECT.id}/maps/${LIVE_TOPICAL_MAP.id}`
+                        ? LIVE_TOPICAL_MAP
+                        : pathname.endsWith("/knowledge-base")
             ? { text: "KB text", updatedAt: null }
             : pathname.endsWith("/categories")
             ? { data: [{ id: "c1", name: "Pricing", parentId: null, source: "manual" }] }
@@ -183,7 +346,9 @@ function liveClient() {
               ? { data: [] }
               : pathname.endsWith("/prompt-groups")
                 ? { data: [LIVE_GROUP], nextCursor: null }
-                : pathname.endsWith("/sources")
+                : pathname.endsWith("/sources/pages")
+                  ? { data: [LIVE_CITED_PAGE], nextCursor: null }
+                  : pathname.endsWith("/sources")
                   ? { data: [LIVE_DOMAIN], nextCursor: null }
                   : pathname.endsWith("/competitors/exclusions")
                     ? { data: [{ name: "Rival Agency", aliases: [] }] }
@@ -413,6 +578,43 @@ describe("createLiveClient", () => {
     });
   });
 
+  it("ranks cited pages, narrowed to one assistant", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.listSourcePages(LIVE_PROJECT.id, { ...RANGE, model: "gpt", limit: 5 })).resolves.toEqual({
+      data: [LIVE_CITED_PAGE],
+      nextCursor: null,
+    });
+    expect(calls[0].path).toBe(
+      `/v1/projects/${LIVE_PROJECT.id}/sources/pages?startDate=2026-08-16&endDate=2026-09-15&model=gpt&limit=5`
+    );
+  });
+
+  it("starts a fresh content brief", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(
+      client.createContentBrief({ projectId: LIVE_PROJECT.id, prompt: "best crm for agencies" })
+    ).resolves.toEqual(LIVE_CONTENT_BRIEF_CREATED);
+
+    expect(calls[0]).toEqual({
+      path: "/v1/content/briefs",
+      method: "POST",
+      body: { projectId: LIVE_PROJECT.id, prompt: "best crm for agencies" },
+    });
+  });
+
+  it("reads one content brief in full", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.getContentBrief(LIVE_CONTENT_BRIEF.id)).resolves.toEqual(LIVE_CONTENT_BRIEF);
+    expect(calls[0]).toEqual({
+      path: `/v1/content/briefs/${LIVE_CONTENT_BRIEF.id}`,
+      method: "GET",
+      body: undefined,
+    });
+  });
+
   it("lists and replaces competitor exclusions", async () => {
     const { client, calls } = liveClient();
 
@@ -435,5 +637,128 @@ describe("createLiveClient", () => {
       method: "PUT",
       body: { exclusions: [{ name: "Rival Agency", aliases: [] }] },
     });
+  });
+
+  it("creates a category", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(
+      client.createCategory(LIVE_PROJECT.id, { name: "Pricing tiers", parentCategoryId: "c1" })
+    ).resolves.toEqual(LIVE_CATEGORY_CREATED);
+    expect(calls[0]).toEqual({
+      path: `/v1/projects/${LIVE_PROJECT.id}/categories`,
+      method: "POST",
+      body: { name: "Pricing tiers", parentCategoryId: "c1" },
+    });
+  });
+
+  it("accepts a prompt suggestion", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(
+      client.acceptPromptSuggestion(LIVE_PROJECT.id, "s1", { promptText: "best crm" })
+    ).resolves.toEqual(LIVE_ACCEPTED_SUGGESTION);
+    expect(calls[0]).toEqual({
+      path: `/v1/projects/${LIVE_PROJECT.id}/prompt-suggestions/s1/accept`,
+      method: "POST",
+      body: { promptText: "best crm" },
+    });
+  });
+
+  it("creates and renames a prompt group", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.createPromptGroup(LIVE_PROJECT.id, { name: "Problem queries" })).resolves.toEqual(
+      LIVE_GROUP_SETTINGS
+    );
+    expect(calls[0]).toEqual({
+      path: `/v1/projects/${LIVE_PROJECT.id}/prompt-groups`,
+      method: "POST",
+      body: { name: "Problem queries" },
+    });
+
+    await expect(
+      client.updatePromptGroup(LIVE_PROJECT.id, LIVE_GROUP_SETTINGS.id, { name: "Comparison queries" })
+    ).resolves.toEqual({ ...LIVE_GROUP_SETTINGS, name: "Comparison queries" });
+    expect(calls[1]).toEqual({
+      path: `/v1/projects/${LIVE_PROJECT.id}/prompt-groups/${LIVE_GROUP_SETTINGS.id}`,
+      method: "PATCH",
+      body: { name: "Comparison queries" },
+    });
+  });
+
+  it("generates suggestions for a group and checks whether one can run", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(
+      client.generateGroupSuggestions(LIVE_PROJECT.id, LIVE_GROUP_SETTINGS.id)
+    ).resolves.toEqual(LIVE_SUGGESTION_RUN);
+    await expect(
+      client.getPromptSuggestionAvailability(LIVE_PROJECT.id, LIVE_GROUP_SETTINGS.id)
+    ).resolves.toEqual(LIVE_SUGGESTION_AVAILABILITY);
+
+    expect(calls.map((call) => call.path)).toEqual([
+      `/v1/projects/${LIVE_PROJECT.id}/prompt-groups/${LIVE_GROUP_SETTINGS.id}/suggestions/generate`,
+      `/v1/projects/${LIVE_PROJECT.id}/prompt-groups/${LIVE_GROUP_SETTINGS.id}/suggestions/availability`,
+    ]);
+    expect(calls[0].body).toBeUndefined();
+  });
+
+  it("starts, checks and reads a brand analysis run", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.startBrandAnalysisRun(LIVE_PROJECT.id)).resolves.toEqual(LIVE_BRAND_ANALYSIS_RUN);
+    await expect(client.getBrandAnalysisAvailability(LIVE_PROJECT.id)).resolves.toEqual(
+      LIVE_BRAND_ANALYSIS_AVAILABILITY
+    );
+    await expect(client.getBrandAnalysisRun(LIVE_PROJECT.id, LIVE_BRAND_ANALYSIS_RUN.id)).resolves.toEqual(
+      LIVE_BRAND_ANALYSIS_RUN
+    );
+
+    expect(calls.map((call) => call.path)).toEqual([
+      `/v1/projects/${LIVE_PROJECT.id}/analysis/runs`,
+      `/v1/projects/${LIVE_PROJECT.id}/analysis/availability`,
+      `/v1/projects/${LIVE_PROJECT.id}/analysis/runs/${LIVE_BRAND_ANALYSIS_RUN.id}`,
+    ]);
+    expect(calls[0].body).toBeUndefined();
+  });
+
+  it("creates, reads and checks the usage of a WWW audit", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(client.createAudit({ urls: ["https://acme.example/pricing"], projectId: LIVE_PROJECT.id })).resolves.toEqual(
+      LIVE_AUDIT
+    );
+    await expect(client.getAudit(LIVE_AUDIT.id)).resolves.toEqual(LIVE_AUDIT);
+    await expect(client.getAuditUsage({ projectId: LIVE_PROJECT.id })).resolves.toEqual(LIVE_AUDIT_USAGE);
+
+    expect(calls.map((call) => call.path)).toEqual([
+      "/v1/audits",
+      `/v1/audits/${LIVE_AUDIT.id}`,
+      `/v1/audits/usage?projectId=${LIVE_PROJECT.id}`,
+    ]);
+  });
+
+  it("creates, lists, reads and regenerates a topical map", async () => {
+    const { client, calls } = liveClient();
+
+    await expect(
+      client.createTopicalMap(LIVE_PROJECT.id, { topic: LIVE_TOPICAL_MAP.topic, language: "en" })
+    ).resolves.toEqual(LIVE_TOPICAL_MAP);
+    const { id, projectId, topic, language, status, createdAt, generationCost } = LIVE_TOPICAL_MAP;
+    await expect(client.listTopicalMaps(LIVE_PROJECT.id)).resolves.toEqual({
+      data: [{ id, projectId, topic, language, status, createdAt, generationCost }],
+    });
+    await expect(client.getTopicalMap(LIVE_PROJECT.id, LIVE_TOPICAL_MAP.id)).resolves.toEqual(LIVE_TOPICAL_MAP);
+    await expect(
+      client.regenerateTopicalMapCluster(LIVE_PROJECT.id, LIVE_TOPICAL_MAP.id, { category: "Pricing" })
+    ).resolves.toEqual(LIVE_TOPICAL_MAP);
+
+    expect(calls.map((call) => call.path)).toEqual([
+      `/v1/projects/${LIVE_PROJECT.id}/maps`,
+      `/v1/projects/${LIVE_PROJECT.id}/maps`,
+      `/v1/projects/${LIVE_PROJECT.id}/maps/${LIVE_TOPICAL_MAP.id}`,
+      `/v1/projects/${LIVE_PROJECT.id}/maps/${LIVE_TOPICAL_MAP.id}/regenerate`,
+    ]);
   });
 });

@@ -100,6 +100,42 @@ describe("PromptEyeApi", () => {
     await expect(api.account.get()).rejects.toMatchObject({ status: 502, code: undefined, body: undefined });
   });
 
+  it("creates a project in a given workspace", async () => {
+    const project = {
+      id: "p2",
+      name: "Fresh Co",
+      brand: "Fresh Co",
+      domain: "freshco.com",
+      country: "PL",
+      label: null,
+      alternativeBrandNames: [],
+      alternativeDomains: [],
+      excludedCompetitors: [],
+      accessRole: "OWNER",
+      organisationId: "o2",
+      organisationName: "Agency",
+      createdAt: "2026-09-10T09:24:11.000Z",
+    };
+    const { api, calls } = stubFetch(json(201, project));
+
+    const result = await api.projects.create({
+      brand: "Fresh Co",
+      domain: "freshco.com",
+      country: "PL",
+      organisationId: "o2",
+    });
+
+    expect(result).toEqual(project);
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects`);
+    expect(calls[0].init.method).toBe("POST");
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({
+      brand: "Fresh Co",
+      domain: "freshco.com",
+      country: "PL",
+      organisationId: "o2",
+    });
+  });
+
   it("patches a project and returns updated project", async () => {
     const project = {
       id: "p1",
@@ -112,6 +148,8 @@ describe("PromptEyeApi", () => {
       alternativeDomains: ["acme.io"],
       excludedCompetitors: [],
       accessRole: "OWNER",
+      organisationId: "o1",
+      organisationName: "Acme Agency",
       createdAt: "2026-09-10T09:24:11.000Z",
     };
     const { api, calls } = stubFetch(json(200, project));
@@ -365,6 +403,45 @@ describe("PromptEyeApi", () => {
       });
       expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/traffic/crawls?path=%2Fpricing`);
     });
+
+    it("reads the health verdict for one kind", async () => {
+      const health = {
+        total: 8,
+        success: 5,
+        redirects: 1,
+        clientErrors: 1,
+        serverErrors: 1,
+        unknown: 0,
+        scanRequests: 0,
+        averageResponseTimeMs: 210,
+        assessments: [
+          { key: "5xx", level: "critical", count: 1, rate: 0.125, averageResponseTimeMs: null },
+          { key: "4xx", level: "warning", count: 1, rate: 0.125, averageResponseTimeMs: null },
+          { key: "3xx", level: "ok", count: 1, rate: 0.125, averageResponseTimeMs: null },
+          { key: "responseTime", level: "ok", count: null, rate: null, averageResponseTimeMs: 210 },
+        ],
+        issues: [
+          {
+            botId: "gptbot",
+            botName: "GPTBot",
+            path: "/old",
+            statusCode: 500,
+            redirectLocation: null,
+            count: 1,
+            lastSeenAt: "2026-09-20T14:03:12.000Z",
+            averageResponseTimeMs: 900,
+          },
+        ],
+      };
+      const { api, calls } = stubFetch(json(200, health));
+
+      await expect(
+        api.traffic.crawlHealth("p1", { kind: "ai", vendor: "OpenAI", startDate: "2026-08-16", endDate: "2026-09-15" })
+      ).resolves.toEqual(health);
+      expect(calls[0].url).toBe(
+        `${BASE_URL}/v1/projects/p1/traffic/health?kind=ai&vendor=OpenAI&startDate=2026-08-16&endDate=2026-09-15`
+      );
+    });
   });
 
   describe("google", () => {
@@ -405,6 +482,232 @@ describe("PromptEyeApi", () => {
       expect(calls[0].url).toBe(
         `${BASE_URL}/v1/projects/p1/traffic/google/analytics/sources?assistant=openai&limit=10`
       );
+    });
+  });
+
+  it("creates a category, optionally under a parent", async () => {
+    const category = { id: "c2", name: "Pricing tiers", parentId: "c1", source: "manual" };
+    const { api, calls } = stubFetch(json(201, category));
+
+    const result = await api.categories.create("p1", { name: "Pricing tiers", parentCategoryId: "c1" });
+
+    expect(result).toEqual(category);
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/categories`);
+    expect(calls[0].init.method).toBe("POST");
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ name: "Pricing tiers", parentCategoryId: "c1" });
+  });
+
+  it("accepts a prompt suggestion", async () => {
+    const { api, calls } = stubFetch(json(200, { trackerId: "m1" }));
+
+    const result = await api.promptSuggestions.accept("p1", "s1", { promptText: "best crm" });
+
+    expect(result).toEqual({ trackerId: "m1" });
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/prompt-suggestions/s1/accept`);
+    expect(calls[0].init.method).toBe("POST");
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ promptText: "best crm" });
+  });
+
+  it("creates and updates a prompt group", async () => {
+    const settings = { id: "g1", name: "Comparisons", order: 1, promptCount: 0, aiTrafficTotal: 0 };
+    const { api, calls } = stubFetch(json(201, settings));
+
+    const created = await api.promptGroups.create("p1", { name: "Comparisons", order: 1 });
+    expect(created).toEqual(settings);
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/prompt-groups`);
+    expect(calls[0].init.method).toBe("POST");
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ name: "Comparisons", order: 1 });
+
+    const { api: patchApi, calls: patchCalls } = stubFetch(json(200, { ...settings, name: "Comparison queries" }));
+    const updated = await patchApi.promptGroups.update("p1", "g1", { name: "Comparison queries" });
+    expect(updated.name).toBe("Comparison queries");
+    expect(patchCalls[0].url).toBe(`${BASE_URL}/v1/projects/p1/prompt-groups/g1`);
+    expect(patchCalls[0].init.method).toBe("PATCH");
+  });
+
+  describe("prompt suggestion generation", () => {
+    it("schedules a run without sending a body", async () => {
+      const run = { runId: "u1", skipped: null };
+      const { api, calls } = stubFetch(json(201, run));
+
+      const result = await api.promptSuggestions.generate("p1", "g1");
+
+      expect(result).toEqual(run);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/prompt-groups/g1/suggestions/generate`);
+      expect(calls[0].init.method).toBe("POST");
+      expect(calls[0].init.body).toBeUndefined();
+    });
+
+    it("reports a skip reason when nothing was scheduled", async () => {
+      const run = { runId: null, skipped: "cooldown" };
+      const { api } = stubFetch(json(200, run));
+
+      await expect(api.promptSuggestions.generate("p1", "g1")).resolves.toEqual(run);
+    });
+
+    it("reads availability", async () => {
+      const availability = {
+        canRun: false,
+        reason: "cooldown",
+        pendingSuggestionCount: 2,
+        availableSlots: 5,
+        lastRun: { status: "completed", startedAt: "2026-09-08T06:31:00.000Z", finishedAt: "2026-09-08T06:33:40.000Z" },
+      };
+      const { api, calls } = stubFetch(json(200, availability));
+
+      await expect(api.promptSuggestions.getAvailability("p1", "g1")).resolves.toEqual(availability);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/prompt-groups/g1/suggestions/availability`);
+    });
+  });
+
+  describe("brand analysis", () => {
+    const run = {
+      id: "r1",
+      projectId: "p1",
+      status: "processing",
+      createdAt: "2026-09-28T09:24:11.000Z",
+      updatedAt: "2026-09-28T09:24:11.000Z",
+      activePromptCount: 12,
+      usedResultCount: 10,
+      maxContextGaps: 5,
+      gaps: [],
+      sentiment: null,
+      totalCost: null,
+      error: null,
+    };
+
+    it("starts a run without sending a body", async () => {
+      const { api, calls } = stubFetch(json(201, run));
+
+      const result = await api.brandAnalysis.createRun("p1");
+
+      expect(result).toEqual(run);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/analysis/runs`);
+      expect(calls[0].init.method).toBe("POST");
+      expect(calls[0].init.body).toBeUndefined();
+    });
+
+    it("reads availability", async () => {
+      const availability = {
+        canRun: true,
+        reason: "ready",
+        activePromptCount: 12,
+        usedResultCount: 10,
+        latestTrackScoreResultTimestamp: "2026-09-28T09:00:00.000Z",
+      };
+      const { api, calls } = stubFetch(json(200, availability));
+
+      await expect(api.brandAnalysis.getAvailability("p1")).resolves.toEqual(availability);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/analysis/availability`);
+    });
+
+    it("reads one run", async () => {
+      const { api, calls } = stubFetch(json(200, { ...run, status: "ready" }));
+
+      await expect(api.brandAnalysis.getRun("p1", "r1")).resolves.toMatchObject({ status: "ready" });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/analysis/runs/r1`);
+    });
+  });
+
+  describe("audits", () => {
+    const audit = {
+      id: "a1",
+      projectId: "p1",
+      status: "pending",
+      startDate: "2026-09-28T09:24:11.000Z",
+      endDate: null,
+      duration: null,
+      numberOfUrls: 1,
+      results: [{ url: "https://example.com/pricing", status: "pending", error: null, totalCost: null, analysis: null }],
+    };
+
+    it("creates an audit", async () => {
+      const { api, calls } = stubFetch(json(201, audit));
+
+      const result = await api.audits.create({ urls: ["https://example.com/pricing"], projectId: "p1" });
+
+      expect(result).toEqual(audit);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/audits`);
+      expect(calls[0].init.method).toBe("POST");
+      expect(JSON.parse(calls[0].init.body as string)).toEqual({
+        urls: ["https://example.com/pricing"],
+        projectId: "p1",
+      });
+    });
+
+    it("reads one audit", async () => {
+      const { api, calls } = stubFetch(json(200, { ...audit, status: "success" }));
+
+      await expect(api.audits.get("a1")).resolves.toMatchObject({ status: "success" });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/audits/a1`);
+    });
+
+    it("reads usage, scoped to a project", async () => {
+      const usage = { limit: 100, used: 12, remaining: 88 };
+      const { api, calls } = stubFetch(json(200, usage));
+
+      await expect(api.audits.usage({ projectId: "p1" })).resolves.toEqual(usage);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/audits/usage?projectId=p1`);
+    });
+  });
+
+  describe("topical maps", () => {
+    const map = {
+      id: "m1",
+      projectId: "p1",
+      topic: "cloud backup for small teams",
+      language: "en",
+      status: "processing",
+      createdAt: "2026-09-28T09:24:11.000Z",
+      generationCost: null,
+      pillar: null,
+      clusters: [],
+      errorMessage: null,
+    };
+
+    it("creates a topical map", async () => {
+      const { api, calls } = stubFetch(json(201, map));
+
+      const result = await api.topicalMaps.create("p1", { topic: map.topic, language: "en" });
+
+      expect(result).toEqual(map);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/maps`);
+      expect(calls[0].init.method).toBe("POST");
+      expect(JSON.parse(calls[0].init.body as string)).toEqual({ topic: map.topic, language: "en" });
+    });
+
+    it("lists topical map summaries", async () => {
+      const summary = { ...map, status: "ready" };
+      delete (summary as Record<string, unknown>).pillar;
+      delete (summary as Record<string, unknown>).clusters;
+      delete (summary as Record<string, unknown>).errorMessage;
+      const { api, calls } = stubFetch(json(200, { data: [summary] }));
+
+      await expect(api.topicalMaps.list("p1")).resolves.toEqual({ data: [summary] });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/maps`);
+    });
+
+    it("reads one topical map", async () => {
+      const ready = {
+        ...map,
+        status: "ready",
+        pillar: { title: "The Complete Guide", description: "…" },
+        clusters: [{ id: "c1", title: "How much does it cost?", category: "Pricing", intent: "Informational" }],
+      };
+      const { api, calls } = stubFetch(json(200, ready));
+
+      await expect(api.topicalMaps.get("p1", "m1")).resolves.toEqual(ready);
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/maps/m1`);
+    });
+
+    it("regenerates one cluster category", async () => {
+      const { api, calls } = stubFetch(json(200, map));
+
+      await api.topicalMaps.regenerateCluster("p1", "m1", { category: "Pricing" });
+
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/maps/m1/regenerate`);
+      expect(calls[0].init.method).toBe("POST");
+      expect(JSON.parse(calls[0].init.body as string)).toEqual({ category: "Pricing" });
     });
   });
 });

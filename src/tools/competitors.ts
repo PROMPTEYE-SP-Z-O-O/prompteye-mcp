@@ -23,7 +23,13 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
         `${SHARE_OF_VOICE}\n\n${VISIBILITY}\n\n` +
         "The ranking answers with the strongest brands rather than a list to walk to the end of, so " +
         "raise `limit` to see further down. `model` narrows it to one assistant, which is how to tell " +
-        "a brand that dominates everywhere from one that owns a single assistant.",
+        "a brand that dominates everywhere from one that owns a single assistant.\n\n" +
+        "Narrow the ranking to one prompt, one prompt group, or one category — `categoryId` alone, or " +
+        "`categoryId` with `subcategoryId` — the same way the app's own visibility screen narrows it. " +
+        "Give at most one of `promptId` / `groupId` / `categoryId`(+`subcategoryId`); combining them fails.\n\n" +
+        "There is no single call for 'which prompts does competitor X outrank us on' — build it by " +
+        "calling list_prompts for the prompt ids, then this tool once per `promptId`, and keeping the " +
+        "ones where the named competitor's position beats the brand's.",
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
@@ -35,6 +41,26 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
           .max(MAX_LIMIT)
           .optional()
           .describe(`How many brands to return, at most ${MAX_LIMIT}.`),
+        promptId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Rank this prompt alone instead of every prompt in the project."),
+        groupId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Rank this prompt group alone instead of every prompt in the project."),
+        categoryId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Rank only the prompts filed under this category, subcategories included."),
+        subcategoryId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Narrow categoryId further, to one of its subcategories. Needs categoryId alongside it."),
       },
       outputSchema: {
         data: z.array(CompetitorSchema),

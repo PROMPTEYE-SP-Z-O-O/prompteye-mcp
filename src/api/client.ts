@@ -1,8 +1,11 @@
 import { HttpClient, type FetchLike } from "./http.js";
 import {
   AccountResource,
+  AuditsResource,
+  BrandAnalysisResource,
   CategoriesResource,
   CompetitorsResource,
+  ContentBriefsResource,
   GoogleResource,
   KnowledgeBaseResource,
   ProjectsResource,
@@ -11,6 +14,7 @@ import {
   PromptSuggestionsResource,
   ReportsResource,
   SourcesResource,
+  TopicalMapsResource,
   TrafficResource,
 } from "./resources.js";
 
@@ -48,8 +52,12 @@ export class PromptEyeApi {
   readonly sources: SourcesResource;
   readonly competitors: CompetitorsResource;
   readonly reports: ReportsResource;
+  readonly contentBriefs: ContentBriefsResource;
   readonly google: GoogleResource;
   readonly traffic: TrafficResource;
+  readonly brandAnalysis: BrandAnalysisResource;
+  readonly audits: AuditsResource;
+  readonly topicalMaps: TopicalMapsResource;
 
   constructor(options: PromptEyeApiOptions) {
     if (!options.token?.trim()) throw new TypeError("token is required.");
@@ -73,7 +81,11 @@ export class PromptEyeApi {
     this.sources = new SourcesResource(http);
     this.competitors = new CompetitorsResource(http);
     this.reports = new ReportsResource(http);
+    this.contentBriefs = new ContentBriefsResource(http);
     this.google = new GoogleResource(http);
     this.traffic = new TrafficResource(http);
+    this.brandAnalysis = new BrandAnalysisResource(http);
+    this.audits = new AuditsResource(http);
+    this.topicalMaps = new TopicalMapsResource(http);
   }
 }

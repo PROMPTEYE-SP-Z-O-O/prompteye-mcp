@@ -1,13 +1,21 @@
 import type { HttpClient, RequestOptions } from "./http.js";
 import {
   AccountSchema,
+  AcceptedPromptSuggestionSchema,
   AnalyticsPagePageSchema,
   AnalyticsSourcePageSchema,
   AnalyticsSummarySchema,
+  AuditSchema,
+  AuditUsageSchema,
+  BrandAnalysisAvailabilitySchema,
+  BrandAnalysisRunSchema,
   CategoryListSchema,
+  CategorySchema,
   CitedDomainPageSchema,
+  CitedPagePageSchema,
   CompetitorExclusionListSchema,
   CompetitorPageSchema,
+  ContentBriefSchema,
   GoogleStatusSchema,
   KnowledgeBaseSchema,
   NewPromptListSchema,
@@ -15,29 +23,49 @@ import {
   ProjectSchema,
   PromptDetailSchema,
   PromptGroupPageSchema,
+  PromptGroupSettingsSchema,
   PromptPageSchema,
   PromptSettingsSchema,
   PromptSuggestionListSchema,
+  SuggestionRunAvailabilitySchema,
+  SuggestionRunSchema,
   ReportDetailSchema,
   ReportPageSchema,
   ReportSchema,
   SearchPagePageSchema,
   SearchQueryPageSchema,
   SearchSummarySchema,
+  TopicalMapListSchema,
+  TopicalMapSchema,
   TrafficCountPageSchema,
+  TrafficCrawlHealthSchema,
   TrafficCrawlPageSchema,
   TrafficEventPageSchema,
   TrafficSitemapPageSchema,
   type Account,
+  type AcceptedPromptSuggestion,
+  type AcceptPromptSuggestionInput,
   type AnalyticsPage,
   type AnalyticsSource,
   type AnalyticsSummary,
+  type Audit,
+  type AuditUsage,
+  type AuditUsageQuery,
+  type BrandAnalysisAvailability,
+  type BrandAnalysisRun,
   type Category,
   type CitedDomain,
+  type CitedPage,
   type Competitor,
   type CompetitorExclusion,
+  type ContentBrief,
+  type CreateAuditInput,
+  type CreateCategoryInput,
+  type CreateContentBriefInput,
+  type CreatePromptGroupInput,
   type CreateProjectInput,
   type CreateReportInput,
+  type CreateTopicalMapInput,
   type GoogleStatus,
   type Report,
   type ReportDetail,
@@ -49,19 +77,27 @@ import {
   type Prompt,
   type PromptDetail,
   type PromptGroup,
+  type PromptGroupSettings,
   type PromptInput,
   type PromptSettings,
   type PromptSuggestion,
+  type SuggestionRun,
+  type SuggestionRunAvailability,
+  type RegenerateTopicalMapClusterInput,
   type SearchPage,
   type SearchQuery,
   type SearchSummary,
+  type TopicalMap,
+  type TopicalMapSummary,
   type TrafficCountPage,
   type TrafficCrawl,
+  type TrafficCrawlHealth,
   type TrafficEvent,
   type TrafficGroup,
   type TrafficKind,
   type TrafficSitemapPage,
   type UpdateKnowledgeBaseInput,
+  type UpdatePromptGroupInput,
   type UpdateProjectInput,
   type UpdatePromptInput,
 } from "./schemas.js";
@@ -127,6 +163,10 @@ export class CategoriesResource {
   /** `GET /v1/projects/{projectId}/categories` — categories and subcategories, top-level first. */
   list(projectId: string, options?: RequestOptions): Promise<List<Category>> {
     return this.http.get(`${projectPath(projectId)}/categories`, CategoryListSchema, options);
+  }
+
+  create(projectId: string, input: CreateCategoryInput, options?: RequestOptions): Promise<Category> {
+    return this.http.post(`${projectPath(projectId)}/categories`, input, CategorySchema, options);
   }
 }
 
@@ -197,10 +237,48 @@ export class PromptGroupsResource {
       query: params,
     });
   }
+
+  create(
+    projectId: string,
+    input: CreatePromptGroupInput,
+    options?: RequestOptions
+  ): Promise<PromptGroupSettings> {
+    return this.http.post(`${projectPath(projectId)}/prompt-groups`, input, PromptGroupSettingsSchema, options);
+  }
+
+  update(
+    projectId: string,
+    groupId: string,
+    input: UpdatePromptGroupInput,
+    options?: RequestOptions
+  ): Promise<PromptGroupSettings> {
+    return this.http.patch(
+      `${projectPath(projectId)}/prompt-groups/${encodeURIComponent(groupId)}`,
+      input,
+      PromptGroupSettingsSchema,
+      options
+    );
+  }
 }
 
 /** Narrows a ranking to one assistant, and caps how many entries come back. */
 export type RankingParams = DateRange & { limit?: number; model?: string };
+
+/**
+ * Narrows a ranking to one prompt, one prompt group, or one category (optionally one of its
+ * subcategories) — mutually exclusive, exactly like the app's own visibility screen. Give at
+ * most one of `promptId` / `groupId` / `categoryId`(+`subcategoryId`); the API answers 400 for
+ * more than one.
+ */
+export type PromptScopeParams = {
+  promptId?: string;
+  groupId?: string;
+  categoryId?: string;
+  subcategoryId?: string;
+};
+
+/** `sources.list` narrows the same way `competitors.list` does. */
+export type SourceRankingParams = RankingParams & PromptScopeParams;
 
 export class SourcesResource {
   constructor(private readonly http: HttpClient) {}
@@ -209,13 +287,26 @@ export class SourcesResource {
    * `GET /v1/projects/{projectId}/sources` — the domains the assistants leaned
    * on when answering the project's prompts, most cited first.
    */
-  list(projectId: string, params: RankingParams = {}, options?: RequestOptions): Promise<Page<CitedDomain>> {
+  list(projectId: string, params: SourceRankingParams = {}, options?: RequestOptions): Promise<Page<CitedDomain>> {
     return this.http.get(`${projectPath(projectId)}/sources`, CitedDomainPageSchema, {
       ...options,
       query: params,
     });
   }
+
+  /**
+   * `GET /v1/projects/{projectId}/sources/pages` — the individual pages behind
+   * the domain ranking above: one row per URL instead of per host.
+   */
+  listPages(projectId: string, params: RankingParams = {}, options?: RequestOptions): Promise<Page<CitedPage>> {
+    return this.http.get(`${projectPath(projectId)}/sources/pages`, CitedPagePageSchema, {
+      ...options,
+      query: params,
+    });
+  }
 }
+
+export type CompetitorRankingParams = RankingParams & PromptScopeParams;
 
 export class CompetitorsResource {
   constructor(private readonly http: HttpClient) {}
@@ -224,7 +315,7 @@ export class CompetitorsResource {
    * `GET /v1/projects/{projectId}/competitors` — every brand named alongside the
    * project's own, ranked by share of voice. The project's brand is in the list.
    */
-  list(projectId: string, params: RankingParams = {}, options?: RequestOptions): Promise<Page<Competitor>> {
+  list(projectId: string, params: CompetitorRankingParams = {}, options?: RequestOptions): Promise<Page<Competitor>> {
     return this.http.get(`${projectPath(projectId)}/competitors`, CompetitorPageSchema, {
       ...options,
       query: params,
@@ -292,6 +383,31 @@ export class ReportsResource {
   }
 }
 
+/**
+ * Content briefs: a title and an H2/H3 outline PromptEye writes for an
+ * article targeting one prompt.
+ *
+ * Unlike public reports there is no dedup — every {@link create} call starts a
+ * fresh generation, so it is a plain authenticated POST rather than the
+ * status-carries-meaning shape `ReportsResource.create` needs.
+ */
+export class ContentBriefsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  /**
+   * `POST /v1/content/briefs` — requests a brief. It comes back `processing`;
+   * poll {@link get} until `status` turns `ready` or `error`.
+   */
+  create(input: CreateContentBriefInput, options?: RequestOptions): Promise<ContentBrief> {
+    return this.http.post("/v1/content/briefs", input, ContentBriefSchema, options);
+  }
+
+  /** `GET /v1/content/briefs/{briefId}` — one brief in full. */
+  get(briefId: string, options?: RequestOptions): Promise<ContentBrief> {
+    return this.http.get(`/v1/content/briefs/${encodeURIComponent(briefId)}`, ContentBriefSchema, options);
+  }
+}
+
 export class PromptSuggestionsResource {
   constructor(private readonly http: HttpClient) {}
 
@@ -305,6 +421,39 @@ export class PromptSuggestionsResource {
       ...options,
       query: params,
     });
+  }
+
+  accept(
+    projectId: string,
+    suggestionId: string,
+    input: AcceptPromptSuggestionInput = {},
+    options?: RequestOptions
+  ): Promise<AcceptedPromptSuggestion> {
+    return this.http.post(
+      `${projectPath(projectId)}/prompt-suggestions/${encodeURIComponent(suggestionId)}/accept`,
+      input,
+      AcceptedPromptSuggestionSchema,
+      options
+    );
+  }
+
+  /** `POST /v1/projects/{projectId}/prompt-groups/{groupId}/suggestions/generate` — starts a cycle. */
+  generate(projectId: string, groupId: string, options?: RequestOptions): Promise<SuggestionRun> {
+    return this.http.post(
+      `${projectPath(projectId)}/prompt-groups/${encodeURIComponent(groupId)}/suggestions/generate`,
+      undefined,
+      SuggestionRunSchema,
+      options
+    );
+  }
+
+  /** `GET /v1/projects/{projectId}/prompt-groups/{groupId}/suggestions/availability` — the same check `generate` runs itself. */
+  getAvailability(projectId: string, groupId: string, options?: RequestOptions): Promise<SuggestionRunAvailability> {
+    return this.http.get(
+      `${projectPath(projectId)}/prompt-groups/${encodeURIComponent(groupId)}/suggestions/availability`,
+      SuggestionRunAvailabilitySchema,
+      options
+    );
   }
 }
 
@@ -441,6 +590,7 @@ export type TrafficCrawlParams = Pagination & {
   path?: string;
 };
 export type TrafficSitemapParams = Pagination & { active?: "true" | "false" };
+export type TrafficCrawlHealthParams = DateRange & { kind: TrafficKind; vendor?: string };
 
 /**
  * What bots did on the tracked site. Where the Google endpoints count the
@@ -514,5 +664,86 @@ export class TrafficResource {
       ...options,
       query: params,
     });
+  }
+
+  crawlHealth(
+    projectId: string,
+    params: TrafficCrawlHealthParams,
+    options?: RequestOptions
+  ): Promise<TrafficCrawlHealth> {
+    return this.http.get(this.path(projectId, "/health"), TrafficCrawlHealthSchema, {
+      ...options,
+      query: params,
+    });
+  }
+}
+
+export class BrandAnalysisResource {
+  constructor(private readonly http: HttpClient) {}
+
+  createRun(projectId: string, options?: RequestOptions): Promise<BrandAnalysisRun> {
+    return this.http.post(`${projectPath(projectId)}/analysis/runs`, undefined, BrandAnalysisRunSchema, options);
+  }
+
+  getAvailability(projectId: string, options?: RequestOptions): Promise<BrandAnalysisAvailability> {
+    return this.http.get(`${projectPath(projectId)}/analysis/availability`, BrandAnalysisAvailabilitySchema, options);
+  }
+
+  getRun(projectId: string, runId: string, options?: RequestOptions): Promise<BrandAnalysisRun> {
+    return this.http.get(
+      `${projectPath(projectId)}/analysis/runs/${encodeURIComponent(runId)}`,
+      BrandAnalysisRunSchema,
+      options
+    );
+  }
+}
+
+export class AuditsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  create(input: CreateAuditInput, options?: RequestOptions): Promise<Audit> {
+    return this.http.post("/v1/audits", input, AuditSchema, options);
+  }
+
+  get(auditId: string, options?: RequestOptions): Promise<Audit> {
+    return this.http.get(`/v1/audits/${encodeURIComponent(auditId)}`, AuditSchema, options);
+  }
+
+  usage(params: AuditUsageQuery = {}, options?: RequestOptions): Promise<AuditUsage> {
+    return this.http.get("/v1/audits/usage", AuditUsageSchema, { ...options, query: params });
+  }
+}
+
+export class TopicalMapsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  create(projectId: string, input: CreateTopicalMapInput, options?: RequestOptions): Promise<TopicalMap> {
+    return this.http.post(`${projectPath(projectId)}/maps`, input, TopicalMapSchema, options);
+  }
+
+  list(projectId: string, options?: RequestOptions): Promise<List<TopicalMapSummary>> {
+    return this.http.get(`${projectPath(projectId)}/maps`, TopicalMapListSchema, options);
+  }
+
+  get(projectId: string, mapId: string, options?: RequestOptions): Promise<TopicalMap> {
+    return this.http.get(
+      `${projectPath(projectId)}/maps/${encodeURIComponent(mapId)}`,
+      TopicalMapSchema,
+      options
+    );
+  }
+
+  regenerateCluster(
+    projectId: string,
+    mapId: string,
+    input: RegenerateTopicalMapClusterInput,
+    options?: RequestOptions
+  ): Promise<TopicalMap> {
+    return this.http.post(
+      `${projectPath(projectId)}/maps/${encodeURIComponent(mapId)}/regenerate`,
+      input,
+      TopicalMapSchema,
+      options
+    );
   }
 }

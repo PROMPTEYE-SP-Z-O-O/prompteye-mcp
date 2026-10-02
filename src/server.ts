@@ -5,10 +5,14 @@ import { registerPromptWorkflows } from "./prompts.js";
 import { ProjectSession } from "./session.js";
 import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
+import { registerAuditTools } from "./tools/audits.js";
+import { registerBrandAnalysisTools } from "./tools/brand-analysis.js";
+import { registerContentBriefTools } from "./tools/content-briefs.js";
 import { registerGettingStartedTools } from "./tools/getting-started.js";
 import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
 import { registerHelpTools } from "./tools/help.js";
 import { registerGoogleTools } from "./tools/google.js";
+import { registerTopicalMapTools } from "./tools/topical-maps.js";
 import { registerTrafficTools } from "./tools/traffic.js";
 import { SOURCES_WIDGET, registerEvidenceTools, registerSourceTools } from "./tools/evidence.js";
 import { PROMPTS_WIDGET, registerPromptTools } from "./tools/prompts.js";
@@ -105,6 +109,10 @@ export function createMcpServer(): McpServer {
   registerGoogleTools(toolServer, context);
   registerTrafficTools(toolServer, context);
   registerReportTools(toolServer, context);
+  registerContentBriefTools(toolServer, context);
+  registerBrandAnalysisTools(toolServer, context);
+  registerAuditTools(toolServer, context);
+  registerTopicalMapTools(toolServer, context);
   registerHelpTools(toolServer);
 
   if (SAMPLE_TOOLS) {

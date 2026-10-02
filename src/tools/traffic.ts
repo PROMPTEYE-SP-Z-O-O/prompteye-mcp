@@ -8,6 +8,7 @@ import {
 } from "../schemas/common.js";
 import {
   TrafficCountSchema,
+  TrafficCrawlHealthSchema,
   TrafficCrawlSchema,
   TrafficEventSchema,
   TrafficGroupSchema,
@@ -36,6 +37,13 @@ const trafficRangeShape = {
 const kindShape = {
   kind: TrafficKindSchema.optional().describe(
     "`ai` for AI assistants and their bots, `seo` for search engines and SEO tools. Omit it for both."
+  ),
+};
+
+const requiredKindShape = {
+  kind: TrafficKindSchema.describe(
+    "`ai` for AI assistants and their bots, `seo` for search engines and SEO tools. Required — the two " +
+      "resolve bot names differently, and there is no combined health score."
   ),
 };
 
@@ -268,6 +276,57 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
               `${state.lastSyncedAt ?? "never"}${state.error ? ` (${state.error})` : ""}.\n` +
               lines.join("\n")) + morePages(result.nextCursor),
           result
+        );
+      })
+  );
+
+  server.registerTool(
+    "get_crawl_health",
+    {
+      title: "Score how well bots can crawl the site",
+      description:
+        "Turns the period's requests for one kind into a verdict: how many were errors or redirects, how " +
+        "fast the site answered, and the worst problems behind those numbers.\n\n" +
+        "`assessments` holds four fixed checks — the 3xx, 4xx and 5xx rates, and the average response " +
+        "time — each scored against a fixed threshold: `ok` is fine, `warning` deserves a look, " +
+        "`critical` is losing citations right now. `unknown` only appears on the response-time check, " +
+        "when nothing was ever timed.\n\n" +
+        "`issues` lists up to 20 distinct problems — a bot, a path, a status and, for a redirect, where " +
+        "it pointed — worst first: a 5xx ranks above a 4xx, which ranks above a 3xx; within the same " +
+        "status class the one hit most often ranks first, and a tie there goes to the one hit most " +
+        "recently.\n\n" +
+        "`kind` is required, unlike the other traffic tools: `ai` scores what AI assistants and their " +
+        "bots found, `seo` what search engines and SEO tools found, and the two are never combined into " +
+        "one score.\n\n" +
+        `${BOT_TRAFFIC}\n\n${VERIFIED}`,
+      annotations: READ_ONLY,
+      inputSchema: { ...trafficRangeShape, ...requiredKindShape, vendor: botShape.vendor },
+      outputSchema: TrafficCrawlHealthSchema.shape,
+    },
+    async (args) =>
+      handled(async () => {
+        const project = await session.require();
+        const range = resolveTrafficRange(args);
+        const health = await client.getCrawlHealth(project.id, { ...args, ...range });
+
+        const assessmentLines = health.assessments.map((assessment) => {
+          const share = assessment.rate === null ? "" : ` (${(assessment.rate * 100).toFixed(1)}%)`;
+          const speed = assessment.averageResponseTimeMs === null ? "" : ` ${assessment.averageResponseTimeMs}ms`;
+          return `- ${assessment.key}: ${assessment.level}${share}${speed}`;
+        });
+
+        const issueLines = health.issues.map((issue) => {
+          const redirect = issue.redirectLocation ? ` → ${issue.redirectLocation}` : "";
+          return `- ${issue.botName}  ${issue.path}  ${issue.statusCode}${redirect}  ${issue.count}x, last ${time(issue.lastSeenAt)}`;
+        });
+
+        return ok(
+          `Crawl health for ${project.domain}, ${range.startDate} to ${range.endDate} (${args.kind}): ` +
+            `${health.total} request(s) — ${health.success} ok, ${health.redirects} redirect(s), ` +
+            `${health.clientErrors} 4xx, ${health.serverErrors} 5xx, ${health.unknown} unknown.\n` +
+            `${assessmentLines.join("\n")}\n` +
+            (issueLines.length > 0 ? `Worst problems:\n${issueLines.join("\n")}` : "No problems found."),
+          health
         );
       })
   );

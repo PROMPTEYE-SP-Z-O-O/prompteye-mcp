@@ -65,6 +65,8 @@ export const ProjectSchema = z.object({
   excludedCompetitors: z.array(z.string()),
   /** `OWNER`, `FULL_ACCESS` or `READ_ONLY`. */
   accessRole: z.string(),
+  organisationId: z.string().nullable(),
+  organisationName: z.string().nullable(),
   createdAt: z.string(),
 });
 
@@ -99,6 +101,11 @@ export const CategorySchema = z.object({
   /** `ai` or `manual`. */
   source: z.string(),
 });
+
+export type CreateCategoryInput = {
+  name: string;
+  parentCategoryId?: string;
+};
 
 export const PromptSchema = z.object({
   id: z.string(),
@@ -137,6 +144,13 @@ export const PromptGroupSchema = z.object({
   metrics: MetricsSchema,
 });
 
+export const PromptGroupSettingsSchema = PromptGroupSchema.omit({ metrics: true });
+
+export type PromptGroupSettings = z.infer<typeof PromptGroupSettingsSchema>;
+
+export type CreatePromptGroupInput = { name: string; order?: number };
+export type UpdatePromptGroupInput = { name?: string; order?: number };
+
 export const PromptSuggestionSchema = z.object({
   id: z.string(),
   prompt: z.string(),
@@ -159,12 +173,71 @@ export const PromptSuggestionSchema = z.object({
   expiresAt: z.string(),
 });
 
+export const AcceptedPromptSuggestionSchema = z.object({
+  trackerId: z.string().nullable(),
+});
+
+export type AcceptedPromptSuggestion = z.infer<typeof AcceptedPromptSuggestionSchema>;
+export type AcceptPromptSuggestionInput = { promptText?: string };
+
+export const SUGGESTION_RUN_SKIP_REASONS = ["not_eligible", "cooldown", "nothing_to_suggest"] as const;
+
+export const SuggestionRunSkipReasonSchema = z.enum(SUGGESTION_RUN_SKIP_REASONS);
+
+export const SuggestionRunSchema = z.object({
+  runId: z.string().nullable(),
+  skipped: SuggestionRunSkipReasonSchema.nullable(),
+});
+
+export type SuggestionRunSkipReason = z.infer<typeof SuggestionRunSkipReasonSchema>;
+export type SuggestionRun = z.infer<typeof SuggestionRunSchema>;
+
+export const SUGGESTION_RUN_AVAILABILITY_REASONS = [
+  "not_eligible",
+  "no_slots",
+  "running",
+  "cooldown",
+  "nothing_to_suggest",
+  "ready",
+] as const;
+
+export const SuggestionRunAvailabilityReasonSchema = z.enum(SUGGESTION_RUN_AVAILABILITY_REASONS);
+
+export const SuggestionRunLastRunSchema = z.object({
+  status: z.enum(["running", "completed", "failed"]),
+  startedAt: z.string(),
+  finishedAt: z.string().nullable(),
+});
+
+export const SuggestionRunAvailabilitySchema = z.object({
+  canRun: z.boolean(),
+  reason: SuggestionRunAvailabilityReasonSchema,
+  pendingSuggestionCount: z.number(),
+  availableSlots: z.number(),
+  lastRun: SuggestionRunLastRunSchema.nullable(),
+});
+
+export type SuggestionRunAvailabilityReason = z.infer<typeof SuggestionRunAvailabilityReasonSchema>;
+export type SuggestionRunAvailability = z.infer<typeof SuggestionRunAvailabilitySchema>;
+
 export const CitedDomainSchema = z.object({
   domain: z.string(),
   citations: z.number(),
   /** The domain's share of every citation made on the project's prompts. */
   share: z.number(),
   /** Whether it is the project's own domain, or one of its alternatives. */
+  ownDomain: z.boolean(),
+});
+
+/** The individual pages behind a `CitedDomain` — one row per URL instead of per host. */
+export const CitedPageSchema = z.object({
+  url: z.string(),
+  /** Host the page belongs to, without `www.`. */
+  domain: z.string(),
+  citations: z.number(),
+  /** The page's share of every citation counted across the pages reported here. */
+  share: z.number(),
+  /** Whether the page's domain belongs to the brand, its own or an alternative one. */
   ownDomain: z.boolean(),
 });
 
@@ -202,6 +275,7 @@ export const NewPromptListSchema = listOf(NewPromptSchema);
 export const PromptPageSchema = pageOf(PromptSchema);
 export const PromptGroupPageSchema = pageOf(PromptGroupSchema);
 export const CitedDomainPageSchema = pageOf(CitedDomainSchema);
+export const CitedPagePageSchema = pageOf(CitedPageSchema);
 export const CompetitorPageSchema = pageOf(CompetitorSchema);
 
 /** How wide the brand competes, which decides the prompts a report is built from. */
@@ -278,6 +352,111 @@ export const ReportDetailSchema = ReportSchema.extend({
 });
 
 export const ReportPageSchema = pageOf(ReportSchema);
+
+export const CONTENT_BRIEF_STATUSES = ["processing", "ready", "error"] as const;
+export const CONTENT_BRIEF_FANOUT_SOURCES = ["nodeshub", "gpt_fallback", "cloro"] as const;
+export const CONTENT_BRIEF_OUTLINE_LEVELS = ["H2", "H3"] as const;
+export const CONTENT_BRIEF_OUTLINE_ORIGINS = ["existing", "from_fanout", "added"] as const;
+
+const ContentBriefFanoutVariantSchema = z.object({
+  /** A phrase the fan-out found for this prompt. */
+  keyword: z.string(),
+  /** What kind of phrase this is, as the fan-out classified it. */
+  type: z.string(),
+  /** How confident the fan-out is that this phrase belongs to this article. */
+  confidence: z.number(),
+});
+
+const ContentBriefSeparateArticleSchema = z.object({
+  keyword: z.string(),
+  /** A publish-ready title for the separate article this phrase deserves. */
+  articleTitle: z.string().nullable(),
+  type: z.string(),
+  confidence: z.number(),
+  /** Why this phrase did not fit the requested article and deserves one of its own. */
+  reason: z.string(),
+  /** How worthwhile the separate article is, 1 highest. */
+  priority: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
+});
+
+const ContentBriefOutlineItemSchema = z.object({
+  level: z.enum(CONTENT_BRIEF_OUTLINE_LEVELS),
+  text: z.string(),
+  /** Editorial note on what this section should cover. */
+  annotation: z.string().nullable(),
+  /** Fan-out phrases this section answers. */
+  sourcePhrases: z.array(z.string()).nullable(),
+  /** Whether this is the one section required to name the brand. */
+  includesBrand: z.boolean(),
+  /** Questions to answer as FAQ inside this section, only set for the FAQ section. */
+  faqQuestions: z.array(z.string()).nullable(),
+  /**
+   * Where this section came from when optimizing an existing article: kept from
+   * the original (`existing`), built from a fan-out phrase (`from_fanout`), or
+   * added new (`added`). `null` for a brief built from scratch.
+   */
+  origin: z.enum(CONTENT_BRIEF_OUTLINE_ORIGINS).nullable(),
+  /** The exact original heading this section replaces. Only set for `origin: "existing"`. */
+  originalHeading: z.string().nullable(),
+  /** Whether the original section already answered directly in its first sentences. */
+  originalHasDirectAnswer: z.boolean().nullable(),
+});
+
+/**
+ * A content brief: a title and an H2/H3 outline PromptEye writes for an
+ * article targeting one prompt. `status` is `processing` the moment it is
+ * requested; poll it until it turns `ready` or `error`.
+ */
+export const ContentBriefSchema = z.object({
+  id: z.string(),
+  status: z.enum(CONTENT_BRIEF_STATUSES),
+  /** The project this brief was requested for. */
+  projectId: z.string(),
+  /** The tracked prompt this brief is linked to, or `null` when requested standalone. */
+  trackerId: z.string().nullable(),
+  /** The target prompt the article is being written for. */
+  prompt: z.string(),
+  /** Why generation failed. `null` unless `status` is `error`. */
+  error: z.string().nullable(),
+  /** Title generated for the article. `null` until `status` is `ready`. */
+  title: z.string().nullable(),
+  /** The title of the existing article this brief optimizes, before any change. */
+  originalTitle: z.string().nullable(),
+  /** Why the title was changed from the existing article. */
+  titleChangeAnnotation: z.string().nullable(),
+  /** Which fan-out engine produced the phrases below. `null` until `ready`. */
+  fanoutSource: z.enum(CONTENT_BRIEF_FANOUT_SOURCES).nullable(),
+  /** Set when the fan-out failed but the brief still completed with whatever phrases it had. */
+  fanoutError: z.string().nullable(),
+  /** Every phrase the fan-out found for the target prompt. `null` until `ready`. */
+  fanoutVariants: z.array(ContentBriefFanoutVariantSchema).nullable(),
+  /** The phrases classified as belonging to this article, used to build the outline below. */
+  phrasesForArticle: z.array(ContentBriefFanoutVariantSchema).nullable(),
+  /** Phrases that deserve their own article instead of a section here. */
+  separateArticles: z.array(ContentBriefSeparateArticleSchema).nullable(),
+  /** The generated H2/H3 structure of the article. `null` until `ready`. */
+  outline: z.array(ContentBriefOutlineItemSchema).nullable(),
+  /**
+   * For a brief that optimizes an existing article, how much of the fan-out
+   * phrase coverage the original text already had, in whole percent.
+   */
+  sourceTextMatchPercentage: z.number().nullable(),
+  requestedAt: z.string(),
+  /** When it finished. `null` until then. */
+  readyAt: z.string().nullable(),
+});
+
+/** What a content brief is generated from. */
+export type CreateContentBriefInput = {
+  /** The project to request the brief for. */
+  projectId: string;
+  /** The target prompt to write the article for. */
+  prompt: string;
+  /** Link the brief to an existing tracked prompt. */
+  trackerId?: string;
+};
+
+export type ContentBrief = z.infer<typeof ContentBriefSchema>;
 
 /** What a public report is generated from. */
 export type CreateReportInput = {
@@ -368,6 +547,8 @@ export type CreateProjectInput = {
   alternativeBrandNames?: string[];
   alternativeDomains?: string[];
   excludedCompetitors?: string[];
+  /** Puts the project in this workspace instead of the key holder's own. */
+  organisationId?: string;
 };
 
 export type UpdateProjectInput = z.infer<typeof UpdateProjectRequestSchema>;
@@ -395,6 +576,7 @@ export type KnowledgeBase = z.infer<typeof KnowledgeBaseSchema>;
 export type UpdateKnowledgeBaseInput = z.infer<typeof UpdateKnowledgeBaseRequestSchema>;
 export type Category = z.infer<typeof CategorySchema>;
 export type CitedDomain = z.infer<typeof CitedDomainSchema>;
+export type CitedPage = z.infer<typeof CitedPageSchema>;
 export type Competitor = z.infer<typeof CompetitorSchema>;
 export type CompetitorExclusion = z.infer<typeof CompetitorExclusionSchema>;
 export type ReplaceCompetitorExclusionItem = z.infer<typeof ReplaceCompetitorExclusionItemSchema>;
@@ -617,6 +799,44 @@ export const TrafficSitemapPageSchema = z.object({
 export const TrafficEventPageSchema = pageOf(TrafficEventSchema);
 export const TrafficCrawlPageSchema = pageOf(TrafficCrawlSchema);
 
+export const CRAWL_HEALTH_LEVELS = ["ok", "warning", "critical", "unknown"] as const;
+export const CRAWL_HEALTH_ASSESSMENT_KEYS = ["3xx", "4xx", "5xx", "responseTime"] as const;
+
+export const CrawlHealthLevelSchema = z.enum(CRAWL_HEALTH_LEVELS);
+export const CrawlHealthAssessmentKeySchema = z.enum(CRAWL_HEALTH_ASSESSMENT_KEYS);
+
+export const TrafficCrawlHealthAssessmentSchema = z.object({
+  key: CrawlHealthAssessmentKeySchema,
+  level: CrawlHealthLevelSchema,
+  count: z.number().nullable(),
+  rate: z.number().nullable(),
+  averageResponseTimeMs: z.number().nullable(),
+});
+
+export const TrafficCrawlIssueSchema = z.object({
+  botId: z.string(),
+  botName: z.string(),
+  path: z.string(),
+  statusCode: z.number(),
+  redirectLocation: z.string().nullable(),
+  count: z.number(),
+  lastSeenAt: z.string(),
+  averageResponseTimeMs: z.number().nullable(),
+});
+
+export const TrafficCrawlHealthSchema = z.object({
+  total: z.number(),
+  success: z.number(),
+  redirects: z.number(),
+  clientErrors: z.number(),
+  serverErrors: z.number(),
+  unknown: z.number(),
+  scanRequests: z.number(),
+  averageResponseTimeMs: z.number().nullable(),
+  assessments: z.array(TrafficCrawlHealthAssessmentSchema),
+  issues: z.array(TrafficCrawlIssueSchema),
+});
+
 export type TrafficKind = z.infer<typeof TrafficKindSchema>;
 export type TrafficCategory = z.infer<typeof TrafficCategorySchema>;
 export type TrafficGroup = z.infer<typeof TrafficGroupSchema>;
@@ -627,3 +847,216 @@ export type TrafficCrawl = z.infer<typeof TrafficCrawlSchema>;
 export type TrafficSitemapUrl = z.infer<typeof TrafficSitemapUrlSchema>;
 export type TrafficSitemapState = z.infer<typeof TrafficSitemapStateSchema>;
 export type TrafficSitemapPage = z.infer<typeof TrafficSitemapPageSchema>;
+export type CrawlHealthLevel = z.infer<typeof CrawlHealthLevelSchema>;
+export type CrawlHealthAssessmentKey = z.infer<typeof CrawlHealthAssessmentKeySchema>;
+export type TrafficCrawlHealthAssessment = z.infer<typeof TrafficCrawlHealthAssessmentSchema>;
+export type TrafficCrawlIssue = z.infer<typeof TrafficCrawlIssueSchema>;
+export type TrafficCrawlHealth = z.infer<typeof TrafficCrawlHealthSchema>;
+
+export const BRAND_ANALYSIS_RUN_STATUSES = ["processing", "ready", "error", "corrupted_response"] as const;
+
+export const BRAND_ANALYSIS_AVAILABILITY_REASONS = [
+  "no_project",
+  "no_prompts",
+  "no_results",
+  "processing",
+  "up_to_date",
+  "retry_error",
+  "retry_corrupted_response",
+  "ready",
+] as const;
+
+export const BrandAnalysisRunStatusSchema = z.enum(BRAND_ANALYSIS_RUN_STATUSES);
+export const BrandAnalysisAvailabilityReasonSchema = z.enum(BRAND_ANALYSIS_AVAILABILITY_REASONS);
+
+export const BrandAnalysisRankingEvidenceSchema = z.object({
+  brand: z.string(),
+  visibility: z.number(),
+  visibleCount: z.number(),
+  observationCount: z.number(),
+  averagePosition: z.number().nullable(),
+});
+
+export const BrandAnalysisGapSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  bestBrand: z.string(),
+  gapScore: z.number(),
+  whyLeaderWins: z.string(),
+  whyWeMiss: z.string(),
+  sourceResultIds: z.array(z.string()),
+  rankingEvidence: z.array(BrandAnalysisRankingEvidenceSchema).nullable(),
+});
+
+export const BrandAnalysisSentimentSchema = z.object({
+  overallSentiment: z.enum(["positive", "neutral", "negative"]),
+  positiveScore: z.number(),
+  negativeScore: z.number(),
+  neutralScore: z.number(),
+  positiveAttributes: z.array(z.string()),
+  negativeAttributes: z.array(z.string()),
+  neutralAttributes: z.array(z.string()),
+  summary: z.string(),
+});
+
+export const BrandAnalysisRunSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  status: BrandAnalysisRunStatusSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  activePromptCount: z.number(),
+  usedResultCount: z.number(),
+  maxContextGaps: z.number().nullable(),
+  gaps: z.array(BrandAnalysisGapSchema),
+  sentiment: BrandAnalysisSentimentSchema.nullable(),
+  totalCost: z.number().nullable(),
+  error: z.string().nullable(),
+});
+
+export const BrandAnalysisAvailabilitySchema = z.object({
+  canRun: z.boolean(),
+  reason: BrandAnalysisAvailabilityReasonSchema,
+  activePromptCount: z.number(),
+  usedResultCount: z.number(),
+  latestTrackScoreResultTimestamp: z.string().nullable(),
+});
+
+export type BrandAnalysisRunStatus = z.infer<typeof BrandAnalysisRunStatusSchema>;
+export type BrandAnalysisAvailabilityReason = z.infer<typeof BrandAnalysisAvailabilityReasonSchema>;
+export type BrandAnalysisRankingEvidence = z.infer<typeof BrandAnalysisRankingEvidenceSchema>;
+export type BrandAnalysisGap = z.infer<typeof BrandAnalysisGapSchema>;
+export type BrandAnalysisSentiment = z.infer<typeof BrandAnalysisSentimentSchema>;
+export type BrandAnalysisRun = z.infer<typeof BrandAnalysisRunSchema>;
+export type BrandAnalysisAvailability = z.infer<typeof BrandAnalysisAvailabilitySchema>;
+
+export const AUDIT_STATUSES = ["pending", "success", "partial", "error"] as const;
+export const AUDIT_URL_STATUSES = ["pending", "success", "error"] as const;
+
+export const AuditStatusSchema = z.enum(AUDIT_STATUSES);
+export const AuditUrlStatusSchema = z.enum(AUDIT_URL_STATUSES);
+
+const auditPresenceCheck = z
+  .object({
+    present: z.boolean(),
+    status: z.boolean(),
+    message: z.string().nullable(),
+  })
+  .nullable();
+
+export const AuditAnalysisSchema = z.object({
+  howToSchema: auditPresenceCheck,
+  organisation: auditPresenceCheck,
+  breadcrumb: auditPresenceCheck,
+  faqSchema: auditPresenceCheck,
+  contentStructure: z
+    .object({ h1: z.boolean(), headings: z.boolean(), rawMessage: z.string().nullable() })
+    .nullable(),
+  crawlability: z
+    .object({ metaRobotsTag: z.boolean(), canonicalTag: z.boolean(), rawMessage: z.string().nullable() })
+    .nullable(),
+  authoritySignals: z
+    .object({
+      authorInfo: z.boolean(),
+      outboundLinks: z.boolean(),
+      reputableOutboundLinks: z.boolean(),
+      missingItems: z.array(z.string()).nullable(),
+      rawMessage: z.string().nullable(),
+    })
+    .nullable(),
+  readingLevel: z
+    .object({
+      readingAge: z.number(),
+      recommendedMinAge: z.number(),
+      recommendedMaxAge: z.number(),
+      notes: z.string().nullable(),
+    })
+    .nullable(),
+  writingStyle: z
+    .object({ declarativePercent: z.number(), descriptivePercent: z.number(), notes: z.string().nullable() })
+    .nullable(),
+});
+
+export const AuditUrlResultSchema = z.object({
+  url: z.string(),
+  status: AuditUrlStatusSchema,
+  error: z.string().nullable(),
+  totalCost: z.number().nullable(),
+  analysis: AuditAnalysisSchema.nullable(),
+});
+
+export const AuditSchema = z.object({
+  id: z.string(),
+  projectId: z.string().nullable(),
+  status: AuditStatusSchema,
+  startDate: z.string(),
+  endDate: z.string().nullable(),
+  duration: z.number().nullable(),
+  numberOfUrls: z.number(),
+  results: z.array(AuditUrlResultSchema),
+});
+
+export const AuditUsageSchema = z.object({
+  limit: z.number(),
+  used: z.number(),
+  remaining: z.number(),
+});
+
+export type AuditStatus = z.infer<typeof AuditStatusSchema>;
+export type AuditUrlStatus = z.infer<typeof AuditUrlStatusSchema>;
+export type AuditAnalysis = z.infer<typeof AuditAnalysisSchema>;
+export type AuditUrlResult = z.infer<typeof AuditUrlResultSchema>;
+export type Audit = z.infer<typeof AuditSchema>;
+export type AuditUsage = z.infer<typeof AuditUsageSchema>;
+
+export type CreateAuditInput = { urls: string[]; projectId?: string };
+export type AuditUsageQuery = { projectId?: string };
+
+export const TOPICAL_MAP_STATUSES = ["processing", "ready", "error"] as const;
+export const TOPICAL_MAP_CLUSTER_INTENTS = ["Informational", "Navigational", "Transactional"] as const;
+
+export const TopicalMapStatusSchema = z.enum(TOPICAL_MAP_STATUSES);
+export const TopicalMapClusterIntentSchema = z.enum(TOPICAL_MAP_CLUSTER_INTENTS);
+
+export const TopicalMapPillarSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+});
+
+export const TopicalMapClusterSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  category: z.string(),
+  intent: TopicalMapClusterIntentSchema,
+});
+
+const topicalMapSummaryShape = {
+  id: z.string(),
+  projectId: z.string(),
+  topic: z.string(),
+  language: z.string(),
+  status: TopicalMapStatusSchema,
+  createdAt: z.string(),
+  generationCost: z.number().nullable(),
+};
+
+export const TopicalMapSummarySchema = z.object(topicalMapSummaryShape);
+
+export const TopicalMapSchema = z.object({
+  ...topicalMapSummaryShape,
+  pillar: TopicalMapPillarSchema.nullable(),
+  clusters: z.array(TopicalMapClusterSchema),
+  errorMessage: z.string().nullable(),
+});
+
+export const TopicalMapListSchema = listOf(TopicalMapSummarySchema);
+
+export type TopicalMapStatus = z.infer<typeof TopicalMapStatusSchema>;
+export type TopicalMapClusterIntent = z.infer<typeof TopicalMapClusterIntentSchema>;
+export type TopicalMapPillar = z.infer<typeof TopicalMapPillarSchema>;
+export type TopicalMapCluster = z.infer<typeof TopicalMapClusterSchema>;
+export type TopicalMapSummary = z.infer<typeof TopicalMapSummarySchema>;
+export type TopicalMap = z.infer<typeof TopicalMapSchema>;
+
+export type CreateTopicalMapInput = { topic: string; language: string };
+export type RegenerateTopicalMapClusterInput = { category: string };

@@ -2,18 +2,32 @@ import type { ModelKey, Page, ResolvedRange } from "../schemas/common.js";
 import type { BrandPresence } from "../schemas/prompteye.js";
 import type {
   Account,
+  AcceptedPromptSuggestion,
+  AcceptPromptSuggestionInput,
   AnalyticsPage,
   AnalyticsSource,
   AnalyticsSummary,
   Answer,
+  Audit,
+  AuditUsage,
+  AuditUsageQuery,
+  BrandAnalysisAvailability,
+  BrandAnalysisRun,
   Breakdown,
   Category,
   CitationQuality,
   CitedDomain,
+  CitedPage,
   Competitor,
   CompetitorExclusion,
+  ContentBrief,
+  CreateAuditInput,
+  CreateCategoryInput,
+  CreateContentBriefInput,
+  CreatePromptGroupInput,
   CreateProjectInput,
   CreateReportInput,
+  CreateTopicalMapInput,
   GoogleStatus,
   KnowledgeBase,
   List,
@@ -22,21 +36,29 @@ import type {
   Prompt,
   PromptDetail,
   PromptGroup,
+  PromptGroupSettings,
   PromptInput,
   PromptSettings,
   PromptSuggestion,
+  SuggestionRun,
+  SuggestionRunAvailability,
+  RegenerateTopicalMapClusterInput,
   Report,
   ReportDetail,
   SearchPage,
   SearchQuery,
   SearchSummary,
+  TopicalMap,
+  TopicalMapSummary,
   TrafficCountPage,
   TrafficCrawl,
+  TrafficCrawlHealth,
   TrafficEvent,
   TrafficGroup,
   TrafficKind,
   TrafficSitemapPage,
   UpdateKnowledgeBaseInput,
+  UpdatePromptGroupInput,
   UpdateProjectInput,
   UpdatePromptInput,
   VisibilityRow,
@@ -58,10 +80,25 @@ export type VisibilityQuery = RangeQuery & PageQuery & { promptId?: string };
 export type AnswerQuery = RangeQuery &
   PageQuery & { promptId?: string; brand?: BrandPresence; search?: string };
 
+/**
+ * Narrows a ranking to one prompt, one prompt group, or one category (optionally one of its
+ * subcategories) — mutually exclusive, exactly like the app's own visibility screen resolves
+ * its focus panel. Give at most one of `promptId` / `groupId` / `categoryId`(+`subcategoryId`).
+ */
+export type PromptScopeQuery = {
+  promptId?: string;
+  groupId?: string;
+  categoryId?: string;
+  subcategoryId?: string;
+};
+
 /** Sources rank rather than page: `limit` strongest domains, no cursor. */
 export type SourceQuery = RangeQuery & { limit?: number };
 
-export type CompetitorQuery = RangeQuery & { limit?: number };
+/** `listSources` narrows the same way `listCompetitors` does; `listSourcePages` does not. */
+export type SourceRankingQuery = SourceQuery & PromptScopeQuery;
+
+export type CompetitorQuery = SourceQuery & PromptScopeQuery;
 
 export type PromptQuery = ResolvedRange & PageQuery & { groupId?: string; categoryId?: string };
 
@@ -97,6 +134,7 @@ export type BotVisitQuery = ResolvedRange & BotTrafficFilters & PageQuery;
 export type BotCountQuery = ResolvedRange & BotTrafficFilters & { groupBy: TrafficGroup; limit?: number };
 export type CrawlQuery = PageQuery & Omit<BotTrafficFilters, "status">;
 export type SitemapQuery = PageQuery & { active?: "true" | "false" };
+export type CrawlHealthQuery = ResolvedRange & { kind: TrafficKind; vendor?: string };
 
 /**
  * Every call the MCP server makes against PromptEye.
@@ -114,13 +152,27 @@ export interface PromptEyeClient {
   getKnowledgeBase(projectId: string): Promise<KnowledgeBase>;
   updateKnowledgeBase(projectId: string, input: UpdateKnowledgeBaseInput): Promise<KnowledgeBase>;
   listCategories(projectId: string): Promise<List<Category>>;
+  createCategory(projectId: string, input: CreateCategoryInput): Promise<Category>;
   listPromptSuggestions(projectId: string, query: SuggestionQuery): Promise<List<PromptSuggestion>>;
+  acceptPromptSuggestion(
+    projectId: string,
+    suggestionId: string,
+    input: AcceptPromptSuggestionInput
+  ): Promise<AcceptedPromptSuggestion>;
+  generateGroupSuggestions(projectId: string, groupId: string): Promise<SuggestionRun>;
+  getPromptSuggestionAvailability(projectId: string, groupId: string): Promise<SuggestionRunAvailability>;
 
   listPrompts(projectId: string, query: PromptQuery): Promise<Page<Prompt>>;
   getPrompt(projectId: string, promptId: string, range: ResolvedRange): Promise<PromptDetail>;
   addPrompts(projectId: string, prompts: PromptInput[]): Promise<List<NewPrompt>>;
   updatePrompt(projectId: string, promptId: string, input: UpdatePromptInput): Promise<PromptSettings>;
   listPromptGroups(projectId: string, query: PromptGroupQuery): Promise<Page<PromptGroup>>;
+  createPromptGroup(projectId: string, input: CreatePromptGroupInput): Promise<PromptGroupSettings>;
+  updatePromptGroup(
+    projectId: string,
+    groupId: string,
+    input: UpdatePromptGroupInput
+  ): Promise<PromptGroupSettings>;
 
   getVisibilitySummary(projectId: string, query: VisibilitySummaryQuery): Promise<VisibilitySummary>;
   getVisibility(projectId: string, query: VisibilityQuery): Promise<Page<VisibilityRow>>;
@@ -136,6 +188,14 @@ export interface PromptEyeClient {
   createReport(input: CreateReportInput): Promise<{ report: Report; reused: boolean }>;
   listReports(query: PageQuery): Promise<Page<Report>>;
   getReport(reportId: string): Promise<ReportDetail>;
+
+  /**
+   * Content briefs: a title and an H2/H3 outline for an article targeting one
+   * prompt. There is no dedup — every `createContentBrief` call starts a fresh
+   * generation; poll `getContentBrief` until `status` turns `ready` or `error`.
+   */
+  createContentBrief(input: CreateContentBriefInput): Promise<ContentBrief>;
+  getContentBrief(briefId: string): Promise<ContentBrief>;
 
   /**
    * What Google reports for the project's own site, which is a different
@@ -160,9 +220,29 @@ export interface PromptEyeClient {
   listCrawls(projectId: string, query: CrawlQuery): Promise<Page<TrafficCrawl>>;
   /** Takes no period: the sitemap is a standing inventory. */
   getSitemap(projectId: string, query: SitemapQuery): Promise<TrafficSitemapPage>;
+  getCrawlHealth(projectId: string, query: CrawlHealthQuery): Promise<TrafficCrawlHealth>;
 
   listAnswers(projectId: string, query: AnswerQuery): Promise<Page<Answer>>;
-  listSources(projectId: string, query: SourceQuery): Promise<Page<CitedDomain>>;
+  listSources(projectId: string, query: SourceRankingQuery): Promise<Page<CitedDomain>>;
+  /** The individual pages behind `listSources`, one row per URL instead of per domain. */
+  listSourcePages(projectId: string, query: SourceQuery): Promise<Page<CitedPage>>;
   /** Takes no period: the API reports the latest analysis it has. */
   getCitationQuality(projectId: string): Promise<CitationQuality>;
+
+  startBrandAnalysisRun(projectId: string): Promise<BrandAnalysisRun>;
+  getBrandAnalysisAvailability(projectId: string): Promise<BrandAnalysisAvailability>;
+  getBrandAnalysisRun(projectId: string, runId: string): Promise<BrandAnalysisRun>;
+
+  createAudit(input: CreateAuditInput): Promise<Audit>;
+  getAudit(auditId: string): Promise<Audit>;
+  getAuditUsage(query: AuditUsageQuery): Promise<AuditUsage>;
+
+  createTopicalMap(projectId: string, input: CreateTopicalMapInput): Promise<TopicalMap>;
+  listTopicalMaps(projectId: string): Promise<List<TopicalMapSummary>>;
+  getTopicalMap(projectId: string, mapId: string): Promise<TopicalMap>;
+  regenerateTopicalMapCluster(
+    projectId: string,
+    mapId: string,
+    input: RegenerateTopicalMapClusterInput
+  ): Promise<TopicalMap>;
 }

@@ -157,6 +157,14 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
             "Brands to keep out of the competitor set — agencies, resellers or anything that is not a " +
               "rival, so share of voice is not diluted by them."
           ),
+        organisationId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            "Puts the project in this workspace instead of the key holder's own. The key holder must own, " +
+              "admin or belong to it; get one from list_projects's organisationId on an existing project."
+          ),
       },
       outputSchema: ProjectSchema.shape,
     },

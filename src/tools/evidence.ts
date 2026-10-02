@@ -8,7 +8,7 @@ import {
   paginationShape,
   resolveDateRange,
 } from "../schemas/common.js";
-import { AnswerSchema, CitationQualitySchema, CitedDomainSchema } from "../schemas/prompteye.js";
+import { AnswerSchema, CitationQualitySchema, CitedDomainSchema, CitedPageSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
 import { READ_ONLY, handled, morePages, num, ok, sampleData, type ToolContext } from "./result.js";
@@ -29,7 +29,10 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         `${CITED_DOMAINS}\n\n` +
         "The ranking answers with the most cited domains rather than a list to walk to the end of, so " +
         "raise `limit` to see further down. `model` narrows it to one assistant, which is how to tell " +
-        "a source every assistant trusts from one that only a single assistant leans on.",
+        "a source every assistant trusts from one that only a single assistant leans on.\n\n" +
+        "Narrow the count to one prompt, one prompt group, or one category — `categoryId` alone, or " +
+        "`categoryId` with `subcategoryId` — the same way the app's own visibility screen narrows it. " +
+        "Give at most one of `promptId` / `groupId` / `categoryId`(+`subcategoryId`); combining them fails.",
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
@@ -41,6 +44,26 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
           .max(MAX_LIMIT)
           .optional()
           .describe(`How many domains to return, at most ${MAX_LIMIT}.`),
+        promptId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Count citations from this prompt alone instead of every prompt in the project."),
+        groupId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Count citations from this prompt group alone instead of every prompt in the project."),
+        categoryId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Count citations from only the prompts filed under this category, subcategories included."),
+        subcategoryId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Narrow categoryId further, to one of its subcategories. Needs categoryId alongside it."),
       },
       outputSchema: {
         data: z.array(CitedDomainSchema),
@@ -69,6 +92,71 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
           (page.data.length === 0
             ? `No domains were cited between ${range.startDate} and ${range.endDate}.`
             : `Domains cited on ${project.brand}'s prompts, ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`) +
+            morePages(page.nextCursor),
+          {
+            ...page,
+            projectName: project.name,
+            brand: project.brand,
+            ...range,
+            model: args.model ?? null,
+          }
+        );
+      })
+  );
+
+  server.registerTool(
+    "list_source_pages",
+    {
+      title: "List the exact pages assistants cite",
+      description:
+        "The individual pages behind list_sources — each row here is one URL, not a domain, so a host " +
+        "cited on several different pages shows up once per page instead of folded into one domain " +
+        "total. Call this when the domain breakdown does not say enough for the analysis at hand, for " +
+        "example to hand someone the exact page to fix or to pitch rather than just its host.\n\n" +
+        `${CITED_DOMAINS}\n\n` +
+        "A citation is not visibility: an answer can cite the brand's own page without naming the " +
+        "brand, and it can name the brand while citing nobody. Read this beside list_prompts, not " +
+        "instead of it.\n\n" +
+        "The ranking answers with the most cited pages rather than a list to walk to the end of, so " +
+        "raise `limit` to see further down. `model` narrows it to one assistant.",
+      annotations: READ_ONLY,
+      inputSchema: {
+        ...dateRangeShape,
+        ...modelFilterShape,
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_LIMIT)
+          .optional()
+          .describe(`How many pages to return, at most ${MAX_LIMIT}.`),
+      },
+      outputSchema: {
+        data: z.array(CitedPageSchema),
+        nextCursor: z.string().nullable(),
+        projectName: z.string(),
+        brand: z.string(),
+        startDate: z.string(),
+        endDate: z.string(),
+        model: z.string().nullable(),
+      },
+    },
+    async (args) =>
+      handled(async () => {
+        const project = await session.require();
+        const range = resolveDateRange(args);
+        const page = await client.listSourcePages(project.id, { ...args, ...range });
+
+        const lines = page.data.map(
+          (citedPage) =>
+            `- ${citedPage.url}${citedPage.ownDomain ? " ← own domain" : ""} — ${citedPage.citations} citation(s), ` +
+            `${num(citedPage.share, "%")} share`
+        );
+
+        return ok(
+          (page.data.length === 0
+            ? `No pages were cited between ${range.startDate} and ${range.endDate}.`
+            : `Pages cited on ${project.brand}'s prompts, ${range.startDate} to ${range.endDate}:\n${lines.join("\n")}`) +
             morePages(page.nextCursor),
           {
             ...page,
