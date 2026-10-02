@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ListToolsRequestSchema, type ListToolsRequest, type ListToolsResult, type Tool } from "@modelcontextprotocol/sdk/types.js";
 import { createClient, serverName, serverVersion, type ApiCredentials } from "./config.js";
+import { SERVER_ICONS } from "./icon.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
 import { registerPromptWorkflows } from "./prompts.js";
 import { ProjectSession } from "./session.js";
@@ -55,7 +56,7 @@ export function buildToolContext(credentials: ApiCredentials): ToolContext {
 
 export function createMcpServer(context: ToolContext): McpServer {
   const server = new McpServer(
-    { name: serverName, version: serverVersion },
+    { name: serverName, version: serverVersion, icons: SERVER_ICONS },
     { capabilities: { resources: {}, prompts: {} }, instructions: SERVER_INSTRUCTIONS }
   );
 
