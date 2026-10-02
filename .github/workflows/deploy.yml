@@ -9,22 +9,30 @@ permissions:
   contents: read
   id-token: write
 
-env:
-  ENVIRONMENT: research
-  SUFFIX: RESEARCH
-  PROJECT_ID: prompteye-analytics
-  REGION: europe-central2
-  SERVICE: mcp
-  REPOSITORY: mcp
-
-concurrency:
-  group: mcp-deploy-research
-  cancel-in-progress: false
-
 jobs:
   deploy:
-    name: Build and deploy
+    name: Build and deploy (${{ matrix.environment }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - environment: research
+            suffix: RESEARCH
+            project: prompteye-analytics
+          - environment: prod
+            suffix: PROD
+            project: prompteye
+    concurrency:
+      group: mcp-deploy-${{ matrix.environment }}
+      cancel-in-progress: false
+    env:
+      ENVIRONMENT: ${{ matrix.environment }}
+      SUFFIX: ${{ matrix.suffix }}
+      PROJECT_ID: ${{ matrix.project }}
+      REGION: europe-central2
+      SERVICE: mcp
+      REPOSITORY: mcp
     steps:
       - name: Checkout
         uses: actions/checkout@v5
