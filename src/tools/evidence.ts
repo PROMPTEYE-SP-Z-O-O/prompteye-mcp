@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
-import { MAX_LIMIT, dateRangeShape, modelFilterShape } from "../schemas/common.js";
+import { MAX_LIMIT, dateRangeShape, modelFilterShape, promptScopeShape } from "../schemas/common.js";
 import { CitedDomainSchema, CitedPageSchema, NextCursorSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
@@ -24,11 +24,15 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         "brand's own for the assistants to cite on the prompt it targets.\n\n" +
         "The ranking answers with the most cited domains rather than a list to walk to the end of, so " +
         "raise `limit` to see further down. `model` narrows it to one assistant, which is how to tell " +
-        "a source every assistant trusts from one that only a single assistant leans on.",
+        "a source every assistant trusts from one that only a single assistant leans on.\n\n" +
+        "Narrow the count to one prompt (`promptId`), one prompt group (`groupId`), or one category — " +
+        "`categoryId` alone, or `categoryId` with `subcategoryId` — the same way the app's own screens " +
+        "narrow it. Give at most one of these; combining them fails. list_source_pages does not take them.",
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
         ...modelFilterShape,
+        ...promptScopeShape("Count citations from"),
         limit: z
           .number()
           .int()

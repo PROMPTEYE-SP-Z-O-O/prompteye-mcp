@@ -48,6 +48,26 @@ export const modelFilterShape = {
   ),
 };
 
+/** The prompt scope the competitor and source rankings accept. `verb` opens each sentence ("Rank", ...). */
+export const promptScopeShape = (verb: string) => ({
+  promptId: z.string().min(1).optional().describe(`${verb} this prompt alone instead of every prompt in the project.`),
+  groupId: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(`${verb} this prompt group alone instead of every prompt in the project.`),
+  categoryId: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(`${verb} only the prompts filed under this category, subcategories included.`),
+  subcategoryId: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("Narrow `categoryId` further, to one of its subcategories. Needs `categoryId` alongside it."),
+});
+
 export const paginationShape = {
   limit: z
     .number()

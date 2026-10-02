@@ -68,10 +68,16 @@ export type RangeQuery = DateRange & { model?: ModelKey };
 
 export type ProjectQuery = { workspaceId?: string };
 
-/** Sources rank rather than page: `limit` strongest domains, no cursor. */
-export type SourceQuery = RangeQuery & { limit?: number };
+/** Narrows a ranking to one prompt, group or category; give at most one of them. */
+export type PromptScopeQuery = { promptId?: string; groupId?: string; categoryId?: string; subcategoryId?: string };
 
-export type CompetitorQuery = RangeQuery & { limit?: number };
+/** Sources rank rather than page: `limit` strongest domains, no cursor. */
+export type SourceQuery = RangeQuery & PromptScopeQuery & { limit?: number };
+
+/** Source pages take no prompt scope; the API rejects it. */
+export type SourcePageQuery = RangeQuery & { limit?: number };
+
+export type CompetitorQuery = RangeQuery & PromptScopeQuery & { limit?: number };
 
 export type PromptQuery = DateRange & PageQuery & { groupId?: string; categoryId?: string };
 
@@ -188,7 +194,7 @@ export interface PromptEyeClient {
   getIntegrationsStatus(projectId: string): Promise<IntegrationsStatus>;
 
   listSources(projectId: string, query: SourceQuery): Promise<Page<CitedDomain>>;
-  listSourcePages(projectId: string, query: SourceQuery): Promise<Page<CitedPage>>;
+  listSourcePages(projectId: string, query: SourcePageQuery): Promise<Page<CitedPage>>;
 
   createBrandAnalysisRun(projectId: string): Promise<BrandAnalysisRun>;
   getBrandAnalysisAvailability(projectId: string): Promise<BrandAnalysisAvailability>;

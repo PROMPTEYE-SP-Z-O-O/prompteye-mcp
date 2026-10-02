@@ -627,6 +627,22 @@ describe("PromptEyeApi", () => {
     });
   });
 
+  describe("prompt scope", () => {
+    it("scopes the competitor ranking to one group", async () => {
+      const { api, calls } = stubFetch(json(200, { data: [], nextCursor: null }));
+
+      await api.competitors.list("p1", { groupId: "g1", limit: 5 });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/competitors?groupId=g1&limit=5`);
+    });
+
+    it("scopes the source ranking to a category and subcategory", async () => {
+      const { api, calls } = stubFetch(json(200, { data: [], nextCursor: null }));
+
+      await api.sources.list("p1", { categoryId: "c1", subcategoryId: "s1" });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/sources?categoryId=c1&subcategoryId=s1`);
+    });
+  });
+
   describe("crawl health", () => {
     it("scores one kind of crawler for the period", async () => {
       const health = {
