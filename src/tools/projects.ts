@@ -127,8 +127,8 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         country: z
           .enum(COUNTRY_CODES)
           .describe(
-            "Market to track the brand in, as an ISO 3166-1 alpha-2 code such as PL, DE or US. GLOB " +
-              "stands for the global answer set rather than one country."
+            "Market to track the brand in, as an ISO 3166-1 alpha-2 code such as PL, DE or US. GLOB is " +
+              "kept only for projects created earlier; a new project with it is rejected with 400."
           ),
         name: z
           .string()
