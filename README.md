@@ -63,6 +63,7 @@ Every one of these calls the PromptEye API.
 | `create_content_brief` | `POST /v1/content/briefs` |
 | `get_content_brief` | `GET /v1/content/briefs/{briefId}` |
 | `list_sources` | `GET /v1/projects/{projectId}/sources` |
+| `get_prompt_answers` | `GET /v1/projects/{projectId}/answers` |
 | `list_source_pages` | `GET /v1/projects/{projectId}/sources/pages` |
 | `list_competitors` | `GET /v1/projects/{projectId}/competitors` |
 | `get_integrations_status` | `GET /v1/projects/{projectId}/integrations/status` |

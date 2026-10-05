@@ -1,6 +1,7 @@
 import { HttpClient, type FetchLike } from "./http.js";
 import {
   AccountResource,
+  AnswersResource,
   AuditsResource,
   BrandAnalysisResource,
   CategoriesResource,
@@ -54,6 +55,7 @@ export class PromptEyeApi {
   readonly promptGroups: PromptGroupsResource;
   readonly promptSuggestions: PromptSuggestionsResource;
   readonly sources: SourcesResource;
+  readonly answers: AnswersResource;
   readonly competitors: CompetitorsResource;
   readonly reports: ReportsResource;
   readonly contentBriefs: ContentBriefsResource;
@@ -86,6 +88,7 @@ export class PromptEyeApi {
     this.promptGroups = new PromptGroupsResource(http);
     this.promptSuggestions = new PromptSuggestionsResource(http);
     this.sources = new SourcesResource(http);
+    this.answers = new AnswersResource(http);
     this.competitors = new CompetitorsResource(http);
     this.reports = new ReportsResource(http);
     this.contentBriefs = new ContentBriefsResource(http);

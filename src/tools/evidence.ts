@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { MAX_LIMIT, dateRangeShape, modelFilterShape, promptScopeShape } from "../schemas/common.js";
-import { CitedDomainSchema, CitedPageSchema, NextCursorSchema } from "../schemas/prompteye.js";
+import { ANSWER_BRAND_PRESENCE, AnswerSchema, CitedDomainSchema, CitedPageSchema, NextCursorSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
@@ -97,6 +97,58 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
       handled(async () => {
         const project = await session.require();
         const page = await client.listSourcePages(project.id, args);
+        return ok(page);
+      })
+  );
+
+  server.registerTool(
+    "get_prompt_answers",
+    {
+      title: "Read the assistants' answers",
+      description:
+        "The individual assistant answers behind the metrics, newest first — the answer text, whether " +
+        "the brand was named and at which position, and the sources cited. Call this when a figure " +
+        "needs checking: it is where a number is verified when someone asks why it moved.\n\n" +
+        "Pass `resultId` with one of the sourceResultIds from get_brand_analysis_run to verify the " +
+        "evidence for a gap; the date range is then ignored. Pass `promptId` with `model` to read how " +
+        "a given assistant answers a prompt. `brand` narrows to the answers that named the brand " +
+        "(`named`) or did not (`missing`), and `search` to the answers containing a phrase in the answer, prompt, brands or sources.\n\n" +
+        "Without a date range the last 30 days are read; a range is at most one year. A page ends on a " +
+        "whole collection run, so it can hold slightly more than `limit` answers. Pass nextCursor back " +
+        "as `cursor` to read the next page.",
+      annotations: READ_ONLY,
+      inputSchema: {
+        ...dateRangeShape,
+        ...modelFilterShape,
+        resultId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Only the answers of this one collection run, a sourceResultIds entry of a brand analysis."),
+        promptId: z.string().min(1).optional().describe("Only the answers to this prompt."),
+        brand: z
+          .enum(ANSWER_BRAND_PRESENCE)
+          .optional()
+          .describe("named = only answers that named the brand, missing = only those that did not."),
+        search: z
+          .string()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe("Only the answers containing this phrase in the answer text, prompt, brands or sources."),
+        limit: z.number().int().min(1).max(50).optional().describe("How many answers to aim for, at most 50. Defaults to 25."),
+        cursor: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("The nextCursor of the previous page, passed back unchanged. Omit it to start from the newest answer."),
+      },
+      outputSchema: { data: z.array(AnswerSchema), nextCursor: NextCursorSchema },
+    },
+    async (args) =>
+      handled(async () => {
+        const project = await session.require();
+        const page = await client.listAnswers(project.id, args);
         return ok(page);
       })
   );

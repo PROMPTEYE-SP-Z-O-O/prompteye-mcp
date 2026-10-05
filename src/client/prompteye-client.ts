@@ -5,6 +5,7 @@ import type {
   Account,
   AnalyticsPage,
   AnalyticsSource,
+  Answer,
   AnalyticsSummary,
   Audit,
   AuditUsage,
@@ -76,6 +77,15 @@ export type SourceQuery = RangeQuery & PromptScopeQuery & { limit?: number };
 
 /** Source pages take no prompt scope; the API rejects it. */
 export type SourcePageQuery = RangeQuery & { limit?: number };
+
+export type AnswerQuery = DateRange &
+  PageQuery & {
+    resultId?: string;
+    promptId?: string;
+    model?: ModelKey;
+    brand?: "named" | "missing";
+    search?: string;
+  };
 
 export type CompetitorQuery = RangeQuery & PromptScopeQuery & { limit?: number };
 
@@ -195,6 +205,8 @@ export interface PromptEyeClient {
 
   listSources(projectId: string, query: SourceQuery): Promise<Page<CitedDomain>>;
   listSourcePages(projectId: string, query: SourcePageQuery): Promise<Page<CitedPage>>;
+
+  listAnswers(projectId: string, query: AnswerQuery): Promise<Page<Answer>>;
 
   createBrandAnalysisRun(projectId: string): Promise<BrandAnalysisRun>;
   getBrandAnalysisAvailability(projectId: string): Promise<BrandAnalysisAvailability>;

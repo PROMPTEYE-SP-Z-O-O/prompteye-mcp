@@ -320,6 +320,15 @@ export const SuggestionRunSchema = z.object({
     ),
 });
 
+export const SUGGESTION_EMPTY_REASONS = ["no_phrases", "no_phrase_volume", "filtered_out", "all_duplicates"] as const;
+
+export const SuggestionEmptyReasonSchema = z.enum(SUGGESTION_EMPTY_REASONS).describe(
+  "Why a completed run produced no suggestions: no_phrases = no search phrases could be derived for the group topic, " +
+    "no_phrase_volume = phrases have no measurable search demand, " +
+    "filtered_out = candidates did not match the funnel stage the group lacks, " +
+    "all_duplicates = every candidate duplicated existing prompts or earlier suggestions."
+);
+
 export const SuggestionRunAvailabilitySchema = z.object({
   canRun: z.boolean().describe("Whether generate_prompt_suggestions would schedule a run right now."),
   reason: z
@@ -337,6 +346,17 @@ export const SuggestionRunAvailabilitySchema = z.object({
       status: z.string().describe("running, completed or failed."),
       startedAt: timestamp("When the run started"),
       finishedAt: z.string().nullable().describe("When it finished, ISO 8601 in UTC. null = still running."),
+      producedCount: z
+        .number()
+        .int()
+        .nullish()
+        .describe(
+          "How many suggestions the run produced. null while the run has not finished. 0 on a finished run means it came back empty: read emptyReason (or error when status is failed) to see why."
+        ),
+      emptyReason: SuggestionEmptyReasonSchema.nullish().describe(
+        "null when the run produced suggestions, failed, or is an older run recorded before reasons were kept. Otherwise why a completed run produced none."
+      ),
+      error: z.string().nullish().describe("Failure message when the status is failed; null otherwise."),
     })
     .nullable()
     .describe("This group's most recent run. null = it never had one."),
@@ -363,6 +383,35 @@ export const CitedPageSchema = z.object({
 });
 
 export const CitedPagePageSchema = pageOf(CitedPageSchema);
+
+export const ANSWER_BRAND_PRESENCE = ["named", "missing"] as const;
+
+export const AnswerSourceSchema = z.object({
+  url: z.string().describe("Address the assistant cited."),
+  domain: z.string().describe("Host of that address, without `www.`."),
+  title: z.string().nullable().describe("Title of the cited page. null = none known."),
+});
+
+export const AnswerSchema = z.object({
+  id: z.string().describe("Unique identifier of this answer, `<resultId>:<model>`."),
+  resultId: z
+    .string()
+    .describe("The collection run this answer belongs to, the same id `sourceResultIds` of a brand analysis lists."),
+  date: z.string().describe("Day the answer was collected, YYYY-MM-DD."),
+  promptId: z.string().describe("Prompt that was asked."),
+  prompt: z.string().describe("Text of that prompt."),
+  model: z.string().describe("The assistant that gave this answer."),
+  brand: z.enum(ANSWER_BRAND_PRESENCE).describe("named = the brand was named in this answer, missing = it was not."),
+  position: z
+    .number()
+    .int()
+    .nullable()
+    .describe("Where the brand was first named, counting from 1. null = the brand was not named."),
+  text: z.string().describe("The answer as the assistant gave it."),
+  sources: z.array(AnswerSourceSchema).describe("Pages the assistant cited in this answer."),
+});
+
+export const AnswerPageSchema = pageOf(AnswerSchema);
 
 export const BrandAnalysisRankingEvidenceSchema = z.object({
   brand: z.string(),
@@ -409,7 +458,9 @@ export const BrandAnalysisRunSchema = z.object({
   sentiment: BrandAnalysisSentimentSchema.nullable().describe(
     "How the assistants talk about the brand when they mention it. null until ready."
   ),
-  totalCost: z.number().nullable(),
+  totalCost: z.number().nullable().describe(
+    "PromptEye's internal AI processing cost in USD, not a charge to the user. null until the run finishes."
+  ),
   error: z.string().nullable().describe("Why the run failed. null unless status is error or corrupted_response."),
 });
 
@@ -474,7 +525,9 @@ export const AuditUrlResultSchema = z.object({
   url: z.string(),
   status: z.string().describe("pending, success or error."),
   error: z.string().nullable(),
-  totalCost: z.number().nullable(),
+  totalCost: z.number().nullable().describe(
+    "PromptEye's internal AI processing cost in USD, not a charge to the user. null until the audit finishes."
+  ),
   analysis: AuditAnalysisSchema.nullable().describe(
     "The nine content checks run on the URL. null until status is success."
   ),
@@ -820,6 +873,7 @@ export type AcceptedPromptSuggestion = z.infer<typeof AcceptedPromptSuggestionSc
 export type SuggestionRun = z.infer<typeof SuggestionRunSchema>;
 export type SuggestionRunAvailability = z.infer<typeof SuggestionRunAvailabilitySchema>;
 export type CitedPage = z.infer<typeof CitedPageSchema>;
+export type Answer = z.infer<typeof AnswerSchema>;
 export type BrandAnalysisRun = z.infer<typeof BrandAnalysisRunSchema>;
 export type BrandAnalysisAvailability = z.infer<typeof BrandAnalysisAvailabilitySchema>;
 export type Audit = z.infer<typeof AuditSchema>;
