@@ -330,7 +330,11 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
       description:
         "Whether generate_prompt_suggestions would schedule a new run for one prompt group of the active " +
         "project right now, and if not, why — the same check that tool runs itself, without scheduling " +
-        "anything.",
+        "anything.\n\n" +
+        "After calling generate_prompt_suggestions, poll this endpoint until lastRun.status is not running. " +
+        "When a run finishes with producedCount 0, read emptyReason (or error if status is failed) to see why " +
+        "no suggestions were generated. list_prompt_suggestions returns only pending suggestions that have not " +
+        "yet been accepted or rejected.",
       annotations: READ_ONLY,
       inputSchema: {
         groupId: z.string().min(1).describe("Id of the prompt group, as list_prompt_groups reports it."),
@@ -355,8 +359,10 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "drafts candidate phrases, checks their demand, expands them into questions and scores each one. " +
         PROMPT_GENERATION +
         "\n\nScheduling a run is instant; the cycle itself runs in the background for a minute or more " +
-        "and is not waited on here. Call list_prompt_suggestions with the groupId afterwards for what " +
-        "it produced.\n\n" +
+        "and is not waited on here. Poll get_prompt_suggestion_availability with the groupId afterwards " +
+        "to wait for the run to finish and discover what it produced. Call list_prompt_suggestions to " +
+        "read the pending suggestions generated; it returns only suggestions awaiting a decision, " +
+        "excluding ones that have already been accepted or rejected.\n\n" +
         "A run is not always worth scheduling — the group might already be healthy, the plan's paid " +
         "work might not currently cover it, or the last run might still have proposals awaiting a " +
         "decision. Then nothing is scheduled and runId comes back null with `skipped` saying why; that " +

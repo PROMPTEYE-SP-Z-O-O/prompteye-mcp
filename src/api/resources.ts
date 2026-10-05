@@ -5,6 +5,7 @@ import {
   AnalyticsPagePageSchema,
   AnalyticsSourcePageSchema,
   AnalyticsSummarySchema,
+  AnswerPageSchema,
   AuditSchema,
   AuditUsageSchema,
   BrandAnalysisAvailabilitySchema,
@@ -48,6 +49,7 @@ import {
   type AcceptPromptSuggestionInput,
   type AcceptedPromptSuggestion,
   type Account,
+  type Answer,
   type AnalyticsPage,
   type AnalyticsSource,
   type AnalyticsSummary,
@@ -307,6 +309,31 @@ export class SourcesResource {
 
   listPages(projectId: string, params: RankingParams = {}, options?: RequestOptions): Promise<Page<CitedPage>> {
     return this.http.get(`${projectPath(projectId)}/sources/pages`, CitedPagePageSchema, {
+      ...options,
+      query: params,
+    });
+  }
+}
+
+export type AnswerParams = DateRange &
+  Pagination & {
+    resultId?: string;
+    promptId?: string;
+    model?: string;
+    brand?: "named" | "missing";
+    search?: string;
+  };
+
+export class AnswersResource {
+  constructor(private readonly http: HttpClient) {}
+
+  /**
+   * `GET /v1/projects/{projectId}/answers` — the assistants' answers behind the
+   * figures, newest first. A page ends on a whole collection run, so it can
+   * hold slightly more than `limit`.
+   */
+  list(projectId: string, params: AnswerParams = {}, options?: RequestOptions): Promise<Page<Answer>> {
+    return this.http.get(`${projectPath(projectId)}/answers`, AnswerPageSchema, {
       ...options,
       query: params,
     });

@@ -26,9 +26,10 @@ export function registerAuditTools(server: McpServer, { client }: ToolContext): 
         "Running one is instant; auditing takes under a minute. The audit comes back `pending` and " +
         "turns `success` (or `partial` / `error`) once every URL has been checked — read it with " +
         "get_audit until it does.\n\n" +
-        "Give projectId to bill the audit to that project's workspace plan; leave it out to bill it to " +
-        "the API key holder's own plan. Either way the audited URLs count against that plan's monthly " +
-        "URL quota — get_audit_usage reads it first.",
+        "Users pay for audits only with their plan's monthly URL quota — each audited URL consumes " +
+        "1 unit of the limit shown by get_audit_usage. Check get_audit_usage first; a request with " +
+        "more URLs than remaining is rejected with `402 plan_limit_exceeded`. Give projectId " +
+        "to bill to that project's workspace plan; leave it out to bill to the API key holder's own plan.",
       annotations: WRITES,
       inputSchema: {
         urls: z.array(z.string().min(1)).min(1).describe("The URLs to audit, each with its protocol."),
@@ -50,7 +51,8 @@ export function registerAuditTools(server: McpServer, { client }: ToolContext): 
       description:
         "One audit in full: every URL that was audited and, once checked, the nine content signals found " +
         "on it. Call it after create_audit until `status` is no longer `pending` — each URL carries " +
-        "`analysis` null until its own check finishes.",
+        "`analysis` null until its own check finishes. The `totalCost` on each URL is PromptEye's " +
+        "internal AI processing cost in USD, not a charge to the user, and is null until the audit finishes.",
       annotations: READ_ONLY,
       inputSchema: {
         auditId: z.string().min(1).describe("Id of the audit, as create_audit reports it."),

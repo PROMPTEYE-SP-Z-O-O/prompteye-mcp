@@ -603,7 +603,14 @@ describe("PromptEyeApi", () => {
         reason: "cooldown",
         pendingSuggestionCount: 2,
         availableSlots: 5,
-        lastRun: { status: "completed", startedAt: "2026-09-08T06:31:00.000Z", finishedAt: "2026-09-08T06:33:40.000Z" },
+        lastRun: {
+          status: "completed",
+          startedAt: "2026-09-08T06:31:00.000Z",
+          finishedAt: "2026-09-08T06:33:40.000Z",
+          producedCount: 4,
+          emptyReason: null,
+          error: null,
+        },
       };
       const read = stubFetch(json(200, availability));
       await expect(read.api.promptSuggestions.availability("p1", "g1")).resolves.toEqual(availability);
@@ -624,6 +631,50 @@ describe("PromptEyeApi", () => {
 
       await expect(api.sources.listPages("p1", { model: "gpt", limit: 5 })).resolves.toEqual({ data: [page], nextCursor: null });
       expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/sources/pages?model=gpt&limit=5`);
+    });
+  });
+
+  describe("answers", () => {
+    const answer = {
+      id: "r1:gpt",
+      resultId: "r1",
+      date: "2026-09-09",
+      promptId: "p1",
+      prompt: "best crm for agencies",
+      model: "gpt",
+      brand: "named",
+      position: 2,
+      text: "Several tools track this. Acme reports\u2026",
+      sources: [{ url: "https://example.com/guide", domain: "example.com", title: null }],
+    };
+
+    it("sends every answer filter and reads the page", async () => {
+      const { api, calls } = stubFetch(json(200, { data: [answer], nextCursor: '{"a":1}' }));
+
+      await expect(
+        api.answers.list("p1", {
+          startDate: "2026-08-16",
+          endDate: "2026-09-15",
+          resultId: "r1",
+          promptId: "p1",
+          model: "gpt",
+          brand: "named",
+          search: "pricing",
+          limit: 10,
+          cursor: '{"a":1}',
+        })
+      ).resolves.toEqual({ data: [answer], nextCursor: '{"a":1}' });
+      expect(calls[0].url).toBe(
+        `${BASE_URL}/v1/projects/p1/answers?startDate=2026-08-16&endDate=2026-09-15&resultId=r1&promptId=p1` +
+          "&model=gpt&brand=named&search=pricing&limit=10&cursor=%7B%22a%22%3A1%7D"
+      );
+    });
+
+    it("reads an answer that did not name the brand", async () => {
+      const missing = { ...answer, brand: "missing", position: null, sources: [] };
+      const { api } = stubFetch(json(200, { data: [missing], nextCursor: null }));
+
+      await expect(api.answers.list("p1")).resolves.toEqual({ data: [missing], nextCursor: null });
     });
   });
 

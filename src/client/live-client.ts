@@ -34,6 +34,7 @@ export function createLiveClient(api: PromptEyeApi): PromptEyeClient {
     reportMissingCapability: (input) => api.feedback.create(input),
     listSources: (projectId, query) => api.sources.list(projectId, query),
     listSourcePages: (projectId, query) => api.sources.listPages(projectId, query),
+    listAnswers: (projectId, query) => api.answers.list(projectId, query),
     listCompetitors: (projectId, query) => api.competitors.list(projectId, query),
     listCompetitorExclusions: (projectId) => api.competitors.listExclusions(projectId),
     replaceCompetitorExclusions: (projectId, exclusions) => api.competitors.replaceExclusions(projectId, exclusions),
