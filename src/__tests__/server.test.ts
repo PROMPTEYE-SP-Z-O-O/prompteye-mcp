@@ -176,6 +176,29 @@ describe("tool results", () => {
   });
 });
 
+describe("create_project", () => {
+  const input = { brand: "Acme", domain: "acme.example" };
+
+  it("does not offer the Global market in its input schema", async () => {
+    const client = await connectedClient();
+    const { tools } = await client.listTools();
+    const tool = tools.find((candidate) => candidate.name === "create_project");
+    const country = fieldOf(tool?.inputSchema, ["country"]);
+
+    expect(country.enum).toContain("PL");
+    expect(country.enum).not.toContain("GLOB");
+  });
+
+  it("rejects the Global market", async () => {
+    const client = await connectedClient();
+    const result = await client
+      .callTool({ name: "create_project", arguments: { ...input, country: "GLOB" } })
+      .catch(() => ({ isError: true }));
+
+    expect(result.isError).toBe(true);
+  });
+});
+
 const fieldOf = (schema: unknown, path: string[]): Record<string, unknown> =>
   path.reduce(
     (node, key) => (key === "[]" ? node.items : (node.properties as Record<string, unknown>)[key]) as Record<string, unknown>,

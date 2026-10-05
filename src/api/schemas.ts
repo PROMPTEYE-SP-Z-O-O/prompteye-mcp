@@ -11,6 +11,12 @@ export const COUNTRY_CODES = [
   "US", "VN", "ZA",
 ] as const;
 
+export type MarketCountryCode = Exclude<(typeof COUNTRY_CODES)[number], "GLOB">;
+
+export const MARKET_COUNTRY_CODES = COUNTRY_CODES.filter(
+  (code): code is MarketCountryCode => code !== "GLOB"
+) as [MarketCountryCode, ...MarketCountryCode[]];
+
 const timestamp = (description: string) => z.string().describe(`${description}, ISO 8601 in UTC.`);
 
 const VISIBILITY_FIELD = "Share of answers that named the brand in the period, in percent 0-100. null = not measured.";
@@ -846,7 +852,7 @@ export type CreateProjectInput = {
   brand: string;
   /** Primary domain, without protocol or path. */
   domain: string;
-  country: (typeof COUNTRY_CODES)[number];
+  country: MarketCountryCode;
   /** Defaults to the brand name. */
   name?: string;
   label?: string;

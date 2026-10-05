@@ -122,7 +122,7 @@ export function registerPromptWorkflows(server: McpServer): void {
       argsSchema: {
         brand: z.string().describe("The brand name as it is written in answers."),
         domain: z.string().describe("Primary domain, without protocol or path."),
-        country: z.string().describe("Market as an ISO 3166-1 alpha-2 code, or GLOB for the global answer set."),
+        country: z.string().describe("Market as an ISO 3166-1 alpha-2 code, such as PL, DE or US."),
       },
     },
     ({ brand, domain, country }) =>
