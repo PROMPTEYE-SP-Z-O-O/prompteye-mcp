@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { KnowledgeBaseSchema, MARKET_COUNTRY_CODES, ProjectSchema } from "../schemas/prompteye.js";
+import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema } from "../schemas/prompteye.js";
 import type { Project } from "../schemas/prompteye.js";
 import { PROMPT_GENERATION } from "./glossary.js";
 import { READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
@@ -125,9 +125,10 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
           .max(253)
           .describe("Primary domain of the brand, without protocol or path, e.g. prompteye.com."),
         country: z
-          .enum(MARKET_COUNTRY_CODES)
+          .enum(COUNTRY_CODES)
           .describe(
-            "Market to track the brand in, as an ISO 3166-1 alpha-2 code such as PL, DE or US."
+            "Market to track the brand in, as an ISO 3166-1 alpha-2 code such as PL, DE or US. GLOB is " +
+              "kept only for projects created earlier; a new project with it is rejected with 400."
           ),
         name: z
           .string()
