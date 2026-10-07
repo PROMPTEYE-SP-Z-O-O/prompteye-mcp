@@ -11,6 +11,10 @@ const KEY_A = "pe_live_aaaaaaaaaaaaaaaaaaaaaaaa";
 const KEY_B = "pe_live_bbbbbbbbbbbbbbbbbbbbbbbb";
 const KEY_UNKNOWN = "pe_live_cccccccccccccccccccccccc";
 const KEY_THROTTLED = "pe_live_dddddddddddddddddddddddd";
+const JWT_A = "h.p.s";
+const JWT_A_REFRESHED = "h2.p2.s2";
+const JWT_EXPIRING = "h3.p3.s3";
+const JWT_NO_SCOPE = "h4.p4.s4";
 
 const ACCOUNT = {
   id: "acc_1",
@@ -42,6 +46,9 @@ const project = (id: string, name: string) => ({
 const PROJECTS_BY_KEY: Record<string, ReturnType<typeof project>[]> = {
   [KEY_A]: [project("a1", "Acme"), project("a2", "Acme UK")],
   [KEY_B]: [project("b1", "Beta")],
+  [JWT_A]: [project("j1", "Jwt")],
+  [JWT_A_REFRESHED]: [project("j1", "Jwt")],
+  [JWT_EXPIRING]: [project("j1", "Jwt")],
 };
 
 const INITIALIZE = {
@@ -70,6 +77,8 @@ const listen = (server: Server): Promise<Listening> =>
   });
 
 let meCalls = 0;
+const tokensSeen: string[] = [];
+const expired = new Set<string>();
 
 const answer = (res: ServerResponse, status: number, body: unknown): void => {
   res.writeHead(status, { "Content-Type": "application/json" });
@@ -82,6 +91,9 @@ function stubApi(req: IncomingMessage, res: ServerResponse): void {
     res.writeHead(429, { "Content-Type": "application/json", "Retry-After": "17" });
     return res.end(JSON.stringify({ error: { code: "rate_limited", message: "Slow down." } }));
   }
+  if (token === JWT_NO_SCOPE) return answer(res, 403, { error: { code: "insufficient_scope", message: "No api_access." } });
+  if (token !== undefined) tokensSeen.push(token);
+  if (token !== undefined && expired.has(token)) return answer(res, 401, { error: { code: "unauthorized", message: "Expired." } });
   const projects = token === undefined ? undefined : PROJECTS_BY_KEY[token];
   if (!projects) return answer(res, 401, { error: { code: "unauthorized", message: "Unknown key." } });
 
@@ -161,7 +173,7 @@ describe("createHttpApp", () => {
     const body = await response.json();
 
     expect(response.status).toBe(401);
-    expect(response.headers.get("www-authenticate")).toBe('Bearer realm="prompteye-mcp", error="invalid_token"');
+    expect(response.headers.get("www-authenticate")).toBe('Bearer realm="prompteye-mcp"');
     expect(body.error.message).toContain("Missing PromptEye API key");
   });
 
@@ -170,7 +182,7 @@ describe("createHttpApp", () => {
     const body = await response.json();
 
     expect(response.status).toBe(401);
-    expect(response.headers.get("www-authenticate")).toContain("invalid_token");
+    expect(response.headers.get("www-authenticate")).toBe('Bearer realm="prompteye-mcp", error="invalid_token"');
     expect(body.error.message).toContain("PromptEye rejected this API key");
   });
 
@@ -400,5 +412,168 @@ describe("createHttpApp", () => {
     expect(response.status).toBe(429);
     expect(response.headers.get("retry-after")).toBe("17");
     expect(body.error.message).toContain("Too many requests");
+  });
+
+  it("serves OAuth protected resource metadata at both well-known paths when configured", async () => {
+    const oauth = { resource: "https://mcp.example.com/mcp", authorizationServer: "https://auth.example.com" };
+    const started = startApp(api.url, { oauth });
+    const configured = await started.listening;
+
+    for (const path of ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"]) {
+      const response = await fetch(`${configured.url}${path}`);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        resource: oauth.resource,
+        authorization_servers: [oauth.authorizationServer],
+        bearer_methods_supported: ["header"],
+        scopes_supported: ["api_access"],
+      });
+    }
+
+    await configured.close();
+  });
+
+  it("challenges with resource_metadata and scope, adding invalid_token only for a rejected credential", async () => {
+    const started = startApp(api.url, { oauth: { resource: "https://mcp.example.com/mcp", authorizationServer: "https://auth.example.com" } });
+    const configured = await started.listening;
+    const metadata = "https://mcp.example.com/.well-known/oauth-protected-resource/mcp";
+
+    const missing = await rawPost(configured.url, {});
+    const rejected = await rawPost(configured.url, { Authorization: `Bearer ${KEY_UNKNOWN}` });
+
+    expect(missing.status).toBe(401);
+    expect(missing.headers.get("www-authenticate")).toBe(
+      `Bearer realm="prompteye-mcp", scope="api_access", resource_metadata="${metadata}"`
+    );
+    expect(rejected.status).toBe(401);
+    expect(rejected.headers.get("www-authenticate")).toBe(
+      `Bearer realm="prompteye-mcp", error="invalid_token", scope="api_access", resource_metadata="${metadata}"`
+    );
+
+    await configured.close();
+  });
+
+  it("serves the metadata without credentials or host and origin checks, and caches it", async () => {
+    const started = startApp(api.url, {
+      oauth: { resource: "https://mcp.example.com/mcp", authorizationServer: "https://auth.example.com" },
+      allowedHosts: ["mcp.example.com"],
+      allowedOrigins: ["https://app.example"],
+    });
+    const configured = await started.listening;
+
+    const response = await fetch(`${configured.url}/.well-known/oauth-protected-resource/mcp`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("public, max-age=3600");
+
+    await configured.close();
+  });
+
+  it("answers 404 for a different bearer on an existing session and accepts a fresh initialize with it", async () => {
+    const first = await connect(app.url, { Authorization: `Bearer ${JWT_A}` });
+    clients.push(first.client);
+
+    const refreshed = await rawPost(
+      app.url,
+      { Authorization: `Bearer ${JWT_A_REFRESHED}`, "Mcp-Session-Id": first.transport.sessionId ?? "" },
+      { jsonrpc: "2.0", id: 3, method: "tools/list", params: {} }
+    );
+    expect(refreshed.status).toBe(404);
+    expect((await refreshed.json()).error.message).toContain("Session not found");
+
+    const second = await connect(app.url, { Authorization: `Bearer ${JWT_A_REFRESHED}` });
+    clients.push(second.client);
+    expect((await second.client.listTools()).tools.length).toBeGreaterThan(0);
+  });
+
+  it("starts a session with a JWT-shaped bearer and forwards exactly that bearer on tool calls", async () => {
+    const { client } = await connect(app.url, { Authorization: `Bearer ${JWT_A}` });
+    clients.push(client);
+    tokensSeen.length = 0;
+
+    const projects = await client.callTool({ name: "list_projects", arguments: {} });
+
+    expect(projects.isError).toBeFalsy();
+    expect(textOf(projects)).toContain("Jwt");
+    expect(tokensSeen.length).toBeGreaterThan(0);
+    expect(new Set(tokensSeen)).toEqual(new Set([JWT_A]));
+  });
+
+  it("challenges an unauthenticated GET without a session, while an authenticated one is 405", async () => {
+    const started = startApp(api.url, { oauth: { resource: "https://mcp.example.com/mcp", authorizationServer: "https://auth.example.com" } });
+    const configured = await started.listening;
+
+    const anonymous = await fetch(`${configured.url}/mcp`);
+    const authenticated = await fetch(`${configured.url}/mcp`, { headers: { Authorization: `Bearer ${KEY_A}` } });
+
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.headers.get("www-authenticate")).toContain(
+      'resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource/mcp"'
+    );
+    expect(authenticated.status).toBe(405);
+
+    await configured.close();
+  });
+
+  it("answers 403 insufficient_scope when the API refuses the token at session start", async () => {
+    const started = startApp(api.url, { oauth: { resource: "https://mcp.example.com/mcp", authorizationServer: "https://auth.example.com" } });
+    const configured = await started.listening;
+
+    const response = await rawPost(configured.url, { Authorization: `Bearer ${JWT_NO_SCOPE}` });
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("www-authenticate")).toBe(
+      'Bearer realm="prompteye-mcp", error="insufficient_scope", scope="api_access", resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource/mcp"'
+    );
+
+    await configured.close();
+  });
+
+  it("answers 403 insufficient_scope without resource_metadata when OAuth is off", async () => {
+    const response = await rawPost(app.url, { Authorization: `Bearer ${JWT_NO_SCOPE}` });
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("www-authenticate")).toBe('Bearer realm="prompteye-mcp", error="insufficient_scope", scope="api_access"');
+  });
+
+  it("counts insufficient_scope toward the auth-failure budget", async () => {
+    const started = startApp(api.url, { authFailureBudget: new RequestBudget({ perMinute: 1 }) });
+    const limited = await started.listening;
+
+    const first = await rawPost(limited.url, { Authorization: `Bearer ${JWT_NO_SCOPE}` });
+    const second = await rawPost(limited.url, { Authorization: `Bearer ${JWT_NO_SCOPE}` });
+
+    expect(first.status).toBe(403);
+    expect(second.status).toBe(429);
+
+    await limited.close();
+  });
+
+  it("drops the session when the API answers 401 to a tool call, so the client re-authenticates", async () => {
+    const { client, transport } = await connect(app.url, { Authorization: `Bearer ${JWT_EXPIRING}` });
+    clients.push(client);
+    const sessionId = transport.sessionId ?? "";
+    expired.add(JWT_EXPIRING);
+
+    const call = await client.callTool({ name: "list_projects", arguments: {} });
+    expect(call.isError).toBe(true);
+
+    const next = await rawPost(
+      app.url,
+      { Authorization: `Bearer ${JWT_EXPIRING}`, "Mcp-Session-Id": sessionId },
+      { jsonrpc: "2.0", id: 4, method: "tools/list", params: {} }
+    );
+    expect(next.status).toBe(404);
+
+    const reinitialized = await rawPost(app.url, { Authorization: `Bearer ${JWT_EXPIRING}` });
+    expect(reinitialized.status).toBe(401);
+    expect(reinitialized.headers.get("www-authenticate")).toContain('error="invalid_token"');
+    expired.delete(JWT_EXPIRING);
+  });
+
+  it("serves no OAuth metadata when not configured", async () => {
+    const response = await fetch(`${app.url}/.well-known/oauth-protected-resource`);
+
+    expect(response.status).toBe(404);
   });
 });

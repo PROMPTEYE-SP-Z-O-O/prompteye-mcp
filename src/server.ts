@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ListToolsRequestSchema, type ListToolsRequest, type ListToolsResult, type Tool } from "@modelcontextprotocol/sdk/types.js";
 import { createClient, serverName, serverVersion, type ApiCredentials } from "./config.js";
+import { notifyOnUnauthorized } from "./client/unauthorized.js";
 import { SERVER_ICONS } from "./icon.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
 import { registerPromptWorkflows } from "./prompts.js";
@@ -49,8 +50,8 @@ function advertiseDraft202012OutputSchemas(server: McpServer): void {
     )) as typeof protocol.setRequestHandler;
 }
 
-export function buildToolContext(credentials: ApiCredentials): ToolContext {
-  const client = createClient(credentials);
+export function buildToolContext(credentials: ApiCredentials, onUnauthorized?: () => void): ToolContext {
+  const client = onUnauthorized ? notifyOnUnauthorized(createClient(credentials), onUnauthorized) : createClient(credentials);
   return { client, session: new ProjectSession(client), baseUrl: credentials.baseUrl };
 }
 

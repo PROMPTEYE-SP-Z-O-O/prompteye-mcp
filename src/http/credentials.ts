@@ -9,8 +9,6 @@ const CREDENTIAL_HEADERS = ["authorization", "x-prompteye-key", "x-api-key"] as 
 
 const BEARER_SCHEME = /^Bearer\s+(.+)$/i;
 
-const KEY_REJECTING_STATUSES = new Set([401, 403]);
-
 const [AUTHORIZATION_HEADER, ...KEY_HEADERS] = CREDENTIAL_HEADERS;
 
 export const firstValue = (headers: IncomingHttpHeaders, name: string): string | undefined => {
@@ -37,7 +35,8 @@ export async function verifyApiKey(credentials: ApiCredentials, logger: Logger):
     await createClient(credentials).getAccount();
     return undefined;
   } catch (error) {
-    if (error instanceof PromptEyeApiError && KEY_REJECTING_STATUSES.has(error.status)) return REJECTIONS.rejectedKey;
+    if (error instanceof PromptEyeApiError && error.status === 401) return REJECTIONS.rejectedKey;
+    if (error instanceof PromptEyeApiError && error.status === 403) return REJECTIONS.insufficientScope;
     if (error instanceof PromptEyeApiError && error.status === 429) {
       return tooManyRequests({ allowed: false, retryAfterSeconds: error.retryAfterSeconds ?? 5 });
     }

@@ -11,7 +11,7 @@ const SWEEP_EVERY_MS = 5 * 60_000;
 const budgetOf = (perMinute: number): RequestBudget => new RequestBudget({ perMinute });
 
 export function startHttpServer(settings: HttpSettings, logger: Logger): Server {
-  const { port, baseUrl, sessions, rateLimits, allowedHosts, allowedOrigins, trustProxyHops } = settings;
+  const { port, baseUrl, sessions, rateLimits, allowedHosts, allowedOrigins, trustProxyHops, oauth } = settings;
   const registry = new SessionRegistry(sessions);
 
   const app = createHttpApp({
@@ -24,6 +24,7 @@ export function startHttpServer(settings: HttpSettings, logger: Logger): Server 
     allowedHosts,
     allowedOrigins,
     trustProxyHops,
+    oauth,
   });
 
   setInterval(() => {

@@ -257,8 +257,23 @@ claude mcp add --transport http prompteye http://localhost:3000/mcp \
   --header "Authorization: Bearer pe_live_…"
 ```
 
-Claude.ai and ChatGPT connectors authenticate with OAuth rather than a pasted header; that is
-not in this version, so they cannot use the hosted server yet.
+#### Claude.ai and ChatGPT (OAuth)
+
+Add a custom connector with the URL `https://mcp.prompteye.com/mcp`, sign in to PromptEye
+when prompted and approve access. No key is pasted. The server publishes
+`/.well-known/oauth-protected-resource` (RFC 9728) pointing at PromptEye's authorization
+server and answers an unauthenticated request with `401` and a `WWW-Authenticate` header that
+links to it. Enable it by setting both `MCP_PUBLIC_URL` and `MCP_AUTHORIZATION_SERVER`
+(startup fails if only one is set).
+
+The OAuth access token is forwarded to the PromptEye API like an API key; the API verifies
+it. When the client refreshes its token, the old session no longer matches and the server
+answers `404`, so the client starts a new session. `pe_live_…` keys keep working, which is
+the method for Claude Desktop (`.mcpb`), Cursor and Claude Code. If the API answers `401`
+to a tool call (token expired mid-session), the session is dropped so the client refreshes
+its token. With OAuth the per-key rate limit and session cap follow the token, so they reset
+when the client refreshes (the per-IP limit still applies). `docs/oauth-test.html` is a
+manual end-to-end tester for the sign-in flow.
 
 Set `MCP_PUBLIC_HOSTS` to the `Host` values the server is reachable under and
 `MCP_ALLOWED_ORIGINS` to the browser origins allowed to call it; together they are the
@@ -407,6 +422,8 @@ scripts/bundle.mjs    stages dist/, public/ and production deps, then packs the 
 | `MCP_RATE_LIMIT_AUTH_FAILURES` | `10` | HTTP | Rejected keys a minute per client address before its initializes get `429`, valid key or not |
 | `MCP_PUBLIC_HOSTS` | unset | HTTP | Comma-separated `Host` values to accept; unset accepts any |
 | `MCP_ALLOWED_ORIGINS` | unset | HTTP | Comma-separated browser `Origin` values to accept; unset accepts any |
+| `MCP_PUBLIC_URL` | unset | HTTP | Canonical MCP URL (e.g. `https://mcp.example.com/mcp`); with `MCP_AUTHORIZATION_SERVER` it enables OAuth discovery |
+| `MCP_AUTHORIZATION_SERVER` | unset | HTTP | Issuer URL of the OAuth authorization server advertised to clients |
 | `MCP_TRUST_PROXY_HOPS` | `0` | HTTP | Reverse proxies in front of the server whose `X-Forwarded-For` is trusted; `0` ignores it |
 
 Both the API URL and the key are at

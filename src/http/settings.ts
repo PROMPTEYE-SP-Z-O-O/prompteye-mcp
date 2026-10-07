@@ -1,5 +1,7 @@
 import { requireBaseUrl } from "../config.js";
 
+export type OAuthSettings = { resource: string; authorizationServer: string };
+
 export type HttpSettings = {
   port: number;
   baseUrl: string;
@@ -8,6 +10,7 @@ export type HttpSettings = {
   allowedHosts?: string[];
   allowedOrigins?: string[];
   trustProxyHops: number;
+  oauth?: OAuthSettings;
 };
 
 const numberSetting = (env: NodeJS.ProcessEnv, name: string, fallback: number): number => {
@@ -22,6 +25,36 @@ const listSetting = (env: NodeJS.ProcessEnv, name: string): string[] | undefined
     .filter((entry) => entry !== "");
   return entries.length > 0 ? entries : undefined;
 };
+
+const MCP_PATH = "/mcp";
+
+const requireAbsoluteUrl = (name: string, value: string): string => {
+  const url = URL.canParse(value) ? new URL(value) : undefined;
+  const local = url?.hostname === "localhost" || url?.hostname === "127.0.0.1";
+  if (url && (url.protocol === "https:" || (url.protocol === "http:" && local))) return value;
+  throw new Error(`${name} must be an absolute https URL (http only for localhost), got "${value}".`);
+};
+
+const requireResourceUrl = (name: string, value: string): string => {
+  const url = new URL(requireAbsoluteUrl(name, value));
+  if (url.search || url.hash || url.pathname !== MCP_PATH || value !== url.href) {
+    throw new Error(`${name} must be the MCP endpoint URL, e.g. https://mcp.example.com${MCP_PATH}: no trailing slash, query or fragment, got "${value}".`);
+  }
+  return value;
+};
+
+function readOAuthSettings(env: NodeJS.ProcessEnv): OAuthSettings | undefined {
+  const resource = env.MCP_PUBLIC_URL?.trim();
+  const authorizationServer = env.MCP_AUTHORIZATION_SERVER?.trim();
+  if (!resource && !authorizationServer) return undefined;
+  if (!resource || !authorizationServer) {
+    throw new Error("MCP_PUBLIC_URL and MCP_AUTHORIZATION_SERVER must be set together to enable OAuth.");
+  }
+  return {
+    resource: requireResourceUrl("MCP_PUBLIC_URL", resource),
+    authorizationServer: requireAbsoluteUrl("MCP_AUTHORIZATION_SERVER", authorizationServer),
+  };
+}
 
 export function readHttpSettings(env: NodeJS.ProcessEnv = process.env): HttpSettings {
   return {
@@ -39,5 +72,6 @@ export function readHttpSettings(env: NodeJS.ProcessEnv = process.env): HttpSett
     allowedHosts: listSetting(env, "MCP_PUBLIC_HOSTS"),
     allowedOrigins: listSetting(env, "MCP_ALLOWED_ORIGINS"),
     trustProxyHops: numberSetting(env, "MCP_TRUST_PROXY_HOPS", 0),
+    oauth: readOAuthSettings(env),
   };
 }
