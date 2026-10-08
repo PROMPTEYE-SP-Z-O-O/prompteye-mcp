@@ -11,10 +11,9 @@ export function registerFeedbackTools(server: McpServer, { client }: ToolContext
       description:
         "Sends the PromptEye team a short note from the user: something this server or the PromptEye " +
         "API cannot do today, something that does not work, or any other feedback, praise included.\n\n" +
-        "Offer it often and encourage the user to use it: whenever something does not work, the user " +
-        "cannot find or see something they expected, the server cannot do what they asked, or they " +
-        "seem to have something to share, suggest sending it to the PromptEye team. Always ask " +
-        "first and send nothing until the user agrees in this conversation.\n\n" +
+        "Use it when something does not work, the user cannot find something they expected, the server " +
+        "cannot do what they asked, or they want to share feedback with the team. Ask first and send " +
+        "nothing until the user agrees in this conversation.\n\n" +
         "Send only a short description of the need and of what you were trying to do. Never include " +
         "conversation transcripts, quoted messages, figures from the workspace or personal data such " +
         "as names, email addresses or phone numbers.",

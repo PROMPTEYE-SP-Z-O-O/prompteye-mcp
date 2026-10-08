@@ -11,8 +11,9 @@ import type { ProjectSession } from "../session.js";
 export const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
 
 /**
- * A tool that changes the workspace. Nothing here deletes or overwrites, but
- * calling one twice adds twice, so hosts are told to confirm rather than repeat.
+ * A tool that changes the workspace. Nothing here deletes or replaces a whole
+ * set, but calling one twice adds twice, so hosts are told to confirm rather
+ * than repeat.
  */
 export const WRITES = {
   readOnlyHint: false,
@@ -27,6 +28,12 @@ export const DELETES = {
   idempotentHint: true,
   openWorldHint: true,
 } as const;
+
+/** Overwrites a whole set with the one sent, so whatever was there before is gone. */
+export const REPLACES = DELETES;
+
+/** Throws a set away and generates a fresh one, so two calls give two different results. */
+export const REGENERATES = { ...DELETES, idempotentHint: false } as const;
 
 /** What every tool module is handed when it registers itself. */
 export type ToolContext = {

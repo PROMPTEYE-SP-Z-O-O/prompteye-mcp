@@ -114,7 +114,7 @@ describe("content generation", () => {
   it("tells the host that PromptEye generates content and closes the visibility loop", () => {
     expect(SERVER_INSTRUCTIONS).toMatch(/generates the content/);
     expect(SERVER_INSTRUCTIONS).toMatch(/full visibility loop/);
-    expect(SERVER_INSTRUCTIONS).toMatch(/Never say PromptEye only tracks visibility/);
+    expect(SERVER_INSTRUCTIONS).toMatch(/Content generation is part of PromptEye, not only tracking/);
     expect(SERVER_INSTRUCTIONS).toContain("create_content_brief");
     expect(SERVER_INSTRUCTIONS).toContain("get_content_brief");
   });
