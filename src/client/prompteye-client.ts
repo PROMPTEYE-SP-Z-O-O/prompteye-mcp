@@ -58,6 +58,7 @@ import type {
   TrafficSitemapPage,
   UpdateKnowledgeBaseInput,
   UpdateProjectInput,
+  PublicLink,
   UpdatePromptGroupInput,
   UpdatePromptInput,
   Workspace,
@@ -138,6 +139,7 @@ export interface PromptEyeClient {
   getProject(projectId: string): Promise<Project>;
   createProject(input: CreateProjectInput): Promise<Project>;
   updateProject(projectId: string, input: UpdateProjectInput): Promise<Project>;
+  setProjectPublicLink(projectId: string, enabled: boolean): Promise<PublicLink>;
   getKnowledgeBase(projectId: string): Promise<KnowledgeBase>;
   updateKnowledgeBase(projectId: string, input: UpdateKnowledgeBaseInput): Promise<KnowledgeBase>;
   listCategories(projectId: string): Promise<List<Category>>;

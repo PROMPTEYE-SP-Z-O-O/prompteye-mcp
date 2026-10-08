@@ -9,6 +9,7 @@ export function createLiveClient(api: PromptEyeApi): PromptEyeClient {
     getProject: (projectId) => api.projects.get(projectId),
     createProject: (input) => api.projects.create(input),
     updateProject: (projectId, input) => api.projects.update(projectId, input),
+    setProjectPublicLink: (projectId, enabled) => api.projects.setPublicLink(projectId, enabled),
     getKnowledgeBase: (projectId) => api.knowledgeBase.get(projectId),
     updateKnowledgeBase: (projectId, input) => api.knowledgeBase.update(projectId, input),
     listCategories: (projectId) => api.categories.list(projectId),

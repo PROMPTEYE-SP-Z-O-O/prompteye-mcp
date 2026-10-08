@@ -99,6 +99,7 @@
     { "name": "create_content_brief", "description": "Starts content generation: orders the brief an article for a prompt is written from" },
     { "name": "get_content_brief", "description": "One content brief: title, outline and the phrases it covers" },
     { "name": "update_project", "description": "Correct what the active project tracks" },
+    { "name": "set_project_public_link", "description": "Share the active project under a public link, or take the link down" },
     { "name": "update_knowledge_base", "description": "Describe the brand better in the knowledge base" },
     { "name": "update_prompt", "description": "Pause, resume, file or re-prioritise a prompt" },
     { "name": "list_competitor_exclusions", "description": "Read which brands are kept out of competitor rankings" },

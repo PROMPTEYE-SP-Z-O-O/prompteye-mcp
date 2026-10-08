@@ -24,11 +24,19 @@ const PROJECT: Project = {
   excludedCompetitors: ["Rival Agency", "Rival", "Rival Agency GmbH", "Marketplace"],
 };
 
+const PUBLIC_LINK = { isPublic: true, url: "https://app.prompteye.com/public/project/3f9a1c7e5b2d" };
+
+const publicLinkCalls: Array<{ projectId: string; enabled: boolean }> = [];
+
 const fakeClient = {
   listProjects: async () => ({ data: [PROJECT] }),
   getProject: async () => PROJECT,
   createProject: async () => PROJECT,
   updateProject: async () => PROJECT,
+  setProjectPublicLink: async (projectId: string, enabled: boolean) => {
+    publicLinkCalls.push({ projectId, enabled });
+    return enabled ? PUBLIC_LINK : { isPublic: false, url: null };
+  },
 } as unknown as PromptEyeClient;
 
 async function connectedClient(): Promise<Client> {
@@ -80,5 +88,32 @@ describe("project tools keep competitor exclusions to list_competitor_exclusions
 
     expect(described("select_project")).toContain("list_competitor_exclusions");
     expect(described("update_project")).toContain("list_competitor_exclusions");
+  });
+});
+
+describe("set_project_public_link", () => {
+  beforeEach(() => {
+    publicLinkCalls.length = 0;
+  });
+
+  it("publishes the active project and answers its link", async () => {
+    const client = await connectedClient();
+    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
+
+    const result = await client.callTool({ name: "set_project_public_link", arguments: { enabled: true } });
+
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual(PUBLIC_LINK);
+    expect(publicLinkCalls).toEqual([{ projectId: PROJECT.id, enabled: true }]);
+  });
+
+  it("takes the link of the active project down", async () => {
+    const client = await connectedClient();
+    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
+
+    const result = await client.callTool({ name: "set_project_public_link", arguments: { enabled: false } });
+
+    expect(result.structuredContent).toEqual({ isPublic: false, url: null });
+    expect(publicLinkCalls).toEqual([{ projectId: PROJECT.id, enabled: false }]);
   });
 });

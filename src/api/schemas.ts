@@ -87,7 +87,19 @@ export const ProjectSchema = z.object({
   excludedCompetitors: z.array(z.string()),
   accessRole: z.string().describe("OWNER manages the project, FULL_ACCESS edits it, READ_ONLY reads it."),
   createdAt: timestamp("When the project was created"),
+  publicUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Link anyone can open without logging in to view the project. null = the project is not shared."),
 });
+
+export const PublicLinkSchema = z.object({
+  isPublic: z.boolean().describe("Whether the project can be viewed without logging in."),
+  url: z.string().nullable().describe("The public link. null = the project is not shared."),
+});
+
+export type PublicLink = z.infer<typeof PublicLinkSchema>;
 
 export const CompanyProfileSchema = z.object({
   industry: z.string().nullable(),

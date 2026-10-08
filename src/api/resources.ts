@@ -24,6 +24,7 @@ import {
   NewPromptListSchema,
   ProjectListSchema,
   ProjectSchema,
+  PublicLinkSchema,
   PromptDetailSchema,
   PromptGroupPageSchema,
   PromptGroupSettingsSchema,
@@ -105,6 +106,7 @@ import {
   type TrafficSitemapPage,
   type UpdateKnowledgeBaseInput,
   type UpdateProjectInput,
+  type PublicLink,
   type UpdatePromptGroupInput,
   type UpdatePromptInput,
   type Workspace,
@@ -164,6 +166,11 @@ export class ProjectsResource {
   /** `PATCH /v1/projects/{projectId}` — correct what the project tracks. */
   update(projectId: string, input: UpdateProjectInput, options?: RequestOptions): Promise<Project> {
     return this.http.patch(projectPath(projectId), input, ProjectSchema, options);
+  }
+
+  /** `PUT /v1/projects/{projectId}/public-link` — share the project under a public link, or take it down. */
+  setPublicLink(projectId: string, enabled: boolean, options?: RequestOptions): Promise<PublicLink> {
+    return this.http.put(`${projectPath(projectId)}/public-link`, { enabled }, PublicLinkSchema, options);
   }
 }
 

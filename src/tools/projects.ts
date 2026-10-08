@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema } from "../schemas/prompteye.js";
+import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema, PublicLinkSchema } from "../schemas/prompteye.js";
 import type { Project } from "../schemas/prompteye.js";
 import { PROMPT_GENERATION } from "./glossary.js";
 import { READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
@@ -223,6 +223,32 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         await session.select(project.id);
 
         return ok(toProjectOutput(project));
+      })
+  );
+
+  server.registerTool(
+    "set_project_public_link",
+    {
+      title: "Share the project under a public link",
+      description:
+        "Publishes the active project under a link anyone can open without logging in, or takes that link down. " +
+        "Whoever has the link sees the project's visibility read-only, the same view the app shares from project settings.\n\n" +
+        "Before publishing, confirm with the user that the project's data may be visible to anyone holding the link. " +
+        "Publishing a project that is already public answers the link it already has, so it is safe to call again to " +
+        "read the link back; get_active_project also shows it as publicUrl. Taking the link down and publishing again " +
+        "creates a new link and the old one stops working, so warn the user before disabling a link they have handed out.",
+      annotations: WRITES,
+      inputSchema: {
+        enabled: z.boolean().describe("true publishes the project under a public link, false takes the link down."),
+      },
+      outputSchema: PublicLinkSchema.shape,
+    },
+    async ({ enabled }) =>
+      handled(async () => {
+        const project = await session.require();
+        const publicLink = await client.setProjectPublicLink(project.id, enabled);
+        await session.select(project.id);
+        return ok(publicLink);
       })
   );
 
