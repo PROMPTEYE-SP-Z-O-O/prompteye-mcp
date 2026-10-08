@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "prompteye",
   "display_name": "PromptEye",
-  "version": "1.0.23",
+  "version": "1.0.24",
   "description": "See how a brand stands inside the answers AI assistants give — the prompts it is tracked on, the brands answering alongside it and the pages they cite — and generate the content that closes the gaps.",
   "long_description": "PromptEye tracks how often AI assistants name a brand when they answer buying questions. Pick a project — one brand tracked in one market — then work with the prompts it is tracked on, see which brands answer alongside it and which pages the assistants lean on.\n\nPromptEye also generates content, closing the full visibility loop: track the prompts, generate an article for the ones where the brand is weak, then measure whether its visibility moves. Content briefs — the title and outline an article is written from — are ordered and read here; the article itself is generated from the brief in the PromptEye app.\n\nAccount, projects, prompts, prompt groups, categories, prompt suggestions, cited domains, competitors and content briefs come from PromptEye. An API key and the API URL are required — both are at https://app.prompteye.com/integrations.",
   "icon": "public/icon.png",
