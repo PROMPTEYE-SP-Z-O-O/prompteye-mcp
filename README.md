@@ -411,7 +411,7 @@ scripts/bundle.mjs    stages dist/, public/ and production deps, then packs the 
 | `PROMPTEYE_API_BASE_URL` | required | both | API root of the deployment |
 | `PROMPTEYE_API_KEY` | required for stdio | stdio | The API key; HTTP takes it from each request instead |
 | `MCP_SERVER_NAME` | `prompteye-mcp` | both | Name reported to clients |
-| `MCP_SERVER_VERSION` | `1.0.0` | both | Version reported to clients |
+| `MCP_SERVER_VERSION` | `version` from `package.json` | both | Version reported to clients |
 | `PORT` | `3000` | HTTP | Port to listen on |
 | `LOG_LEVEL` | `info` | HTTP | `info` logs every request, `error` only failures |
 | `MCP_SESSION_IDLE_MINUTES` | `30` | HTTP | Sessions idle this long are closed |

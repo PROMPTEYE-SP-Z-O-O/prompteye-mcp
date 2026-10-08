@@ -1,3 +1,4 @@
+import { readFileSync } from "fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "http";
 import { Writable } from "stream";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -254,6 +255,15 @@ describe("createHttpApp", () => {
     expect(body.server.name).toBeDefined();
     expect(body).not.toHaveProperty("source");
     expect(body).not.toHaveProperty("sessions");
+  });
+
+  it("reports the version from package.json", async () => {
+    const { version } = JSON.parse(readFileSync("package.json", "utf-8"));
+
+    const response = await fetch(`${app.url}/`);
+    const body = await response.json();
+
+    expect(body.server.version).toBe(version);
   });
 
   it("serves the PromptEye icon as the favicon, without credentials", async () => {
