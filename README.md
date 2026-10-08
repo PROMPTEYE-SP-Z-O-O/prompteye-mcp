@@ -272,8 +272,7 @@ answers `404`, so the client starts a new session. `pe_live_…` keys keep worki
 the method for Claude Desktop (`.mcpb`), Cursor and Claude Code. If the API answers `401`
 to a tool call (token expired mid-session), the session is dropped so the client refreshes
 its token. With OAuth the per-key rate limit and session cap follow the token, so they reset
-when the client refreshes (the per-IP limit still applies). `docs/oauth-test.html` is a
-manual end-to-end tester for the sign-in flow.
+when the client refreshes (the per-IP limit still applies).
 
 Set `MCP_PUBLIC_HOSTS` to the `Host` values the server is reachable under and
 `MCP_ALLOWED_ORIGINS` to the browser origins allowed to call it; together they are the
