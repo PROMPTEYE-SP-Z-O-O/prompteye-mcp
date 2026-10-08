@@ -39,10 +39,14 @@ async function startSession(
   if (!failureDecision.allowed) return reject(res, tooManyRequests(failureDecision));
 
   const rejection = await verifyApiKey(credentials, logger);
-  if (rejection === REJECTIONS.rejectedKey) authFailureBudget.take(ip);
+  if (rejection === REJECTIONS.rejectedKey || rejection === REJECTIONS.insufficientScope) authFailureBudget.take(ip);
   if (rejection) return reject(res, rejection);
 
-  const server = createMcpServer(buildToolContext(credentials));
+  const server = createMcpServer(
+    buildToolContext(credentials, () => {
+      if (transport.sessionId) registry.remove(transport.sessionId);
+    })
+  );
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: (sessionId) => {

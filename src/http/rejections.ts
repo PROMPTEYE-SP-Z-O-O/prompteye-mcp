@@ -2,9 +2,35 @@ import type express from "express";
 import { INTEGRATIONS_URL } from "../config.js";
 import type { BudgetDecision } from "./rate-limit.js";
 
-export type Rejection = { status: number; code: number; message: string; headers: Record<string, string> };
+export type Rejection = {
+  status: number;
+  code: number;
+  message: string;
+  headers: Record<string, string>;
+  challenge?: Challenge;
+};
 
-const WWW_AUTHENTICATE = 'Bearer realm="prompteye-mcp", error="invalid_token"';
+type Challenge = "missing" | "invalid" | "insufficient_scope";
+
+const REALM = "prompteye-mcp";
+export const API_SCOPE = "api_access";
+
+const ERROR_OF: Record<Challenge, string | undefined> = {
+  missing: undefined,
+  invalid: "invalid_token",
+  insufficient_scope: "insufficient_scope",
+};
+
+function bearerChallenge(challenge: Challenge, resourceMetadata: string | undefined): string {
+  const error = ERROR_OF[challenge];
+  const params = [
+    `realm="${REALM}"`,
+    ...(error ? [`error="${error}"`] : []),
+    ...(error === "insufficient_scope" || resourceMetadata ? [`scope="${API_SCOPE}"`] : []),
+    ...(resourceMetadata ? [`resource_metadata="${resourceMetadata}"`] : []),
+  ];
+  return `Bearer ${params.join(", ")}`;
+}
 
 export const REJECTIONS = {
   missingKey: {
@@ -13,13 +39,22 @@ export const REJECTIONS = {
     message:
       "Missing PromptEye API key. Send it as Authorization: Bearer pe_live_… (or X-PromptEye-Key, or X-API-Key). " +
       `Keys: ${INTEGRATIONS_URL}`,
-    headers: { "WWW-Authenticate": WWW_AUTHENTICATE },
+    headers: {},
+    challenge: "missing",
   },
   rejectedKey: {
     status: 401,
     code: -32001,
     message: `PromptEye rejected this API key. Check it at ${INTEGRATIONS_URL} and send a valid one.`,
-    headers: { "WWW-Authenticate": WWW_AUTHENTICATE },
+    headers: {},
+    challenge: "invalid",
+  },
+  insufficientScope: {
+    status: 403,
+    code: -32001,
+    message: `This PromptEye credential lacks API access. Grant the ${API_SCOPE} scope or use an API key from ${INTEGRATIONS_URL}.`,
+    headers: {},
+    challenge: "insufficient_scope",
   },
   unreachable: {
     status: 503,
@@ -68,6 +103,7 @@ export const tooManyRequests = (decision: BudgetDecision): Rejection => ({
 
 export function reject(res: express.Response, rejection: Rejection): void {
   res.set(rejection.headers);
+  if (rejection.challenge) res.set("WWW-Authenticate", bearerChallenge(rejection.challenge, res.locals.resourceMetadata));
   res.status(rejection.status).json({ jsonrpc: "2.0", error: { code: rejection.code, message: rejection.message }, id: null });
 }
 
