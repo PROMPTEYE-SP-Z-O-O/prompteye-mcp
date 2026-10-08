@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { serverName, serverVersion } from "../config.js";
+import { ICON_PATH } from "../icon.js";
 import { requestLogging, type Logger } from "./logging.js";
 import { routeSession } from "./mcp.js";
 import type { RequestBudget } from "./rate-limit.js";
@@ -30,6 +31,12 @@ const CORS_OPTIONS: cors.CorsOptions = {
 
 const WELL_KNOWN_PATH = "/.well-known/oauth-protected-resource";
 
+const ICON_PATHS = ["/favicon.ico", "/icon.png"];
+
+function icon(_req: express.Request, res: express.Response): void {
+  res.set("Cache-Control", "public, max-age=86400").type("png").sendFile(ICON_PATH);
+}
+
 function health(_req: express.Request, res: express.Response): void {
   res.json({ status: "ok", server: { name: serverName, version: serverVersion } });
 }
@@ -44,6 +51,7 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
   app.use(express.json({ limit: "1mb" }));
 
   app.get(["/", "/healthz"], health);
+  app.get(ICON_PATHS, icon);
 
   if (oauth) {
     const { origin, pathname } = new URL(oauth.resource);
