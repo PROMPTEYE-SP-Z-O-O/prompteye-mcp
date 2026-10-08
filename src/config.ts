@@ -1,9 +1,16 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { PromptEyeApi } from "./api/index.js";
 import { createLiveClient } from "./client/live-client.js";
 import type { PromptEyeClient } from "./client/prompteye-client.js";
 
 export const serverName = process.env.MCP_SERVER_NAME ?? "prompteye-mcp";
-export const serverVersion = process.env.MCP_SERVER_VERSION ?? "1.0.0";
+const PACKAGE_JSON_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../package.json");
+
+const packageVersion = (): string => JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, "utf-8")).version;
+
+export const serverVersion = process.env.MCP_SERVER_VERSION ?? packageVersion();
 
 export const INTEGRATIONS_URL = "https://app.prompteye.com/integrations";
 
