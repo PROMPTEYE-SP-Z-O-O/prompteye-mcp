@@ -256,6 +256,17 @@ describe("createHttpApp", () => {
     expect(body).not.toHaveProperty("sessions");
   });
 
+  it("serves the PromptEye icon as the favicon, without credentials", async () => {
+    for (const path of ["/favicon.ico", "/icon.png"]) {
+      const response = await fetch(`${app.url}${path}`);
+      const body = Buffer.from(await response.arrayBuffer());
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("image/png");
+      expect(body.subarray(1, 4).toString()).toBe("PNG");
+    }
+  });
+
   it("never writes a key into the log", () => {
     const logged = logLines.join("");
     expect(logged).toContain('"event":"mcp.request"');
