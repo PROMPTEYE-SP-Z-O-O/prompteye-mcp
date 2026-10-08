@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TopicalMapSchema, TopicalMapSummarySchema } from "../schemas/prompteye.js";
-import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
+import { READ_ONLY, REGENERATES, WRITES, handled, ok, type ToolContext } from "./result.js";
 
 const mapIdShape = {
   mapId: z.string().min(1).describe("Id of the map, as create_topical_map or list_topical_maps reports it."),
@@ -82,7 +82,7 @@ export function registerTopicalMapTools(server: McpServer, { client, session }: 
         "Replaces every article currently filed under one category of a map with a fresh set, without " +
         "touching the rest of the map or its pillar page. The categories are the `category` values the " +
         "map's clusters carry.",
-      annotations: WRITES,
+      annotations: REGENERATES,
       inputSchema: {
         ...mapIdShape,
         category: z.string().min(1).describe("The category to regenerate; every existing article under it is replaced."),

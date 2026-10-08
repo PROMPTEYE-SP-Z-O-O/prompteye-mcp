@@ -5,7 +5,7 @@ import { MAX_LIMIT, dateRangeShape, modelFilterShape, promptScopeShape } from ".
 import { CompetitorExclusionSchema, CompetitorSchema, NextCursorSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
-import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
+import { READ_ONLY, REPLACES, handled, ok, type ToolContext } from "./result.js";
 
 export const COMPETITORS_WIDGET = "competitors";
 
@@ -97,7 +97,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
         "with list_competitor_exclusions first if you want to add to existing exclusions rather than replace them.\n\n" +
         "Excluding a brand drops it from the competitor rankings, share of voice, and citations across all historical measurements. " +
         "Accepts up to 50 excluded brands, each with optional alternative spellings/aliases.",
-      annotations: WRITES,
+      annotations: REPLACES,
       inputSchema: {
         exclusions: z
           .array(
