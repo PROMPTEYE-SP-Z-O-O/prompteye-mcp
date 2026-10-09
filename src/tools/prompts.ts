@@ -194,7 +194,11 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "Deletes one prompt group of the active project, but only when it has no prompts — paused prompts " +
         "count too. A group that still has prompts is refused: move each of them with update_prompt " +
         "(groupId of another group, or null to leave it ungrouped) and then delete the group. Deleting " +
-        "cannot be undone.",
+        "cannot be undone: a group recreated under the same name is a new group and its prompts have to " +
+        "be filed into it again.\n\n" +
+        "Never empty and delete a group on your own initiative, not even while restructuring a project or " +
+        "freeing capacity. Ask the user first, name the group and its prompts, and only go ahead on an " +
+        "explicit yes. To set a group aside for later, pause its prompts with update_prompt and keep the group.",
       annotations: DELETES,
       inputSchema: {
         groupId: z.string().min(1).describe("Id of the group to delete, as list_prompt_groups reports it."),
@@ -462,6 +466,10 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "the project bets on it.\n\n" +
         "Note:\n" +
         "- Pausing a prompt frees capacity against the plan limit; resuming consumes capacity.\n" +
+        "- A paused prompt stays in its group and comes back into it when resumed. To free capacity, pause " +
+        "the prompt and leave groupId alone.\n" +
+        "- Taking a prompt out of its group (groupId null) loses the group it would come back to. Do it only " +
+        "when the user asked for that prompt to be regrouped or ungrouped, never as part of pausing it.\n" +
         "- The prompt text itself cannot be changed: a different question is a different measurement " +
         "(add a new prompt and pause the old one instead).\n" +
         "- Moving a prompt between groups or categories keeps its history intact.\n" +
