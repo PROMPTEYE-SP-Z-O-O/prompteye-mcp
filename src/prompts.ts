@@ -152,8 +152,9 @@ export function registerPromptWorkflows(server: McpServer): void {
           "4. The articles. Once prompts are tracked, offer to outline articles for the ones that matter " +
           "most: create_content_brief with a promptId from list_prompts, then get_content_brief when it " +
           "is ready. This is optional — skip it if the user does not publish content.\n\n" +
-          "5. The wait. Nothing is measured until the next run: get_account says when it starts, and it " +
-          "takes tens of minutes. Tell the user when to come back."
+          "5. The wait. Prompts are asked as soon as they are tracked, without waiting for the next " +
+          "scheduled run, and the first answers come back over the following tens of minutes. Tell the " +
+          "user to come back then."
       )
   );
 }

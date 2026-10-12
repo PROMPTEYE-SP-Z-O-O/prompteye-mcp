@@ -71,7 +71,7 @@ export const AccountSchema = z.object({
   nextScanAt: z
     .string()
     .describe(
-      "When the next run starts, not when it finishes, ISO 8601 in UTC; answers land over the hours after it, so figures keep moving."
+      "When the next scheduled run starts, not when it finishes, ISO 8601 in UTC; answers land over the hours after it, so figures keep moving. A newly added prompt is asked straight away and does not wait for this run."
     ),
 });
 

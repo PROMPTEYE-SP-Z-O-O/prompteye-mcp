@@ -84,6 +84,13 @@ export const PROMPT_GENERATION =
   "the gap in the funnel it fills, the demand behind it, how close to a purchase it is asked and how " +
   "well it fits the brand. list_prompt_suggestions returns those, ready to be accepted.";
 
+/** When a newly added prompt is first measured, for the tools that add prompts or report the schedule. */
+export const FIRST_MEASUREMENT =
+  "A new prompt does not wait for the schedule: it is put to every assistant as soon as it is added, " +
+  "and its first answers come back over the following tens of minutes. get_account's nextScanAt is " +
+  "the next scheduled run, which asks every active prompt again; it is not when a new prompt is first " +
+  "measured, so never tell the user a new prompt waits for it.";
+
 /** What Google's own figures are, and what they are not, for the tools that report them. */
 export const GOOGLE_DATA =
   "Google's figures answer a different question from everything else here: visibility counts the " +
