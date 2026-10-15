@@ -82,7 +82,10 @@ export function registerContentTools(server: McpServer, { client, session }: Too
         "Has PromptEye write the article for a content brief: the brief's title and H2/H3 outline, filled " +
         "in with the project's brand description and knowledge base, in the language of the project's " +
         "market. Call this when the user wants the article itself written, once get_content_brief reports " +
-        "the brief `ready`; a brief that is still `processing` or failed is refused.\n\n" +
+        "the brief `ready`; a brief that is still `processing` or failed is refused. Before calling it, " +
+        "show the user the brief from get_content_brief — its title and H2/H3 outline — and wait for their " +
+        "explicit yes; a request to write an article is not that yes, since the outline decides what gets " +
+        "written and the article uses the plan's allowance.\n\n" +
         CONTENT_GENERATION +
         "\n\nRequesting it is instant; writing takes a few minutes. The article comes back `processing` " +
         "— read it with get_article until `status` is no longer `processing`. A brief has one article: " +
@@ -95,6 +98,12 @@ export function registerContentTools(server: McpServer, { client, session }: Too
           .string()
           .min(1)
           .describe("Id of the brief to write the article for, as create_content_brief reports it."),
+        confirmedByUser: z
+          .literal(true)
+          .describe(
+            "Must be true, and only set it once the user has seen the brief's title and outline and " +
+              "explicitly agreed in this conversation to have this article written."
+          ),
       },
       outputSchema: ContentArticleSchema.shape,
     },
@@ -112,7 +121,9 @@ export function registerContentTools(server: McpServer, { client, session }: Too
       description:
         "One article with its full text in Markdown. Call this after create_article until `status` is no " +
         "longer `processing`: `draft` means the text is written and in `content`, `error` means " +
-        "generation failed — `error` says why. `content` is empty while it is `processing`.\n\n" +
+        "generation failed — `error` says why. `content` is empty while it is `processing`. `ready`, " +
+        "`published` and `tracked` are later steps of a written article: `ready` means the team approved it " +
+        "for publishing in the app, and its text is in `content` as well.\n\n" +
         CONTENT_GENERATION,
       annotations: READ_ONLY,
       inputSchema: {
@@ -160,7 +171,8 @@ export function registerContentTools(server: McpServer, { client, session }: Too
         "`published`, the same as saving the live URL in the PromptEye app. From then on PromptEye shows " +
         "it as published content and follows whether the assistants cite that page. Call this once the " +
         "user has published the text from get_article on their own site. The article must be written " +
-        "first — `draft` or later; one still `processing` or in `error` is refused. Calling it again " +
+        "first — `draft`, `ready`, `published` or `tracked` are accepted; one still `processing` or in " +
+        "`error` is refused. Calling it again " +
         "with another address replaces the URL and keeps the first publication date.\n\n" +
         CONTENT_GENERATION,
       annotations: WRITES,
