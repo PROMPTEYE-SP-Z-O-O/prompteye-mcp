@@ -473,6 +473,17 @@ describe("PromptEyeApi", () => {
       await expect(api.contentArticles.get("a 1")).resolves.toMatchObject({ status: "draft", content: "## Heading" });
       expect(calls[0].url).toBe(`${BASE_URL}/v1/content/articles/a%201`);
     });
+
+    it("marks an article as published at its live address", async () => {
+      const { api, calls } = stubFetch(json(200, { ...article, status: "published", publishUrl: "https://example.com/x" }));
+
+      await expect(api.contentArticles.publish("a 1", "https://example.com/x")).resolves.toMatchObject({
+        status: "published",
+      });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/content/articles/a%201/publication`);
+      expect(calls[0].init.method).toBe("POST");
+      expect(JSON.parse(String(calls[0].init.body))).toEqual({ url: "https://example.com/x" });
+    });
   });
 
   describe("traffic", () => {

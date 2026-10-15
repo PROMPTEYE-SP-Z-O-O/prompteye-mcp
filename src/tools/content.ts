@@ -150,4 +150,33 @@ export function registerContentTools(server: McpServer, { client, session }: Too
         return ok(page);
       })
   );
+
+  server.registerTool(
+    "publish_article",
+    {
+      title: "Mark an article as published",
+      description:
+        "Records that an article went live on the user's site at the given address and marks it " +
+        "`published`, the same as saving the live URL in the PromptEye app. From then on PromptEye shows " +
+        "it as published content and follows whether the assistants cite that page. Call this once the " +
+        "user has published the text from get_article on their own site. The article must be written " +
+        "first — `draft` or later; one still `processing` or in `error` is refused. Calling it again " +
+        "with another address replaces the URL and keeps the first publication date.\n\n" +
+        CONTENT_GENERATION,
+      annotations: WRITES,
+      inputSchema: {
+        articleId: z
+          .string()
+          .min(1)
+          .describe("Id of the article, as create_article or list_articles reports it."),
+        url: z.string().min(1).describe("The full http(s) address the article went live at."),
+      },
+      outputSchema: ContentArticleSchema.shape,
+    },
+    async ({ articleId, url }) =>
+      handled(async () => {
+        const article = await client.publishContentArticle(articleId, url);
+        return ok(article);
+      })
+  );
 }

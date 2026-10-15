@@ -181,6 +181,7 @@ export interface PromptEyeClient {
   createContentArticle(briefId: string): Promise<ContentArticle>;
   listContentArticles(projectId: string, query: PageQuery): Promise<Page<ContentArticleSummary>>;
   getContentArticle(articleId: string): Promise<ContentArticle>;
+  publishContentArticle(articleId: string, url: string): Promise<ContentArticle>;
 
   reportMissingCapability(input: CreateFeedbackInput): Promise<Feedback>;
 

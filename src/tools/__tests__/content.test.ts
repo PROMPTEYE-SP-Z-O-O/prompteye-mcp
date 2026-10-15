@@ -117,6 +117,7 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
   const created: CreateContentBriefInput[] = [];
   const requested: string[] = [];
   const listed: { projectId: string; query: unknown }[] = [];
+  const published: Array<{ articleId: string; url: string }> = [];
   const client = {
     listProjects: async () => ({ data: [PROJECT] }),
     createContentBrief: async (input: CreateContentBriefInput) => {
@@ -133,6 +134,10 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
       return { data: [ARTICLE_SUMMARY], nextCursor: null };
     },
     getContentArticle: async () => article,
+    publishContentArticle: async (articleId: string, url: string) => {
+      published.push({ articleId, url });
+      return { ...DRAFT_ARTICLE, status: "published", publishUrl: url };
+    },
   } as unknown as PromptEyeClient;
 
   const server = new McpServer({ name: "test", version: "0.0.0" });
@@ -142,7 +147,7 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
   const mcp = new Client({ name: "test-client", version: "0.0.0" });
   await Promise.all([server.connect(serverTransport), mcp.connect(clientTransport)]);
 
-  return { mcp, created, requested, listed };
+  return { mcp, created, requested, listed, published };
 }
 
 describe("content generation", () => {
@@ -168,6 +173,7 @@ describe("content generation", () => {
       "create_article",
       "get_article",
       "list_articles",
+      "publish_article",
     ]);
   });
 
@@ -227,5 +233,17 @@ describe("content generation", () => {
 
     expect(listed).toEqual([{ projectId: PROJECT.id, query: { limit: 5, cursor: "c1" } }]);
     expect(result.structuredContent).toEqual({ data: [ARTICLE_SUMMARY], nextCursor: null });
+  });
+
+  it("records where an article went live", async () => {
+    const { mcp, published } = await connect(READY_BRIEF);
+
+    const result = await mcp.callTool({
+      name: "publish_article",
+      arguments: { articleId: "a1", url: "https://example.com/blog/crm" },
+    });
+
+    expect(published).toEqual([{ articleId: "a1", url: "https://example.com/blog/crm" }]);
+    expect(result.structuredContent).toMatchObject({ status: "published", publishUrl: "https://example.com/blog/crm" });
   });
 });

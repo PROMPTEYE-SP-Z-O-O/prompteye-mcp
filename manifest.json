@@ -101,6 +101,7 @@
     { "name": "create_article", "description": "Writes the article for a ready content brief" },
     { "name": "get_article", "description": "One article with its full Markdown text" },
     { "name": "list_articles", "description": "The articles of the active project, newest first, without text" },
+    { "name": "publish_article", "description": "Marks an article as published at its live URL" },
     { "name": "update_project", "description": "Correct what the active project tracks" },
     { "name": "set_project_public_link", "description": "Share the active project under a public link, or take the link down" },
     { "name": "update_knowledge_base", "description": "Describe the brand better in the knowledge base" },

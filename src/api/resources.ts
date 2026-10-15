@@ -455,6 +455,15 @@ export class ContentArticlesResource {
   get(articleId: string, options?: RequestOptions): Promise<ContentArticle> {
     return this.http.get(`/v1/content/articles/${encodeURIComponent(articleId)}`, ContentArticleSchema, options);
   }
+
+  publish(articleId: string, url: string, options?: RequestOptions): Promise<ContentArticle> {
+    return this.http.post(
+      `/v1/content/articles/${encodeURIComponent(articleId)}/publication`,
+      { url },
+      ContentArticleSchema,
+      options
+    );
+  }
 }
 
 export class PromptSuggestionsResource {
