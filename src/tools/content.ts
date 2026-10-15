@@ -112,7 +112,9 @@ export function registerContentTools(server: McpServer, { client, session }: Too
       description:
         "One article with its full text in Markdown. Call this after create_article until `status` is no " +
         "longer `processing`: `draft` means the text is written and in `content`, `error` means " +
-        "generation failed — `error` says why. `content` is empty while it is `processing`.\n\n" +
+        "generation failed — `error` says why. `content` is empty while it is `processing`. `ready`, " +
+        "`published` and `tracked` are later steps of a written article: `ready` means the team approved it " +
+        "for publishing in the app, and its text is in `content` as well.\n\n" +
         CONTENT_GENERATION,
       annotations: READ_ONLY,
       inputSchema: {
@@ -160,7 +162,8 @@ export function registerContentTools(server: McpServer, { client, session }: Too
         "`published`, the same as saving the live URL in the PromptEye app. From then on PromptEye shows " +
         "it as published content and follows whether the assistants cite that page. Call this once the " +
         "user has published the text from get_article on their own site. The article must be written " +
-        "first — `draft` or later; one still `processing` or in `error` is refused. Calling it again " +
+        "first — `draft`, `ready`, `published` or `tracked` are accepted; one still `processing` or in " +
+        "`error` is refused. Calling it again " +
         "with another address replaces the URL and keeps the first publication date.\n\n" +
         CONTENT_GENERATION,
       annotations: WRITES,
