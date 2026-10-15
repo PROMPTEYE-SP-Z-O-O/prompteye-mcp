@@ -773,6 +773,40 @@ export const ContentBriefSchema = z.object({
   readyAt: z.string().nullable().describe("When it finished, ISO 8601 in UTC. null = not finished yet."),
 });
 
+export const ContentArticleSummarySchema = z.object({
+  id: z.string(),
+  status: z
+    .string()
+    .describe(
+      "processing while PromptEye writes it, then draft (the text is in content) or error. ready, published and tracked are later steps the team moves it through in the app."
+    ),
+  error: z
+    .string()
+    .nullable()
+    .describe("Why the last generation failed. null unless status is error; content then still holds the previous version, if there was one."),
+  projectId: z.string(),
+  briefId: z.string().nullable().describe("The content brief it was written from. null = text added to the app by hand."),
+  prompt: z.string().nullable().describe("The target prompt the article was written for."),
+  title: z.string(),
+  source: z
+    .string()
+    .nullable()
+    .describe("generated_article when PromptEye wrote it from a brief, uploaded_docx or pasted when it was added in the app."),
+  publishUrl: z.string().nullable().describe("Where the article was published. null until it is."),
+  publishedAt: z.string().nullable().describe("When it was published, ISO 8601 in UTC. null until it is."),
+  createdAt: timestamp("When the article was created"),
+  updatedAt: timestamp("When the article last changed"),
+});
+
+export const ContentArticleSchema = ContentArticleSummarySchema.extend({
+  content: z.string().nullable().describe("The article text in Markdown, with ## and ### headings. null until it is written."),
+});
+
+export const ContentArticlePageSchema = pageOf(ContentArticleSummarySchema);
+
+export type ContentArticleSummary = z.infer<typeof ContentArticleSummarySchema>;
+export type ContentArticle = z.infer<typeof ContentArticleSchema>;
+
 export type CreateContentBriefInput = {
   projectId: string;
   prompt: string;

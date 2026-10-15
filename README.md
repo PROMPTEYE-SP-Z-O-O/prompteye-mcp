@@ -62,6 +62,10 @@ Every one of these calls the PromptEye API.
 | `get_report` | `GET /v1/reports/{reportId}` |
 | `create_content_brief` | `POST /v1/content/briefs` |
 | `get_content_brief` | `GET /v1/content/briefs/{briefId}` |
+| `create_article` | `POST /v1/content/briefs/{briefId}/article` |
+| `list_articles` | `GET /v1/content/articles` |
+| `publish_article` | `POST /v1/content/articles/{articleId}/publication` |
+| `get_article` | `GET /v1/content/articles/{articleId}` |
 | `list_sources` | `GET /v1/projects/{projectId}/sources` |
 | `get_prompt_answers` | `GET /v1/projects/{projectId}/answers` |
 | `list_source_pages` | `GET /v1/projects/{projectId}/sources/pages` |
@@ -135,9 +139,12 @@ prompt, which is what later measures the article. The brief comes back `processi
 `get_content_brief` reads it until it is `ready`: the outline, the fan-out phrases it covers and the
 phrases that deserve an article of their own.
 
-The API stops at the brief. Writing the article from it, saving its published URL, requesting
-indexing and following citations are done in the PromptEye app under
-[Content](https://app.prompteye.com/content), and the server instructions say so.
+`create_article` writes the article from a `ready` brief. It comes back `processing` and takes a few
+minutes; `get_article` reads the Markdown text until the status is no longer `processing`, and
+`list_articles` lists the active project's articles without their text. Once the user has published it,
+`publish_article` records the live URL and marks it `published`. Requesting indexing and following
+citations are done in the PromptEye app under [Content](https://app.prompteye.com/content), and the
+server instructions say so.
 
 ### Public reports
 

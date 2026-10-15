@@ -135,11 +135,12 @@ export const CONTENT_GENERATION =
   "citations move. Generation starts from a content brief: PromptEye fans the target prompt out into " +
   "the phrases people ask around it, keeps the ones that belong in this article, sets aside the ones " +
   "that deserve an article of their own, and writes a title and an H2/H3 outline from them. " +
-  "create_content_brief orders one and get_content_brief reads it. The article itself is written from " +
-  "the brief in the PromptEye app, under Content (" +
+  "create_content_brief orders one and get_content_brief reads it. create_article then writes the " +
+  "article from a ready brief, from the brand description, the knowledge documents picked for it and the " +
+  "chosen writing style; get_article reads its text and list_articles lists the project's articles, also " +
+  "those added in the app under Content (" +
   CONTENT_APP_URL +
-  "), from the brand description, the knowledge documents picked for it and the chosen writing style; " +
-  "saving the live URL, requesting indexing and following citations happen there too, and publishing " +
-  "the page is done on the user's own site. A generated article is a draft to review, and neither it " +
+  "). Publishing the page is done on the user's own site; publish_article then records the URL it went " +
+  "live at, and requesting indexing and following citations happen in the app. A generated article is a draft to review, and neither it " +
   "nor its indexing guarantees that an assistant will cite it. Guides: " +
   "https://app.prompteye.com/help/content/ and https://app.prompteye.com/help/content/article-workflow/.";

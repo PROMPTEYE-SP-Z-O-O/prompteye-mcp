@@ -48,7 +48,7 @@ export function registerPromptWorkflows(server: McpServer): void {
           "describing it from other people's pages. Name those pages.\n\n" +
           "PromptEye closes the loop by generating content: for a prompt worth winning where the brand " +
           "is missing, one of the next steps can be create_content_brief, which orders the brief the " +
-          "article is written from in the PromptEye app.\n\n" +
+          "article is written from, and create_article then writes it.\n\n" +
           "Finish with at most three things to do next, each tied to the figure that argues for it. " +
           "Say plainly when the data does not support a recommendation."
       )
@@ -104,7 +104,7 @@ export function registerPromptWorkflows(server: McpServer): void {
           "review sites and directories, forums and communities, press, and the brand's own pages. " +
           "Each kind is acted on differently — a listing is claimed and corrected, a forum thread is " +
           "answered, a review page is earned, an own page is written — and PromptEye generates that " +
-          "one: create_content_brief starts the article for the prompt it should answer.\n\n" +
+          "one: create_content_brief starts the article for the prompt it should answer, and create_article writes it.\n\n" +
           "Then check whether the brands ahead on share of voice are the ones those domains name. A " +
           "competitor that leads because one review site ranks it first is a different problem from " +
           "one that leads everywhere.\n\n" +
@@ -151,7 +151,7 @@ export function registerPromptWorkflows(server: McpServer): void {
           "add_prompts.\n\n" +
           "4. The articles. Once prompts are tracked, offer to outline articles for the ones that matter " +
           "most: create_content_brief with a promptId from list_prompts, then get_content_brief when it " +
-          "is ready. This is optional — skip it if the user does not publish content.\n\n" +
+          "is ready and create_article to write it, read back with get_article. This is optional — skip it if the user does not publish content.\n\n" +
           "5. The wait. Nothing is measured until the next run: get_account says when it starts, and it " +
           "takes tens of minutes. Tell the user when to come back."
       )

@@ -16,6 +16,8 @@ import {
   CitedPagePageSchema,
   CompetitorExclusionListSchema,
   CompetitorPageSchema,
+  ContentArticlePageSchema,
+  ContentArticleSchema,
   ContentBriefSchema,
   FeedbackSchema,
   GoogleStatusSchema,
@@ -63,6 +65,8 @@ import {
   type CitedPage,
   type Competitor,
   type CompetitorExclusion,
+  type ContentArticle,
+  type ContentArticleSummary,
   type ContentBrief,
   type CreateAuditInput,
   type CreateCategoryInput,
@@ -431,6 +435,34 @@ export class ContentBriefsResource {
 
   get(briefId: string, options?: RequestOptions): Promise<ContentBrief> {
     return this.http.get(`/v1/content/briefs/${encodeURIComponent(briefId)}`, ContentBriefSchema, options);
+  }
+}
+
+export class ContentArticlesResource {
+  constructor(private readonly http: HttpClient) {}
+
+  create(briefId: string, options?: RequestOptions): Promise<ContentArticle> {
+    return this.http.post(`/v1/content/briefs/${encodeURIComponent(briefId)}/article`, undefined, ContentArticleSchema, options);
+  }
+
+  list(projectId: string, params: Pagination = {}, options?: RequestOptions): Promise<Page<ContentArticleSummary>> {
+    return this.http.get("/v1/content/articles", ContentArticlePageSchema, {
+      ...options,
+      query: { projectId, ...params },
+    });
+  }
+
+  get(articleId: string, options?: RequestOptions): Promise<ContentArticle> {
+    return this.http.get(`/v1/content/articles/${encodeURIComponent(articleId)}`, ContentArticleSchema, options);
+  }
+
+  publish(articleId: string, url: string, options?: RequestOptions): Promise<ContentArticle> {
+    return this.http.post(
+      `/v1/content/articles/${encodeURIComponent(articleId)}/publication`,
+      { url },
+      ContentArticleSchema,
+      options
+    );
   }
 }
 

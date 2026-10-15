@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { PromptEyeClient } from "../../client/prompteye-client.js";
 import { SERVER_INSTRUCTIONS } from "../../instructions.js";
-import type { ContentBrief, CreateContentBriefInput } from "../../schemas/prompteye.js";
+import type { ContentArticle, ContentBrief, CreateContentBriefInput } from "../../schemas/prompteye.js";
 import { ProjectSession } from "../../session.js";
 import { registerContentTools } from "../content.js";
 
@@ -89,8 +89,35 @@ const READY_BRIEF: ContentBrief = {
   readyAt: "2026-09-28T09:25:02.000Z",
 };
 
-async function connect(brief: ContentBrief) {
+const PROCESSING_ARTICLE: ContentArticle = {
+  id: "a1",
+  status: "processing",
+  error: null,
+  projectId: PROJECT.id,
+  briefId: "b1",
+  prompt: "best crm for small teams",
+  title: "Best CRM for Small Teams in 2026",
+  source: "generated_article",
+  publishUrl: null,
+  publishedAt: null,
+  createdAt: "2026-09-28T09:26:00.000Z",
+  updatedAt: "2026-09-28T09:26:00.000Z",
+  content: null,
+};
+
+const DRAFT_ARTICLE: ContentArticle = {
+  ...PROCESSING_ARTICLE,
+  status: "draft",
+  content: "## What does a CRM cost?\n\nMost CRMs for small teams charge per seat.",
+};
+
+const ARTICLE_SUMMARY = { ...DRAFT_ARTICLE, content: undefined };
+
+async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTICLE) {
   const created: CreateContentBriefInput[] = [];
+  const requested: string[] = [];
+  const listed: { projectId: string; query: unknown }[] = [];
+  const published: Array<{ articleId: string; url: string }> = [];
   const client = {
     listProjects: async () => ({ data: [PROJECT] }),
     createContentBrief: async (input: CreateContentBriefInput) => {
@@ -98,6 +125,19 @@ async function connect(brief: ContentBrief) {
       return PROCESSING_BRIEF;
     },
     getContentBrief: async () => brief,
+    createContentArticle: async (briefId: string) => {
+      requested.push(briefId);
+      return PROCESSING_ARTICLE;
+    },
+    listContentArticles: async (projectId: string, query: unknown) => {
+      listed.push({ projectId, query });
+      return { data: [ARTICLE_SUMMARY], nextCursor: null };
+    },
+    getContentArticle: async () => article,
+    publishContentArticle: async (articleId: string, url: string) => {
+      published.push({ articleId, url });
+      return { ...DRAFT_ARTICLE, status: "published", publishUrl: url };
+    },
   } as unknown as PromptEyeClient;
 
   const server = new McpServer({ name: "test", version: "0.0.0" });
@@ -107,7 +147,7 @@ async function connect(brief: ContentBrief) {
   const mcp = new Client({ name: "test-client", version: "0.0.0" });
   await Promise.all([server.connect(serverTransport), mcp.connect(clientTransport)]);
 
-  return { mcp, created };
+  return { mcp, created, requested, listed, published };
 }
 
 describe("content generation", () => {
@@ -117,6 +157,9 @@ describe("content generation", () => {
     expect(SERVER_INSTRUCTIONS).toMatch(/Content generation is part of PromptEye, not only tracking/);
     expect(SERVER_INSTRUCTIONS).toContain("create_content_brief");
     expect(SERVER_INSTRUCTIONS).toContain("get_content_brief");
+    expect(SERVER_INSTRUCTIONS).toContain("create_article");
+    expect(SERVER_INSTRUCTIONS).toContain("get_article");
+    expect(SERVER_INSTRUCTIONS).toContain("list_articles");
   });
 
   it("offers the content tools", async () => {
@@ -124,7 +167,14 @@ describe("content generation", () => {
 
     const { tools } = await mcp.listTools();
 
-    expect(tools.map((tool) => tool.name)).toEqual(["create_content_brief", "get_content_brief"]);
+    expect(tools.map((tool) => tool.name)).toEqual([
+      "create_content_brief",
+      "get_content_brief",
+      "create_article",
+      "get_article",
+      "list_articles",
+      "publish_article",
+    ]);
   });
 
   it("orders a brief for the active project, linked to the tracked prompt", async () => {
@@ -151,5 +201,49 @@ describe("content generation", () => {
 
     expect(result.structuredContent).toEqual(brief);
     expect(result.content).toEqual([{ type: "text", text: JSON.stringify(brief) }]);
+  });
+
+  it("asks for the article of a brief and returns it still processing", async () => {
+    const { mcp, requested } = await connect(READY_BRIEF);
+
+    const result = await mcp.callTool({ name: "create_article", arguments: { briefId: "b1" } });
+
+    expect(requested).toEqual(["b1"]);
+    expect(result.structuredContent).toEqual(PROCESSING_ARTICLE);
+    expect(result.content).toEqual([{ type: "text", text: JSON.stringify(PROCESSING_ARTICLE) }]);
+  });
+
+  it.each([
+    ["still being written", PROCESSING_ARTICLE],
+    ["written", DRAFT_ARTICLE],
+    ["failed", { ...PROCESSING_ARTICLE, status: "error", error: "The model timed out." } as ContentArticle],
+  ])("reads an article that is %s as the API returns it", async (_state, article) => {
+    const { mcp } = await connect(READY_BRIEF, article);
+
+    const result = await mcp.callTool({ name: "get_article", arguments: { articleId: "a1" } });
+
+    expect(result.structuredContent).toEqual(article);
+    expect(result.content).toEqual([{ type: "text", text: JSON.stringify(article) }]);
+  });
+
+  it("lists the articles of the active project without their text", async () => {
+    const { mcp, listed } = await connect(READY_BRIEF);
+
+    const result = await mcp.callTool({ name: "list_articles", arguments: { limit: 5, cursor: "c1" } });
+
+    expect(listed).toEqual([{ projectId: PROJECT.id, query: { limit: 5, cursor: "c1" } }]);
+    expect(result.structuredContent).toEqual({ data: [ARTICLE_SUMMARY], nextCursor: null });
+  });
+
+  it("records where an article went live", async () => {
+    const { mcp, published } = await connect(READY_BRIEF);
+
+    const result = await mcp.callTool({
+      name: "publish_article",
+      arguments: { articleId: "a1", url: "https://example.com/blog/crm" },
+    });
+
+    expect(published).toEqual([{ articleId: "a1", url: "https://example.com/blog/crm" }]);
+    expect(result.structuredContent).toMatchObject({ status: "published", publishUrl: "https://example.com/blog/crm" });
   });
 });
