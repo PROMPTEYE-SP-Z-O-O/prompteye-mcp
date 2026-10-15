@@ -82,7 +82,10 @@ export function registerContentTools(server: McpServer, { client, session }: Too
         "Has PromptEye write the article for a content brief: the brief's title and H2/H3 outline, filled " +
         "in with the project's brand description and knowledge base, in the language of the project's " +
         "market. Call this when the user wants the article itself written, once get_content_brief reports " +
-        "the brief `ready`; a brief that is still `processing` or failed is refused.\n\n" +
+        "the brief `ready`; a brief that is still `processing` or failed is refused. Before calling it, " +
+        "show the user the brief from get_content_brief — its title and H2/H3 outline — and wait for their " +
+        "explicit yes; a request to write an article is not that yes, since the outline decides what gets " +
+        "written and the article uses the plan's allowance.\n\n" +
         CONTENT_GENERATION +
         "\n\nRequesting it is instant; writing takes a few minutes. The article comes back `processing` " +
         "— read it with get_article until `status` is no longer `processing`. A brief has one article: " +
@@ -95,6 +98,12 @@ export function registerContentTools(server: McpServer, { client, session }: Too
           .string()
           .min(1)
           .describe("Id of the brief to write the article for, as create_content_brief reports it."),
+        confirmedByUser: z
+          .literal(true)
+          .describe(
+            "Must be true, and only set it once the user has seen the brief's title and outline and " +
+              "explicitly agreed in this conversation to have this article written."
+          ),
       },
       outputSchema: ContentArticleSchema.shape,
     },

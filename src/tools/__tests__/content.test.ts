@@ -206,11 +206,23 @@ describe("content generation", () => {
   it("asks for the article of a brief and returns it still processing", async () => {
     const { mcp, requested } = await connect(READY_BRIEF);
 
-    const result = await mcp.callTool({ name: "create_article", arguments: { briefId: "b1" } });
+    const result = await mcp.callTool({
+      name: "create_article",
+      arguments: { briefId: "b1", confirmedByUser: true },
+    });
 
     expect(requested).toEqual(["b1"]);
     expect(result.structuredContent).toEqual(PROCESSING_ARTICLE);
     expect(result.content).toEqual([{ type: "text", text: JSON.stringify(PROCESSING_ARTICLE) }]);
+  });
+
+  it("refuses to write an article the user has not confirmed", async () => {
+    const { mcp, requested } = await connect(READY_BRIEF);
+
+    const result = await mcp.callTool({ name: "create_article", arguments: { briefId: "b1" } });
+
+    expect(result.isError).toBe(true);
+    expect(requested).toEqual([]);
   });
 
   it.each([
