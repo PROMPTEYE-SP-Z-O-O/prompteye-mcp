@@ -16,6 +16,8 @@ import type {
   CitedPage,
   Competitor,
   CompetitorExclusion,
+  ContentArticle,
+  ContentArticleSummary,
   ContentBrief,
   CreateAuditInput,
   CreateCategoryInput,
@@ -176,6 +178,9 @@ export interface PromptEyeClient {
 
   createContentBrief(input: CreateContentBriefInput): Promise<ContentBrief>;
   getContentBrief(briefId: string): Promise<ContentBrief>;
+  createContentArticle(briefId: string): Promise<ContentArticle>;
+  listContentArticles(projectId: string, query: PageQuery): Promise<Page<ContentArticleSummary>>;
+  getContentArticle(articleId: string): Promise<ContentArticle>;
 
   reportMissingCapability(input: CreateFeedbackInput): Promise<Feedback>;
 

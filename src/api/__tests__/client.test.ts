@@ -425,6 +425,54 @@ describe("PromptEyeApi", () => {
       await expect(api.contentBriefs.get("b 1")).resolves.toEqual(brief);
       expect(calls[0].url).toBe(`${BASE_URL}/v1/content/briefs/b%201`);
     });
+
+    const article = {
+      id: "a1",
+      status: "processing",
+      error: null,
+      projectId: "j57",
+      briefId: "b1",
+      prompt: "best crm for small teams",
+      title: "Best CRM for Small Teams in 2026",
+      source: "generated_article",
+      publishUrl: null,
+      publishedAt: null,
+      createdAt: "2026-09-28T09:24:11.000Z",
+      updatedAt: "2026-09-28T09:24:11.000Z",
+      content: null,
+    };
+
+    it("asks for the article of a brief without a body", async () => {
+      const { api, calls } = stubFetch(json(202, article));
+
+      await expect(api.contentArticles.create("b 1")).resolves.toEqual(article);
+
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/content/briefs/b%201/article`);
+      expect(calls[0].init.method).toBe("POST");
+      expect(calls[0].init.body).toBeUndefined();
+      expect(calls[0].init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}` });
+    });
+
+    it("lists the articles of a project page by page", async () => {
+      const summary = { ...article, content: undefined };
+      const { api, calls } = stubFetch(json(200, { data: [summary], nextCursor: "c2" }));
+
+      await expect(api.contentArticles.list("j57", { limit: 10, cursor: "c1" })).resolves.toEqual({
+        data: [summary],
+        nextCursor: "c2",
+      });
+
+      const url = new URL(calls[0].url);
+      expect(url.pathname).toBe("/v1/content/articles");
+      expect(Object.fromEntries(url.searchParams)).toEqual({ projectId: "j57", limit: "10", cursor: "c1" });
+    });
+
+    it("reads one article by id", async () => {
+      const { api, calls } = stubFetch(json(200, { ...article, status: "draft", content: "## Heading" }));
+
+      await expect(api.contentArticles.get("a 1")).resolves.toMatchObject({ status: "draft", content: "## Heading" });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/content/articles/a%201`);
+    });
   });
 
   describe("traffic", () => {
