@@ -23,7 +23,7 @@ export function registerFeedbackTools(server: McpServer, { client }: ToolContext
           .string()
           .trim()
           .min(1)
-          .max(2000)
+          .max(20000)
           .describe(
             "What the user needs that the server cannot do, in a few plain sentences. No transcripts " +
               "and no personal data."
@@ -32,7 +32,7 @@ export function registerFeedbackTools(server: McpServer, { client }: ToolContext
           .string()
           .trim()
           .min(1)
-          .max(500)
+          .max(5000)
           .describe("What you were trying to do for the user when you hit the gap, in one short sentence."),
         confirmedByUser: z
           .literal(true)
