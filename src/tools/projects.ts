@@ -221,6 +221,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     async ({ projectId, ...args }) =>
       handled(async () => {
         const project = await client.updateProject(projectId, args);
+        await session.refreshIfActive(projectId);
 
         return ok(toProjectOutput(project));
       })
@@ -247,6 +248,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     async ({ projectId, enabled }) =>
       handled(async () => {
         const publicLink = await client.setProjectPublicLink(projectId, enabled);
+        await session.refreshIfActive(projectId);
         return ok(publicLink);
       })
   );
