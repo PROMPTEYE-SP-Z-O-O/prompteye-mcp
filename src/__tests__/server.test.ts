@@ -95,8 +95,11 @@ const CRAWL_HEALTH = {
 
 const SUGGESTION_RUN = { runId: null, skipped: "nothing_to_suggest" };
 
+const suggestionRuns: Array<{ projectId: string; groupId: string }> = [];
+
 const fakeClient = {
   listProjects: async () => ({ data: [PROJECT] }),
+  getProject: async () => PROJECT,
   getAccount: async () => ACCOUNT,
   listWorkspaces: async () => WORKSPACES,
   listPrompts: async () => PROMPTS,
@@ -104,7 +107,10 @@ const fakeClient = {
   getSearchSummary: async () => SEARCH_SUMMARY,
   getSitemap: async () => NO_SITEMAP,
   getCrawlHealth: async () => CRAWL_HEALTH,
-  generatePromptSuggestions: async () => SUGGESTION_RUN,
+  generatePromptSuggestions: async (projectId: string, groupId: string) => {
+    suggestionRuns.push({ projectId, groupId });
+    return SUGGESTION_RUN;
+  },
 } as unknown as PromptEyeClient;
 
 async function connectedClient(): Promise<Client> {
@@ -156,6 +162,36 @@ describe("tools/list", () => {
   });
 });
 
+describe("write tools", () => {
+  beforeEach(() => {
+    suggestionRuns.length = 0;
+  });
+
+  it("write to the project they are given, not the active one", async () => {
+    const client = await connectedClient();
+    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
+
+    const result = await client.callTool({
+      name: "generate_prompt_suggestions",
+      arguments: { projectId: "other-project", groupId: "g1" },
+    });
+    const active = await client.callTool({ name: "get_active_project", arguments: {} });
+
+    expect(result.isError).toBeFalsy();
+    expect(suggestionRuns).toEqual([{ projectId: "other-project", groupId: "g1" }]);
+    expect((active.structuredContent as { id: string }).id).toBe(PROJECT.id);
+  });
+
+  it("refuse a change that names no project", async () => {
+    const client = await connectedClient();
+
+    const result = await client.callTool({ name: "generate_prompt_suggestions", arguments: { groupId: "g1" } });
+
+    expect(result.isError).toBe(true);
+    expect(suggestionRuns).toEqual([]);
+  });
+});
+
 describe("tool results", () => {
   it.each([
     ["get_account", {}, ACCOUNT],
@@ -165,7 +201,7 @@ describe("tool results", () => {
     ["get_sitemap", {}, NO_SITEMAP],
     ["list_workspaces", {}, WORKSPACES],
     ["get_crawl_health", { kind: "ai" }, CRAWL_HEALTH],
-    ["generate_prompt_suggestions", { groupId: "g1" }, SUGGESTION_RUN],
+    ["generate_prompt_suggestions", { projectId: PROJECT.id, groupId: "g1" }, SUGGESTION_RUN],
   ])("%s answers the API data as structured content and as its serialized JSON", async (name, args, expected) => {
     const client = await connectedClient();
     const result = (await client.callTool({ name, arguments: args })) as CallToolResult;

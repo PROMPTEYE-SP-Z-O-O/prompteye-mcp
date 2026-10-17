@@ -27,6 +27,7 @@ import {
   VISIBILITY,
 } from "./glossary.js";
 import { DELETES, READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
+import { writeProjectIdShape } from "./write-project.js";
 
 export const PROMPTS_WIDGET = "prompts";
 
@@ -129,7 +130,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "Create, rename, describe or reorder a prompt group",
       description:
-        "Creates a prompt group in the active project or, given a groupId, changes the name, description " +
+        "Creates a prompt group in the project or, given a groupId, changes the name, description " +
         "or order of an existing one. Only the fields sent are changed, and the prompts of a group keep " +
         "their history when it is renamed or moved.\n\n" +
         "Without groupId a new, empty group is created: name is required, and the group goes after the " +
@@ -137,6 +138,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "or through a matching groupName in add_prompts.",
       annotations: WRITES,
       inputSchema: {
+        ...writeProjectIdShape,
         groupId: z
           .string()
           .min(1)
@@ -162,12 +164,10 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
       },
       outputSchema: PromptGroupSettingsSchema.shape,
     },
-    async ({ groupId, name, description, order }) =>
+    async ({ projectId, groupId, name, description, order }) =>
       handled(async () => {
-        const project = await session.require();
-
         if (groupId !== undefined) {
-          const updated = await client.updatePromptGroup(project.id, groupId, { name, description, order });
+          const updated = await client.updatePromptGroup(projectId, groupId, { name, description, order });
           return ok(updated);
         }
 
@@ -177,7 +177,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
           );
         }
 
-        const created = await client.createPromptGroup(project.id, {
+        const created = await client.createPromptGroup(projectId, {
           name,
           description: description ?? undefined,
           order,
@@ -191,7 +191,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "Delete an empty prompt group",
       description:
-        "Deletes one prompt group of the active project, but only when it has no prompts — paused prompts " +
+        "Deletes one prompt group of the project, but only when it has no prompts — paused prompts " +
         "count too. A group that still has prompts is refused: move each of them with update_prompt " +
         "(groupId of another group, or null to leave it ungrouped) and then delete the group. Deleting " +
         "cannot be undone: a group recreated under the same name is a new group and its prompts have to " +
@@ -201,14 +201,14 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "explicit yes. To set a group aside for later, pause its prompts with update_prompt and keep the group.",
       annotations: DELETES,
       inputSchema: {
+        ...writeProjectIdShape,
         groupId: z.string().min(1).describe("Id of the group to delete, as list_prompt_groups reports it."),
       },
       outputSchema: { id: z.string() },
     },
-    async ({ groupId }) =>
+    async ({ projectId, groupId }) =>
       handled(async () => {
-        const project = await session.require();
-        await client.deletePromptGroup(project.id, groupId);
+        await client.deletePromptGroup(projectId, groupId);
 
         return ok({ id: groupId });
       })
@@ -239,13 +239,14 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "Create a category to file prompts under",
       description:
-        "Adds a category the active project can file prompts under. Pass an existing top-level category " +
+        "Adds a category the project can file prompts under. Pass an existing top-level category " +
         "as parentCategoryId to create a subcategory instead; only one level of nesting is supported. " +
         "Every category made this way is recorded as written by hand (source `manual`), never as one " +
         "PromptEye proposed. update_prompt with categoryId files an existing prompt under it. A category " +
         "with the same name at the same level is refused.",
       annotations: WRITES,
       inputSchema: {
+        ...writeProjectIdShape,
         name: z.string().min(1).max(200).describe("Name for the category."),
         parentCategoryId: z
           .string()
@@ -258,10 +259,9 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
       },
       outputSchema: CategorySchema.shape,
     },
-    async (input) =>
+    async ({ projectId, ...input }) =>
       handled(async () => {
-        const project = await session.require();
-        const category = await client.createCategory(project.id, input);
+        const category = await client.createCategory(projectId, input);
         return ok(category);
       })
   );
@@ -302,7 +302,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "Accept a suggested prompt",
       description:
-        "Turns one suggestion from list_prompt_suggestions into a tracked prompt of the active project, " +
+        "Turns one suggestion from list_prompt_suggestions into a tracked prompt of the project, " +
         "the same way accepting it in the PromptEye app does. promptText edits the wording before it " +
         "starts being asked; leave it out to accept the suggestion exactly as written.\n\n" +
         "The suggestion leaves the pending list; its siblings from the same cycle are left untouched. " +
@@ -310,6 +310,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "any prompt — get_account says when that starts.",
       annotations: WRITES,
       inputSchema: {
+        ...writeProjectIdShape,
         suggestionId: z.string().min(1).describe("Id of the suggestion, as list_prompt_suggestions reports it."),
         promptText: z
           .string()
@@ -319,10 +320,9 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
       },
       outputSchema: AcceptedPromptSuggestionSchema.shape,
     },
-    async ({ suggestionId, promptText }) =>
+    async ({ projectId, suggestionId, promptText }) =>
       handled(async () => {
-        const project = await session.require();
-        const accepted = await client.acceptPromptSuggestion(project.id, suggestionId, { promptText });
+        const accepted = await client.acceptPromptSuggestion(projectId, suggestionId, { promptText });
         return ok(accepted);
       })
   );
@@ -358,7 +358,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "Generate new prompt suggestions for a group",
       description:
-        "Asks PromptEye to propose new prompts for one prompt group of the active project, the same " +
+        "Asks PromptEye to propose new prompts for one prompt group of the project, the same " +
         "cycle the app runs when Generate is pressed on a group: it reads what the group is missing, " +
         "drafts candidate phrases, checks their demand, expands them into questions and scores each one. " +
         PROMPT_GENERATION +
@@ -374,14 +374,14 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "instead — call get_prompt_suggestion_availability first to know which case applies.",
       annotations: WRITES,
       inputSchema: {
+        ...writeProjectIdShape,
         groupId: z.string().min(1).describe("Id of the prompt group, as list_prompt_groups reports it."),
       },
       outputSchema: SuggestionRunSchema.shape,
     },
-    async ({ groupId }) =>
+    async ({ projectId, groupId }) =>
       handled(async () => {
-        const project = await session.require();
-        const run = await client.generatePromptSuggestions(project.id, groupId);
+        const run = await client.generatePromptSuggestions(projectId, groupId);
         return ok(run);
       })
   );
@@ -391,7 +391,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "Add prompts by hand (not the recommended way)",
       description:
-        "Tracks prompts written by hand in the active project, in one call.\n\n" +
+        "Tracks prompts written by hand in the project, in one call.\n\n" +
         "**This is not the recommended way to add prompts, and it should not be the first thing you " +
         "reach for.** " +
         PROMPT_GENERATION +
@@ -410,6 +410,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "ask the user before calling this; do not decide on their behalf.",
       annotations: WRITES,
       inputSchema: {
+        ...writeProjectIdShape,
         prompts: z
           .array(
             z.object({
@@ -448,10 +449,9 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
       },
       outputSchema: { data: z.array(NewPromptSchema) },
     },
-    async ({ prompts }) =>
+    async ({ projectId, prompts }) =>
       handled(async () => {
-        const project = await session.require();
-        const list = await client.addPrompts(project.id, prompts);
+        const list = await client.addPrompts(projectId, prompts);
         return ok(list);
       })
   );
@@ -461,7 +461,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "Pause, resume, file or re-prioritise a prompt",
       description:
-        "Changes what happens to one prompt from here on in the active project: whether it is asked " +
+        "Changes what happens to one prompt from here on in the project: whether it is asked " +
         "(status 'active' or 'paused'), which group and categories it is filed under, and how much " +
         "the project bets on it.\n\n" +
         "Note:\n" +
@@ -476,6 +476,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "- Setting businessPriority overrides the computed priority; passing null hands it back to PromptEye's computation.",
       annotations: WRITES,
       inputSchema: {
+        ...writeProjectIdShape,
         promptId: z.string().min(1).describe("Id of the prompt to update, as list_prompts reports it."),
         status: z
           .enum(["active", "paused"])
@@ -511,10 +512,9 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
       },
       outputSchema: PromptSettingsSchema.shape,
     },
-    async ({ promptId, ...fields }) =>
+    async ({ projectId, promptId, ...fields }) =>
       handled(async () => {
-        const project = await session.require();
-        const updated = await client.updatePrompt(project.id, promptId, fields);
+        const updated = await client.updatePrompt(projectId, promptId, fields);
         return ok(updated);
       })
   );

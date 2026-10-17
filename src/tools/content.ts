@@ -9,6 +9,7 @@ import {
 } from "../schemas/prompteye.js";
 import { CONTENT_GENERATION } from "./glossary.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
+import { writeProjectIdShape } from "./write-project.js";
 
 export function registerContentTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
@@ -16,7 +17,7 @@ export function registerContentTools(server: McpServer, { client, session }: Too
     {
       title: "Order a content brief for an article",
       description:
-        "Starts content generation for the active project: orders a brief — a title and an H2/H3 " +
+        "Starts content generation for the project: orders a brief — a title and an H2/H3 " +
         "outline — for an article that targets one prompt. Call this when the user wants PromptEye to " +
         "generate content, write an article, or close a visibility gap on a prompt where the brand is " +
         "rarely or never named.\n\n" +
@@ -28,6 +29,7 @@ export function registerContentTools(server: McpServer, { client, session }: Too
         "it with get_content_brief a little later.",
       annotations: WRITES,
       inputSchema: {
+        ...writeProjectIdShape,
         prompt: z
           .string()
           .min(1)
@@ -43,10 +45,9 @@ export function registerContentTools(server: McpServer, { client, session }: Too
       },
       outputSchema: ContentBriefSchema.shape,
     },
-    async ({ prompt, promptId }) =>
+    async ({ projectId, prompt, promptId }) =>
       handled(async () => {
-        const project = await session.require();
-        const brief = await client.createContentBrief({ projectId: project.id, prompt, trackerId: promptId });
+        const brief = await client.createContentBrief({ projectId, prompt, trackerId: promptId });
         return ok(brief);
       })
   );
