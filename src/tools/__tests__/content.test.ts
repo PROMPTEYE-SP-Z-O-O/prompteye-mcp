@@ -177,17 +177,28 @@ describe("content generation", () => {
     ]);
   });
 
-  it("orders a brief for the active project, linked to the tracked prompt", async () => {
+  it("orders a brief for the given project, linked to the tracked prompt", async () => {
     const { mcp, created } = await connect(READY_BRIEF);
 
     const result = await mcp.callTool({
       name: "create_content_brief",
-      arguments: { prompt: "best crm for small teams", promptId: "p1" },
+      arguments: { projectId: PROJECT.id, prompt: "best crm for small teams", promptId: "p1" },
     });
 
     expect(created).toEqual([{ projectId: PROJECT.id, prompt: "best crm for small teams", trackerId: "p1" }]);
     expect(result.structuredContent).toEqual(PROCESSING_BRIEF);
     expect(result.content).toEqual([{ type: "text", text: JSON.stringify(PROCESSING_BRIEF) }]);
+  });
+
+  it("orders the brief for the given project, not the one the session would resolve", async () => {
+    const { mcp, created } = await connect(READY_BRIEF);
+
+    await mcp.callTool({
+      name: "create_content_brief",
+      arguments: { projectId: "other-project", prompt: "best crm for small teams" },
+    });
+
+    expect(created).toEqual([{ projectId: "other-project", prompt: "best crm for small teams", trackerId: undefined }]);
   });
 
   it.each([

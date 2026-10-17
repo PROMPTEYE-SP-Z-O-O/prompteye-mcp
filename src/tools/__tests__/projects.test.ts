@@ -56,7 +56,7 @@ async function connectedClient(): Promise<Client> {
 describe("project tools keep competitor exclusions to list_competitor_exclusions", () => {
   it.each([
     ["select_project", { projectId: PROJECT.id }],
-    ["update_project", { name: "Acme DE" }],
+    ["update_project", { projectId: PROJECT.id, name: "Acme DE" }],
     ["create_project", { brand: "Acme", domain: "acme.example", country: "DE" }],
   ])("%s answers the project without the flattened exclusion list", async (tool, args) => {
     const client = await connectedClient();
@@ -96,24 +96,52 @@ describe("set_project_public_link", () => {
     publicLinkCalls.length = 0;
   });
 
-  it("publishes the active project and answers its link", async () => {
+  it("publishes the given project and answers its link", async () => {
     const client = await connectedClient();
-    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
 
-    const result = await client.callTool({ name: "set_project_public_link", arguments: { enabled: true } });
+    const result = await client.callTool({
+      name: "set_project_public_link",
+      arguments: { projectId: PROJECT.id, enabled: true },
+    });
 
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toEqual(PUBLIC_LINK);
     expect(publicLinkCalls).toEqual([{ projectId: PROJECT.id, enabled: true }]);
   });
 
-  it("takes the link of the active project down", async () => {
+  it("takes the link of the given project down", async () => {
     const client = await connectedClient();
-    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
 
-    const result = await client.callTool({ name: "set_project_public_link", arguments: { enabled: false } });
+    const result = await client.callTool({
+      name: "set_project_public_link",
+      arguments: { projectId: PROJECT.id, enabled: false },
+    });
 
     expect(result.structuredContent).toEqual({ isPublic: false, url: null });
     expect(publicLinkCalls).toEqual([{ projectId: PROJECT.id, enabled: false }]);
+  });
+
+  it("writes to the given project and leaves the active project alone", async () => {
+    const client = await connectedClient();
+    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
+
+    await client.callTool({
+      name: "set_project_public_link",
+      arguments: { projectId: "other-project", enabled: true },
+    });
+    const active = await client.callTool({ name: "get_active_project", arguments: {} });
+
+    expect(publicLinkCalls).toEqual([{ projectId: "other-project", enabled: true }]);
+    expect(active.structuredContent).toEqual(PROJECT_OUTPUT);
+  });
+
+  it("refuses a change that names no project", async () => {
+    const client = await connectedClient();
+    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
+
+    const result = await client.callTool({ name: "set_project_public_link", arguments: { enabled: true } });
+
+    expect(result.isError).toBe(true);
+    expect(publicLinkCalls).toEqual([]);
   });
 });

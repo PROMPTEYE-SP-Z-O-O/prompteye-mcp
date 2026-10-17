@@ -20,6 +20,10 @@ export class ProjectSession {
     return this.active;
   }
 
+  async refreshIfActive(projectId: string): Promise<void> {
+    if (this.active?.id === projectId) await this.select(projectId);
+  }
+
   /** The active project, or undefined when nothing has been selected yet. */
   current(): Project | undefined {
     return this.active;

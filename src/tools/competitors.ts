@@ -6,6 +6,7 @@ import { CompetitorExclusionSchema, CompetitorSchema, NextCursorSchema } from ".
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
 import { READ_ONLY, REPLACES, handled, ok, type ToolContext } from "./result.js";
+import { writeProjectIdShape } from "./write-project.js";
 
 export const COMPETITORS_WIDGET = "competitors";
 
@@ -93,12 +94,13 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
     {
       title: "Set brands excluded from competitor rankings",
       description:
-        "Replaces the complete exclusion list for the active project with the one provided. Read the current list " +
+        "Replaces the complete exclusion list for the project with the one provided. Read the current list " +
         "with list_competitor_exclusions first if you want to add to existing exclusions rather than replace them.\n\n" +
         "Excluding a brand drops it from the competitor rankings, share of voice, and citations across all historical measurements. " +
         "Accepts up to 50 excluded brands, each with optional alternative spellings/aliases.",
       annotations: REPLACES,
       inputSchema: {
+        ...writeProjectIdShape,
         exclusions: z
           .array(
             z.object({
@@ -115,10 +117,9 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
       },
       outputSchema: { data: z.array(CompetitorExclusionSchema) },
     },
-    async ({ exclusions }) =>
+    async ({ projectId, exclusions }) =>
       handled(async () => {
-        const project = await session.require();
-        const result = await client.replaceCompetitorExclusions(project.id, exclusions);
+        const result = await client.replaceCompetitorExclusions(projectId, exclusions);
         return ok(result);
       })
   );

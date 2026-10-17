@@ -4,6 +4,7 @@ import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema, PublicLinkSchema } f
 import type { Project } from "../schemas/prompteye.js";
 import { PROMPT_GENERATION } from "./glossary.js";
 import { READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
+import { writeProjectIdShape } from "./write-project.js";
 
 const ProjectOutputSchema = ProjectSchema.omit({ excludedCompetitors: true });
 
@@ -50,9 +51,9 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     {
       title: "Select the project to work on",
       description:
-        "Makes one project the active one. Every other tool reports on the active project and takes " +
+        "Makes one project the active one. Every read tool reports on the active project and takes " +
         "no project argument, so call this once before asking about visibility, competitors, prompts, " +
-        "answers or sources. Call it again to switch projects mid-conversation.\n\n" +
+        "answers or sources. Tools that change something never use it: they take a projectId. Call it again to switch projects mid-conversation.\n\n" +
         EXCLUSIONS_POINTER,
       annotations: READ_ONLY,
       inputSchema: {
@@ -185,7 +186,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     {
       title: "Update project settings",
       description:
-        "Correct what the active project tracks: change the display name, grouping label, primary domain, " +
+        "Correct what the project tracks: change the display name, grouping label, primary domain, " +
         "alternative brand spellings, and alternative domains.\n\n" +
         "Note: alternativeBrandNames and alternativeDomains are replaced as a whole rather than appended to, " +
         "so pass the complete list. Neither the brand name nor the market country can be changed here because " +
@@ -196,6 +197,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         EXCLUSIONS_POINTER,
       annotations: WRITES,
       inputSchema: {
+        ...writeProjectIdShape,
         name: z.string().min(1).max(120).optional().describe("Display name of the project. Defaults to the brand name."),
         label: z.string().min(1).max(40).optional().describe("Short label used to group projects in listings."),
         domain: z.string().min(3).max(253).optional().describe("Primary domain of the brand, without protocol or path, e.g. prompteye.com."),
@@ -216,11 +218,10 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
       },
       outputSchema: ProjectOutputSchema.shape,
     },
-    async (args) =>
+    async ({ projectId, ...args }) =>
       handled(async () => {
-        const current = await session.require();
-        const project = await client.updateProject(current.id, args);
-        await session.select(project.id);
+        const project = await client.updateProject(projectId, args);
+        await session.refreshIfActive(projectId);
 
         return ok(toProjectOutput(project));
       })
@@ -231,7 +232,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     {
       title: "Share the project under a public link",
       description:
-        "Publishes the active project under a link anyone can open without logging in, or takes that link down. " +
+        "Publishes the project under a link anyone can open without logging in, or takes that link down. " +
         "Whoever has the link sees the project's visibility read-only, the same view the app shares from project settings.\n\n" +
         "Before publishing, confirm with the user that the project's data may be visible to anyone holding the link. " +
         "Publishing a project that is already public answers the link it already has, so it is safe to call again to " +
@@ -239,15 +240,15 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         "creates a new link and the old one stops working, so warn the user before disabling a link they have handed out.",
       annotations: WRITES,
       inputSchema: {
+        ...writeProjectIdShape,
         enabled: z.boolean().describe("true publishes the project under a public link, false takes the link down."),
       },
       outputSchema: PublicLinkSchema.shape,
     },
-    async ({ enabled }) =>
+    async ({ projectId, enabled }) =>
       handled(async () => {
-        const project = await session.require();
-        const publicLink = await client.setProjectPublicLink(project.id, enabled);
-        await session.select(project.id);
+        const publicLink = await client.setProjectPublicLink(projectId, enabled);
+        await session.refreshIfActive(projectId);
         return ok(publicLink);
       })
   );
@@ -283,6 +284,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         "Only provided fields are updated; omitted fields keep their current values.",
       annotations: WRITES,
       inputSchema: {
+        ...writeProjectIdShape,
         industry: z.string().max(4000).optional().describe("The industry the brand sells into, e.g. 'AI search analytics'."),
         productCategory: z
           .string()
@@ -300,10 +302,9 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
       },
       outputSchema: KnowledgeBaseSchema.shape,
     },
-    async (args) =>
+    async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require();
-        const knowledgeBase = await client.updateKnowledgeBase(project.id, args);
+        const knowledgeBase = await client.updateKnowledgeBase(projectId, args);
         return ok(knowledgeBase);
       })
   );

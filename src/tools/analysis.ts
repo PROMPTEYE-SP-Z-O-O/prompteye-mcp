@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { BrandAnalysisAvailabilitySchema, BrandAnalysisRunSchema } from "../schemas/prompteye.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
+import { writeProjectIdShape } from "./write-project.js";
 
 export function registerBrandAnalysisTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
@@ -9,7 +10,7 @@ export function registerBrandAnalysisTools(server: McpServer, { client, session 
     {
       title: "Start a brand analysis run",
       description:
-        "Starts a brand analysis run for the active project: PromptEye looks at what the tracked prompts " +
+        "Starts a brand analysis run for the project: PromptEye looks at what the tracked prompts " +
         "most recently found, works out the topics where a competitor answers better than this brand, " +
         "and scores how big each gap is.\n\n" +
         "Starting one is instant; the analysis itself takes a little while. The run comes back " +
@@ -21,13 +22,12 @@ export function registerBrandAnalysisTools(server: McpServer, { client, session 
         "refused for exactly the same reasons. Running an analysis also counts against the workspace's " +
         "monthly plan quota for brand analyses.",
       annotations: WRITES,
-      inputSchema: {},
+      inputSchema: { ...writeProjectIdShape },
       outputSchema: BrandAnalysisRunSchema.shape,
     },
-    async () =>
+    async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require();
-        const run = await client.createBrandAnalysisRun(project.id);
+        const run = await client.createBrandAnalysisRun(projectId);
         return ok(run);
       })
   );
