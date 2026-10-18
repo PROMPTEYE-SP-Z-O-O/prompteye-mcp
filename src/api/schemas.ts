@@ -628,6 +628,14 @@ export const ReportSchema = z.object({
   url: z.string(),
 });
 
+export const CreatedReportSchema = ReportSchema.omit({
+  email: true,
+  utm: true,
+  leadStatus: true,
+  projectId: true,
+  contactCount: true,
+});
+
 export const ReportDetailSchema = ReportSchema.extend({
   industry: z.string().nullable(),
   monthlySearches: z
@@ -694,6 +702,7 @@ export type CreateReportInput = {
 };
 
 export type Report = z.infer<typeof ReportSchema>;
+export type CreatedReport = z.infer<typeof CreatedReportSchema>;
 export type ReportDetail = z.infer<typeof ReportDetailSchema>;
 export type ReportReach = (typeof REPORT_REACH)[number];
 

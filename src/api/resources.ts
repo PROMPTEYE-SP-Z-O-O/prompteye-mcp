@@ -35,7 +35,7 @@ import {
   PromptSuggestionListSchema,
   ReportDetailSchema,
   ReportPageSchema,
-  ReportSchema,
+  CreatedReportSchema,
   SearchPagePageSchema,
   SearchQueryPageSchema,
   SearchSummarySchema,
@@ -80,6 +80,7 @@ import {
   type GoogleStatus,
   type IntegrationsStatus,
   type Report,
+  type CreatedReport,
   type ReportDetail,
   type KnowledgeBase,
   type List,
@@ -406,8 +407,8 @@ export class ReportsResource {
   async create(
     input: CreateReportInput,
     options?: RequestOptions
-  ): Promise<{ report: Report; reused: boolean }> {
-    const { data, status } = await this.http.postAnswered("/v1/reports", input, ReportSchema, {
+  ): Promise<{ report: CreatedReport; reused: boolean }> {
+    const { data, status } = await this.http.postAnswered("/v1/reports", input, CreatedReportSchema, {
       ...options,
       auth: false,
     });

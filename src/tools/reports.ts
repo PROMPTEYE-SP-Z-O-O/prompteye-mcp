@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { paginationShape } from "../schemas/common.js";
-import { NextCursorSchema, REPORT_REACH, ReportDetailSchema, ReportSchema } from "../schemas/prompteye.js";
+import { CreatedReportSchema, NextCursorSchema, REPORT_REACH, ReportDetailSchema, ReportSchema } from "../schemas/prompteye.js";
 import { PUBLIC_REPORTS } from "./glossary.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
 
@@ -49,7 +49,7 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
           .optional()
           .describe("Campaign the lead came from; kept on the report and in its link."),
       },
-      outputSchema: ReportSchema.extend({ reused: z.boolean() }).shape,
+      outputSchema: CreatedReportSchema.extend({ reused: z.boolean() }).shape,
     },
     async (input) =>
       handled(async () => {
