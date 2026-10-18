@@ -43,6 +43,7 @@ import type {
   PromptSuggestion,
   RegenerateTopicalMapClusterInput,
   Report,
+  CreatedReport,
   ReportDetail,
   SearchPage,
   SearchQuery,
@@ -172,7 +173,7 @@ export interface PromptEyeClient {
   ): Promise<List<CompetitorExclusion>>;
 
   /** The lead-magnet reports: generated through a public endpoint, read with the key. */
-  createReport(input: CreateReportInput): Promise<{ report: Report; reused: boolean }>;
+  createReport(input: CreateReportInput): Promise<{ report: CreatedReport; reused: boolean }>;
   listReports(query: PageQuery): Promise<Page<Report>>;
   getReport(reportId: string): Promise<ReportDetail>;
 

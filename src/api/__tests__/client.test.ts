@@ -311,7 +311,22 @@ describe("PromptEyeApi", () => {
         website: "acme.example",
       });
 
-      expect(result).toEqual({ report, reused: false });
+      expect(result).toEqual({
+        report: {
+          id: "r1",
+          brand: "Acme",
+          domain: "acme.example",
+          status: "processing",
+          score: null,
+          reach: "national",
+          country: "PL",
+          language: "pl",
+          createdAt: "2026-09-20T09:00:00.000Z",
+          readyAt: null,
+          url: "https://reports.example/r1",
+        },
+        reused: false,
+      });
       expect(calls[0].url).toBe(`${BASE_URL}/v1/reports`);
       expect(calls[0].init.method).toBe("POST");
       // The endpoint is public: a key would be handed over for nothing.
