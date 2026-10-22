@@ -28,12 +28,15 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         "Narrow the count to one prompt (`promptId`), one prompt group (`groupId`), or one category — " +
         "`categoryId` alone, or `categoryId` with `subcategoryId` — the same way the app's own screens " +
         "narrow it. Give at most one of these; combining them fails. list_source_pages does not take them.\n\n" +
-        "`includeOffers` adds the sponsored publication offers (WhitePress availability, price, currency, DR, " +
-        "estimated monthly visits) for each cited domain, which is how to build a shortlist of cited domains " +
-        "where the brand can buy a sponsored article and rank them by cost per citation — price divided by " +
-        "sourceOccurrences, which you compute yourself. The own domain never carries an offer. The call takes " +
-        "noticeably longer because the offers are fetched, so before passing it ASK the user whether they want " +
-        "offers — unless the user already asked for prices, sponsored publications or where to buy articles, " +
+        "`includeOffers` adds the WhitePress offers for each cited domain: a new sponsored article (`price`), a " +
+        "link insert in an existing article (`linkInsert`) or a mention in an existing article (`mention`), the " +
+        "latter two priced by `linkOrMentionPriceFrom`; plus DR and estimated monthly visits. Use it to build a " +
+        "shortlist of cited domains where the brand can buy a placement and rank them by cost per citation — the " +
+        "cheapest available price (`price` or `linkOrMentionPriceFrom`) divided by sourceOccurrences, which you " +
+        "compute yourself. Link and mention offers are checked in the background, so a domain seen for the first " +
+        "time may show none yet; calling again later can fill it. The own domain never carries an offer. The call " +
+        "takes noticeably longer because the offers are fetched, so before passing it ASK the user whether they " +
+        "want offers — unless the user already asked for prices, sponsored publications or where to buy articles, " +
         "then pass it straight away.",
       annotations: READ_ONLY,
       inputSchema: {

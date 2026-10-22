@@ -761,13 +761,42 @@ describe("PromptEyeApi", () => {
     });
 
     it("asks the source ranking for sponsored offers only when set", async () => {
-      const offer = { available: true, price: 450, currency: "PLN", domainRank: 61, monthlyVisits: 120000 };
+      const offer = {
+        available: true,
+        price: 450,
+        currency: "PLN",
+        linkInsert: true,
+        mention: false,
+        linkOrMentionPriceFrom: 200,
+        linkOrMentionCurrency: "PLN",
+        domainRank: 61,
+        monthlyVisits: 120000,
+      };
       const { api, calls } = stubFetch(
         json(200, { data: [{ domain: "g2.com", sourceOccurrences: 4, share: 10, ownDomain: false, offer }], nextCursor: null })
       );
 
       await expect(api.sources.list("p1", { includeOffers: true, limit: 5 })).resolves.toMatchObject({ data: [{ offer }] });
       expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/sources?includeOffers=true&limit=5`);
+    });
+
+    it("parses an offer that only sells a link insert", async () => {
+      const offer = {
+        available: true,
+        price: null,
+        currency: null,
+        linkInsert: true,
+        mention: false,
+        linkOrMentionPriceFrom: 200,
+        linkOrMentionCurrency: "PLN",
+        domainRank: null,
+        monthlyVisits: null,
+      };
+      const { api } = stubFetch(
+        json(200, { data: [{ domain: "g2.com", sourceOccurrences: 4, share: 10, ownDomain: false, offer }], nextCursor: null })
+      );
+
+      await expect(api.sources.list("p1", { includeOffers: true })).resolves.toMatchObject({ data: [{ offer }] });
     });
 
     it("leaves includeOffers out of the source ranking request when false", async () => {
