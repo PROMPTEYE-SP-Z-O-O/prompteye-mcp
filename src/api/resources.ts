@@ -305,6 +305,9 @@ export type PromptScope = { promptId?: string; groupId?: string; categoryId?: st
 /** A ranking that can also be scoped to one prompt, group or category. */
 export type ScopedRankingParams = RankingParams & PromptScope;
 
+/** A source ranking can also carry each domain's sponsored publication offer. */
+export type SourceRankingParams = ScopedRankingParams & { includeOffers?: boolean };
+
 export class SourcesResource {
   constructor(private readonly http: HttpClient) {}
 
@@ -312,10 +315,10 @@ export class SourcesResource {
    * `GET /v1/projects/{projectId}/sources` — the domains the assistants leaned
    * on when answering the project's prompts, most cited first.
    */
-  list(projectId: string, params: ScopedRankingParams = {}, options?: RequestOptions): Promise<Page<CitedDomain>> {
+  list(projectId: string, params: SourceRankingParams = {}, options?: RequestOptions): Promise<Page<CitedDomain>> {
     return this.http.get(`${projectPath(projectId)}/sources`, CitedDomainPageSchema, {
       ...options,
-      query: params,
+      query: { ...params, includeOffers: params.includeOffers || undefined },
     });
   }
 

@@ -237,6 +237,14 @@ export const PromptSuggestionSchema = z.object({
   expiresAt: timestamp("When it lapses if nobody decides on it"),
 });
 
+export const SponsoredOfferSchema = z.object({
+  available: z.boolean().describe("Whether a sponsored publication (WhitePress) can be bought on this domain."),
+  price: z.number().nullable().describe("The publication price, in `currency`. null = no price."),
+  currency: z.string().nullable().describe("The currency of `price`. null = no price."),
+  domainRank: z.number().nullable().describe("The domain's DataForSEO rank, shown as DR in the app. null = unknown."),
+  monthlyVisits: z.number().nullable().describe("Estimated monthly organic visits to the domain. null = unknown."),
+});
+
 export const CitedDomainSchema = z.object({
   domain: z.string(),
   sourceOccurrences: z
@@ -248,6 +256,9 @@ export const CitedDomainSchema = z.object({
       "The domain's share of the source occurrences across the domains reported, in percent 0-100 with up to five decimals."
     ),
   ownDomain: z.boolean().describe("Whether it is the project's own domain or one of its alternatives."),
+  offer: SponsoredOfferSchema.optional().describe(
+    "The sponsored publication offer for the domain. Present only when includeOffers was passed, and never on the own domain."
+  ),
 });
 
 export const CompetitorSchema = z.object({
@@ -960,6 +971,7 @@ export type CompanyProfile = z.infer<typeof CompanyProfileSchema>;
 export type KnowledgeBase = z.infer<typeof KnowledgeBaseSchema>;
 export type UpdateKnowledgeBaseInput = z.infer<typeof UpdateKnowledgeBaseRequestSchema>;
 export type Category = z.infer<typeof CategorySchema>;
+export type SponsoredOffer = z.infer<typeof SponsoredOfferSchema>;
 export type CitedDomain = z.infer<typeof CitedDomainSchema>;
 export type Competitor = z.infer<typeof CompetitorSchema>;
 export type CompetitorExclusion = z.infer<typeof CompetitorExclusionSchema>;

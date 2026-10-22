@@ -289,6 +289,16 @@ describe("createLiveClient", () => {
     );
   });
 
+  it("forwards includeOffers when ranking cited domains", async () => {
+    const { client, calls } = liveClient();
+
+    await client.listSources(LIVE_PROJECT.id, { ...RANGE, includeOffers: true });
+
+    expect(calls[0].path).toBe(
+      `/v1/projects/${LIVE_PROJECT.id}/sources?startDate=2026-08-16&endDate=2026-09-15&includeOffers=true`
+    );
+  });
+
   it("ranks competitors for the period", async () => {
     const { client, calls } = liveClient();
 

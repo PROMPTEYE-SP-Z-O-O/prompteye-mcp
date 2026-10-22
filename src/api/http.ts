@@ -4,7 +4,7 @@ import { PromptEyeApiError } from "./errors.js";
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
 /** Query parameters; anything undefined is left out. */
-export type Query = Record<string, string | number | undefined>;
+export type Query = Record<string, string | number | boolean | undefined>;
 
 export interface RequestOptions {
   /** Aborts the request. Replaces the client's timeout when given. */
