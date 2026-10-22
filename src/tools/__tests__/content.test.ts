@@ -4,7 +4,6 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { PromptEyeClient } from "../../client/prompteye-client.js";
 import { SERVER_INSTRUCTIONS } from "../../instructions.js";
 import type { ContentArticle, ContentBrief, CreateContentBriefInput } from "../../schemas/prompteye.js";
-import { ProjectSession } from "../../session.js";
 import { registerContentTools } from "../content.js";
 
 const PROJECT = {
@@ -119,7 +118,7 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
   const listed: { projectId: string; query: unknown }[] = [];
   const published: Array<{ articleId: string; url: string }> = [];
   const client = {
-    listProjects: async () => ({ data: [PROJECT] }),
+    getProject: async () => PROJECT,
     createContentBrief: async (input: CreateContentBriefInput) => {
       created.push(input);
       return PROCESSING_BRIEF;
@@ -141,7 +140,7 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
   } as unknown as PromptEyeClient;
 
   const server = new McpServer({ name: "test", version: "0.0.0" });
-  registerContentTools(server, { client, session: new ProjectSession(client), baseUrl: "https://api.test" });
+  registerContentTools(server, { client, baseUrl: "https://api.test" });
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const mcp = new Client({ name: "test-client", version: "0.0.0" });
@@ -190,7 +189,7 @@ describe("content generation", () => {
     expect(result.content).toEqual([{ type: "text", text: JSON.stringify(PROCESSING_BRIEF) }]);
   });
 
-  it("orders the brief for the given project, not the one the session would resolve", async () => {
+  it("orders the brief for the given project", async () => {
     const { mcp, created } = await connect(READY_BRIEF);
 
     await mcp.callTool({
@@ -249,10 +248,10 @@ describe("content generation", () => {
     expect(result.content).toEqual([{ type: "text", text: JSON.stringify(article) }]);
   });
 
-  it("lists the articles of the active project without their text", async () => {
+  it("lists the articles of the project without their text", async () => {
     const { mcp, listed } = await connect(READY_BRIEF);
 
-    const result = await mcp.callTool({ name: "list_articles", arguments: { limit: 5, cursor: "c1" } });
+    const result = await mcp.callTool({ name: "list_articles", arguments: { projectId: PROJECT.id, limit: 5, cursor: "c1" } });
 
     expect(listed).toEqual([{ projectId: PROJECT.id, query: { limit: 5, cursor: "c1" } }]);
     expect(result.structuredContent).toEqual({ data: [ARTICLE_SUMMARY], nextCursor: null });

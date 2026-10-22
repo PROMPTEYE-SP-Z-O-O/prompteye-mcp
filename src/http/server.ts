@@ -3,20 +3,19 @@ import { describeDataSource, serverName } from "../config.js";
 import { createHttpApp } from "./app.js";
 import type { Logger } from "./logging.js";
 import { RequestBudget } from "./rate-limit.js";
-import { SessionRegistry } from "./sessions.js";
+import { VerifiedKeys } from "./verified-keys.js";
 import type { HttpSettings } from "./settings.js";
 
-const SWEEP_EVERY_MS = 5 * 60_000;
+const VERIFIED_KEY_TTL_MS = 60_000;
 
 const budgetOf = (perMinute: number): RequestBudget => new RequestBudget({ perMinute });
 
 export function startHttpServer(settings: HttpSettings, logger: Logger): Server {
-  const { port, baseUrl, sessions, rateLimits, allowedHosts, allowedOrigins, trustProxyHops, oauth } = settings;
-  const registry = new SessionRegistry(sessions);
+  const { port, baseUrl, rateLimits, allowedHosts, allowedOrigins, trustProxyHops, oauth } = settings;
 
   const app = createHttpApp({
     baseUrl,
-    registry,
+    verifiedKeys: new VerifiedKeys({ ttlMs: VERIFIED_KEY_TTL_MS }),
     logger,
     keyBudget: budgetOf(rateLimits.perKey),
     ipBudget: budgetOf(rateLimits.perIp),
@@ -26,11 +25,6 @@ export function startHttpServer(settings: HttpSettings, logger: Logger): Server 
     trustProxyHops,
     oauth,
   });
-
-  setInterval(() => {
-    const removed = registry.sweep();
-    if (removed.length > 0) logger.info("mcp.sessions.swept", { removed: removed.length, remaining: registry.size });
-  }, SWEEP_EVERY_MS).unref();
 
   return app.listen(port, () => {
     logger.info("mcp.listening", {

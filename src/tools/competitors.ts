@@ -6,19 +6,18 @@ import { CompetitorExclusionSchema, CompetitorSchema, NextCursorSchema } from ".
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
 import { READ_ONLY, REPLACES, handled, ok, type ToolContext } from "./result.js";
-import { writeProjectIdShape } from "./write-project.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
 export const COMPETITORS_WIDGET = "competitors";
 
-export function registerCompetitorTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerCompetitorTools(server: McpServer, { client }: ToolContext): void {
   registerAppTool(
     server,
     "list_competitors",
     {
       title: "Rank the brands answering alongside yours",
       description:
-        "Every brand the assistants named on the active project's prompts, measured the same way the " +
+        "Every brand the assistants named on the project's prompts, measured the same way the " +
         "project's own brand is and ranked by visibility, then by average position. Call this for 'who are " +
         "we losing to' and for how a market splits between brands.\n\n" +
         "The order is not share of voice. The ranking is cut to the strongest brands by visibility first, so " +
@@ -35,7 +34,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
         "tool once per `promptId`, and keep the ones where the named competitor's position beats the brand's.",
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...dateRangeShape,
         ...modelFilterShape,
         ...promptScopeShape("Rank"),
@@ -58,8 +57,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
-        const page = await client.listCompetitors(project.id, args);
+        const [project, page] = await Promise.all([client.getProject(projectId), client.listCompetitors(projectId, args)]);
 
         return ok({
           ...page,
@@ -75,18 +73,17 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
     {
       title: "List brands excluded from competitor rankings",
       description:
-        "The brands the active project keeps out of its competitor rankings. Everything the assistants name is " +
+        "The brands the project keeps out of its competitor rankings. Everything the assistants name is " +
         "a candidate competitor, so the ranking picks up resellers, marketplaces, directories, and the client's own " +
         "agency until they are excluded here.\n\n" +
         "Excluding a brand drops it from competitor rankings and share-of-voice calculations across historical data.",
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape },
+      inputSchema: { ...projectIdShape },
       outputSchema: { data: z.array(CompetitorExclusionSchema) },
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
-        const list = await client.listCompetitorExclusions(project.id);
+        const list = await client.listCompetitorExclusions(projectId);
         return ok(list);
       })
   );
@@ -102,7 +99,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
         "Accepts up to 50 excluded brands, each with optional alternative spellings/aliases.",
       annotations: REPLACES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         exclusions: z
           .array(
             z.object({

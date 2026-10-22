@@ -6,7 +6,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { createHttpApp, type HttpAppOptions } from "../app.js";
 import { createJsonLogger } from "../logging.js";
 import { RequestBudget } from "../rate-limit.js";
-import { SessionRegistry } from "../sessions.js";
+import { VerifiedKeys } from "../verified-keys.js";
 
 const KEY_A = "pe_live_aaaaaaaaaaaaaaaaaaaaaaaa";
 const KEY_B = "pe_live_bbbbbbbbbbbbbbbbbbbbbbbb";
@@ -121,7 +121,7 @@ function startApp(baseUrl: string, overrides: Partial<HttpAppOptions> = {}) {
   });
   const app = createHttpApp({
     baseUrl,
-    registry: new SessionRegistry({ idleMs: 60_000, maxPerKey: 5 }),
+    verifiedKeys: new VerifiedKeys({ ttlMs: 60_000 }),
     logger: createJsonLogger(sink),
     keyBudget: new RequestBudget({ perMinute: 1_000 }),
     ipBudget: new RequestBudget({ perMinute: 1_000 }),
@@ -187,39 +187,37 @@ describe("createHttpApp", () => {
     expect(body.error.message).toContain("PromptEye rejected this API key");
   });
 
-  it("refuses a non-initialize request without a session with 400", async () => {
+  it("answers a tools/list sent without an initialize first", async () => {
     const response = await rawPost(
       app.url,
       { Authorization: `Bearer ${KEY_A}` },
       { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("list_projects");
   });
 
-  it("keeps the project selection of one key away from another", async () => {
+  it("verifies a key once for requests that follow each other closely", async () => {
+    const before = meCalls;
+
+    await rawPost(app.url, { Authorization: `Bearer ${KEY_B}` });
+    await rawPost(app.url, { Authorization: `Bearer ${KEY_B}` }, { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
+
+    expect(meCalls - before).toBeLessThanOrEqual(1);
+  });
+
+  it("answers each key with its own data", async () => {
     const a = await connect(app.url, { Authorization: `Bearer ${KEY_A}` });
     const b = await connect(app.url, { Authorization: `Bearer ${KEY_B}` });
     clients.push(a.client, b.client);
 
-    const selected = await a.client.callTool({ name: "select_project", arguments: { projectId: "a2" } });
-    expect(textOf(selected)).toContain("Acme UK");
+    const listedByA = await a.client.callTool({ name: "list_projects", arguments: {} });
+    const listedByB = await b.client.callTool({ name: "list_projects", arguments: {} });
 
-    const activeInB = await b.client.callTool({ name: "get_active_project", arguments: {} });
-    expect(activeInB.isError).toBe(true);
-    expect(textOf(activeInB)).toContain("No project is selected");
-
-    const activeInA = await a.client.callTool({ name: "get_active_project", arguments: {} });
-    expect(activeInA.isError).toBeFalsy();
-    expect(textOf(activeInA)).toContain("Acme UK");
-
-    const stolen = await rawPost(
-      app.url,
-      { Authorization: `Bearer ${KEY_B}`, "Mcp-Session-Id": a.transport.sessionId ?? "" },
-      { jsonrpc: "2.0", id: 3, method: "tools/list", params: {} }
-    );
-    expect(stolen.status).toBe(404);
-    expect((await stolen.json()).error.message).toContain("Session not found");
+    expect(textOf(listedByA)).toContain("Acme UK");
+    expect(textOf(listedByB)).toContain("Beta");
+    expect(textOf(listedByB)).not.toContain("Acme");
   });
 
   it("accepts the key from X-PromptEye-Key", async () => {
@@ -227,7 +225,7 @@ describe("createHttpApp", () => {
     clients.push(client);
 
     const tools = await client.listTools();
-    expect(tools.tools.map((tool) => tool.name)).toContain("select_project");
+    expect(tools.tools.map((tool) => tool.name)).toContain("list_projects");
   });
 
   it("accepts the key from X-API-Key", async () => {
@@ -235,7 +233,7 @@ describe("createHttpApp", () => {
     clients.push(client);
 
     const tools = await client.listTools();
-    expect(tools.tools.map((tool) => tool.name)).toContain("select_project");
+    expect(tools.tools.map((tool) => tool.name)).toContain("list_projects");
   });
 
   it("prefers X-API-Key over a bearer token that is not a PromptEye key", async () => {
@@ -243,10 +241,10 @@ describe("createHttpApp", () => {
     clients.push(client);
 
     const tools = await client.listTools();
-    expect(tools.tools.map((tool) => tool.name)).toContain("select_project");
+    expect(tools.tools.map((tool) => tool.name)).toContain("list_projects");
   });
 
-  it("answers /healthz without the data source or the session count", async () => {
+  it("answers /healthz without the data source", async () => {
     const response = await fetch(`${app.url}/healthz`);
     const body = await response.json();
 
@@ -280,7 +278,7 @@ describe("createHttpApp", () => {
   it("never writes a key into the log", () => {
     const logged = logLines.join("");
     expect(logged).toContain('"event":"mcp.request"');
-    expect(logged).toContain('"tool":"select_project"');
+    expect(logged).toContain('"tool":"list_projects"');
     expect(logged).not.toContain(KEY_A);
     expect(logged).not.toContain(KEY_B);
   });
@@ -333,7 +331,7 @@ describe("createHttpApp", () => {
     await proxied.close();
   });
 
-  it("refuses a non-POST without a session with 405 before the key is verified", async () => {
+  it("refuses a non-POST with 405 before the key is verified", async () => {
     const before = meCalls;
 
     for (const method of ["PUT", "PATCH"]) {
@@ -370,6 +368,20 @@ describe("createHttpApp", () => {
     expect((await eleventh.json()).error.message).toContain("Too many requests");
     expect(valid.status).toBe(429);
     expect(meCalls).toBe(before);
+
+    await limited.close();
+  });
+
+  it("keeps serving a key verified before its client address ran out of failed key checks", async () => {
+    const started = startApp(api.url, { authFailureBudget: new RequestBudget({ perMinute: 1 }) });
+    const limited = await started.listening;
+
+    const verified = await rawPost(limited.url, { Authorization: `Bearer ${KEY_A}` });
+    const guess = await rawPost(limited.url, { Authorization: `Bearer ${KEY_UNKNOWN}` });
+    const again = await rawPost(limited.url, { Authorization: `Bearer ${KEY_A}` });
+    const anotherGuess = await rawPost(limited.url, { Authorization: `Bearer pe_live_guess_next` });
+
+    expect([verified.status, guess.status, again.status, anotherGuess.status]).toEqual([200, 401, 200, 429]);
 
     await limited.close();
   });
@@ -490,24 +502,21 @@ describe("createHttpApp", () => {
     await configured.close();
   });
 
-  it("answers 404 for a different bearer on an existing session and accepts a fresh initialize with it", async () => {
+  it("ignores a client's Mcp-Session-Id and keeps answering after its bearer is refreshed", async () => {
     const first = await connect(app.url, { Authorization: `Bearer ${JWT_A}` });
     clients.push(first.client);
 
     const refreshed = await rawPost(
       app.url,
-      { Authorization: `Bearer ${JWT_A_REFRESHED}`, "Mcp-Session-Id": first.transport.sessionId ?? "" },
+      { Authorization: `Bearer ${JWT_A_REFRESHED}`, "Mcp-Session-Id": first.transport.sessionId ?? "stale-session" },
       { jsonrpc: "2.0", id: 3, method: "tools/list", params: {} }
     );
-    expect(refreshed.status).toBe(404);
-    expect((await refreshed.json()).error.message).toContain("Session not found");
 
-    const second = await connect(app.url, { Authorization: `Bearer ${JWT_A_REFRESHED}` });
-    clients.push(second.client);
-    expect((await second.client.listTools()).tools.length).toBeGreaterThan(0);
+    expect(refreshed.status).toBe(200);
+    expect(await refreshed.text()).toContain("list_projects");
   });
 
-  it("starts a session with a JWT-shaped bearer and forwards exactly that bearer on tool calls", async () => {
+  it("accepts a JWT-shaped bearer and forwards exactly that bearer on tool calls", async () => {
     const { client } = await connect(app.url, { Authorization: `Bearer ${JWT_A}` });
     clients.push(client);
     tokensSeen.length = 0;
@@ -520,7 +529,7 @@ describe("createHttpApp", () => {
     expect(new Set(tokensSeen)).toEqual(new Set([JWT_A]));
   });
 
-  it("challenges an unauthenticated GET without a session, while an authenticated one is 405", async () => {
+  it("challenges an unauthenticated GET, while an authenticated one is 405", async () => {
     const started = startApp(api.url, { oauth: { resource: "https://mcp.example.com/mcp", authorizationServer: "https://auth.example.com" } });
     const configured = await started.listening;
 
@@ -536,7 +545,7 @@ describe("createHttpApp", () => {
     await configured.close();
   });
 
-  it("answers 403 insufficient_scope when the API refuses the token at session start", async () => {
+  it("answers 403 insufficient_scope when the API refuses the token", async () => {
     const started = startApp(api.url, { oauth: { resource: "https://mcp.example.com/mcp", authorizationServer: "https://auth.example.com" } });
     const configured = await started.listening;
 
@@ -570,10 +579,9 @@ describe("createHttpApp", () => {
     await limited.close();
   });
 
-  it("drops the session when the API answers 401 to a tool call, so the client re-authenticates", async () => {
-    const { client, transport } = await connect(app.url, { Authorization: `Bearer ${JWT_EXPIRING}` });
+  it("challenges the next request once the API answers 401 to a tool call, so the client re-authenticates", async () => {
+    const { client } = await connect(app.url, { Authorization: `Bearer ${JWT_EXPIRING}` });
     clients.push(client);
-    const sessionId = transport.sessionId ?? "";
     expired.add(JWT_EXPIRING);
 
     const call = await client.callTool({ name: "list_projects", arguments: {} });
@@ -581,14 +589,11 @@ describe("createHttpApp", () => {
 
     const next = await rawPost(
       app.url,
-      { Authorization: `Bearer ${JWT_EXPIRING}`, "Mcp-Session-Id": sessionId },
+      { Authorization: `Bearer ${JWT_EXPIRING}` },
       { jsonrpc: "2.0", id: 4, method: "tools/list", params: {} }
     );
-    expect(next.status).toBe(404);
-
-    const reinitialized = await rawPost(app.url, { Authorization: `Bearer ${JWT_EXPIRING}` });
-    expect(reinitialized.status).toBe(401);
-    expect(reinitialized.headers.get("www-authenticate")).toContain('error="invalid_token"');
+    expect(next.status).toBe(401);
+    expect(next.headers.get("www-authenticate")).toContain('error="invalid_token"');
     expired.delete(JWT_EXPIRING);
   });
 

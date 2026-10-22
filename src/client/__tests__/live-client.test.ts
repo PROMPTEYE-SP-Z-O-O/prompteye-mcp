@@ -1,5 +1,4 @@
 import { PromptEyeApi, type FetchLike } from "../../api/index.js";
-import { ProjectSession } from "../../session.js";
 import { createLiveClient } from "../live-client.js";
 
 const LIVE_PROJECT = {
@@ -402,12 +401,6 @@ describe("createLiveClient", () => {
       `/v1/projects/${LIVE_PROJECT.id}/traffic/google/analytics/sources?startDate=2026-08-16&endDate=2026-09-15&assistant=anthropic&limit=5`,
       `/v1/projects/${LIVE_PROJECT.id}/traffic/google/analytics/pages?startDate=2026-08-16&endDate=2026-09-15`,
     ]);
-  });
-
-  it("lets the session select the only project the key reaches", async () => {
-    const { client } = liveClient();
-
-    await expect(new ProjectSession(client).require()).resolves.toEqual(LIVE_PROJECT);
   });
 
   it("updates a project via PATCH", async () => {

@@ -3,7 +3,6 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { PromptEyeClient } from "../client/prompteye-client.js";
 import { createMcpServer } from "../server.js";
-import { ProjectSession } from "../session.js";
 
 const PROJECT = {
   id: "p1",
@@ -97,9 +96,14 @@ const SUGGESTION_RUN = { runId: null, skipped: "nothing_to_suggest" };
 
 const suggestionRuns: Array<{ projectId: string; groupId: string }> = [];
 
+let projectReads = 0;
+
 const fakeClient = {
   listProjects: async () => ({ data: [PROJECT] }),
-  getProject: async () => PROJECT,
+  getProject: async () => {
+    projectReads += 1;
+    return PROJECT;
+  },
   getAccount: async () => ACCOUNT,
   listWorkspaces: async () => WORKSPACES,
   listPrompts: async () => PROMPTS,
@@ -116,7 +120,6 @@ const fakeClient = {
 async function connectedClient(): Promise<Client> {
   const server = createMcpServer({
     client: fakeClient,
-    session: new ProjectSession(fakeClient),
     baseUrl: "https://api.example",
   });
 
@@ -167,19 +170,16 @@ describe("write tools", () => {
     suggestionRuns.length = 0;
   });
 
-  it("write to the project they are given, not the active one", async () => {
+  it("write to the project they are given", async () => {
     const client = await connectedClient();
-    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
 
     const result = await client.callTool({
       name: "generate_prompt_suggestions",
       arguments: { projectId: "other-project", groupId: "g1" },
     });
-    const active = await client.callTool({ name: "get_active_project", arguments: {} });
 
     expect(result.isError).toBeFalsy();
     expect(suggestionRuns).toEqual([{ projectId: "other-project", groupId: "g1" }]);
-    expect((active.structuredContent as { id: string }).id).toBe(PROJECT.id);
   });
 
   it("refuse a change that names no project", async () => {
@@ -206,10 +206,9 @@ describe("read tools", () => {
     },
   } as unknown as PromptEyeClient;
 
-  async function freshSession(): Promise<Client> {
+  async function connectedTo(): Promise<Client> {
     const server = createMcpServer({
       client: twoProjectClient,
-      session: new ProjectSession(twoProjectClient),
       baseUrl: "https://api.example",
     });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -222,8 +221,8 @@ describe("read tools", () => {
     readProjectIds.length = 0;
   });
 
-  it("read the project they are given in a session that has lost its selection", async () => {
-    const client = await freshSession();
+  it("read the project they are given", async () => {
+    const client = await connectedTo();
 
     const result = (await client.callTool({ name: "list_prompts", arguments: { projectId: "p2" } })) as CallToolResult;
 
@@ -232,27 +231,61 @@ describe("read tools", () => {
     expect((result.structuredContent as { projectName: string }).projectName).toBe(SECOND_PROJECT.name);
   });
 
-  it("leave the active project unchanged when given another one", async () => {
-    const client = await freshSession();
-    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
+  it("refuse a read that names no project", async () => {
+    const client = await connectedTo();
 
-    await client.callTool({ name: "list_prompts", arguments: { projectId: "p2" } });
-    const active = await client.callTool({ name: "get_active_project", arguments: {} });
+    const result = await client.callTool({ name: "list_prompts", arguments: {} });
 
-    expect(readProjectIds).toEqual(["p2"]);
-    expect((active.structuredContent as { id: string }).id).toBe(PROJECT.id);
+    expect(result.isError).toBe(true);
+    expect(readProjectIds).toEqual([]);
+  });
+});
+
+describe("project reads", () => {
+  it("read a project's data without fetching the project first", async () => {
+    const client = await connectedClient();
+    projectReads = 0;
+
+    const result = await client.callTool({ name: "get_sitemap", arguments: { projectId: PROJECT.id } });
+
+    expect(result.isError).toBeFalsy();
+    expect(projectReads).toBe(0);
+  });
+});
+
+describe("help center", () => {
+  it("reads the help index once for every server the process builds", async () => {
+    const index = "# PromptEye Help\n\n## Reports\n\n- [Reports overview](/help/raw/reports/index.md) — [read online](/help/reports/)\n";
+    const fetched: string[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string | URL) => {
+      fetched.push(String(url));
+      return new Response(index, { status: 200 });
+    }) as typeof fetch;
+
+    try {
+      for (let server = 0; server < 2; server += 1) {
+        const client = await connectedClient();
+        const result = await client.callTool({ name: "list_help_articles", arguments: {} });
+        expect(result.isError).toBeFalsy();
+      }
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+
+    expect(fetched.filter((url) => url.endsWith("/help/index.md"))).toHaveLength(1);
   });
 });
 
 describe("tool results", () => {
   it.each([
     ["get_account", {}, ACCOUNT],
-    ["list_prompts", {}, { ...PROMPTS, projectName: PROJECT.name, brand: PROJECT.brand }],
-    ["list_competitors", {}, { ...COMPETITORS, projectName: PROJECT.name, brand: PROJECT.brand, model: null }],
-    ["get_search_performance", {}, { by: null, summary: SEARCH_SUMMARY, data: null, nextCursor: null }],
-    ["get_sitemap", {}, NO_SITEMAP],
+    ["list_prompts", { projectId: PROJECT.id }, { ...PROMPTS, projectName: PROJECT.name, brand: PROJECT.brand }],
+    ["list_competitors", { projectId: PROJECT.id }, { ...COMPETITORS, projectName: PROJECT.name, brand: PROJECT.brand, model: null }],
+    ["get_search_performance", { projectId: PROJECT.id }, { by: null, summary: SEARCH_SUMMARY, data: null, nextCursor: null }],
+    ["get_sitemap", { projectId: PROJECT.id }, NO_SITEMAP],
     ["list_workspaces", {}, WORKSPACES],
-    ["get_crawl_health", { kind: "ai" }, CRAWL_HEALTH],
+    ["get_crawl_health", { projectId: PROJECT.id, kind: "ai" }, CRAWL_HEALTH],
     ["generate_prompt_suggestions", { projectId: PROJECT.id, groupId: "g1" }, SUGGESTION_RUN],
   ])("%s answers the API data as structured content and as its serialized JSON", async (name, args, expected) => {
     const client = await connectedClient();

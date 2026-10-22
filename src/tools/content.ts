@@ -9,10 +9,9 @@ import {
 } from "../schemas/prompteye.js";
 import { CONTENT_GENERATION } from "./glossary.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
-import { writeProjectIdShape } from "./write-project.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
-export function registerContentTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerContentTools(server: McpServer, { client }: ToolContext): void {
   server.registerTool(
     "create_content_brief",
     {
@@ -30,7 +29,7 @@ export function registerContentTools(server: McpServer, { client, session }: Too
         "it with get_content_brief a little later.",
       annotations: WRITES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         prompt: z
           .string()
           .min(1)
@@ -148,18 +147,17 @@ export function registerContentTools(server: McpServer, { client, session }: Too
     {
       title: "List the articles of the project",
       description:
-        "Every article of the active project, newest first, without its text — read one with get_article. " +
+        "Every article of the project, newest first, without its text — read one with get_article. " +
         "Lists the articles PromptEye wrote from a brief and the texts the team added in the app. Briefs " +
         "whose article has not been requested yet are not listed; read those with get_content_brief.\n\n" +
         CONTENT_GENERATION,
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape, ...paginationShape },
+      inputSchema: { ...projectIdShape, ...paginationShape },
       outputSchema: { data: z.array(ContentArticleSummarySchema), nextCursor: NextCursorSchema },
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
-        const page = await client.listContentArticles(project.id, args);
+        const page = await client.listContentArticles(projectId, args);
         return ok(page);
       })
   );

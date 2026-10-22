@@ -1,16 +1,16 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { IntegrationsStatusSchema } from "../schemas/prompteye.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
-export function registerIntegrationTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerIntegrationTools(server: McpServer, { client }: ToolContext): void {
   server.registerTool(
     "get_integrations_status",
     {
       title: "Check which integrations the project has",
       description:
         "Whether Search Console, Google Analytics, the bot tracker and the sitemap are connected to the " +
-        "active project, in one call. Call it before reporting a zero or an empty list from " +
+        "project, in one call. Call it before reporting a zero or an empty list from " +
         "get_search_performance, get_ai_traffic, list_bot_visits, count_bot_visits or list_crawls: a " +
         "project with nothing connected answers those with zeros and empty lists, which reads exactly " +
         "like a site nobody visits.\n\n" +
@@ -21,13 +21,12 @@ export function registerIntegrationTools(server: McpServer, { client, session }:
         "PromptEye has no CMS integration. The WordPress and Laravel collectors are ways of installing " +
         "the bot tracker and are reported under `botLogs`.",
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape },
+      inputSchema: { ...projectIdShape },
       outputSchema: IntegrationsStatusSchema.shape,
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
-        const status = await client.getIntegrationsStatus(project.id);
+        const status = await client.getIntegrationsStatus(projectId);
         return ok(status);
       })
   );

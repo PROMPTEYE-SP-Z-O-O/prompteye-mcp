@@ -3,9 +3,8 @@ import { z } from "zod";
 import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema, PublicLinkSchema } from "../schemas/prompteye.js";
 import type { Project } from "../schemas/prompteye.js";
 import { PROMPT_GENERATION } from "./glossary.js";
-import { READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
-import { writeProjectIdShape } from "./write-project.js";
-import { readProjectIdShape } from "./read-project.js";
+import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
+import { projectIdShape } from "./project-id.js";
 
 const ProjectOutputSchema = ProjectSchema.omit({ excludedCompetitors: true });
 
@@ -15,7 +14,7 @@ const EXCLUSIONS_POINTER =
   "Brands kept out of competitor rankings are not part of the project payload; read them with " +
   "list_competitor_exclusions and change them with set_competitor_exclusions.";
 
-export function registerProjectTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerProjectTools(server: McpServer, { client }: ToolContext): void {
   server.registerTool(
     "list_projects",
     {
@@ -23,11 +22,11 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
       description:
         "Every project the API key reaches, newest first, with the access the key has to each. A " +
         "project is one brand tracked in one market, and it is the root of everything else PromptEye " +
-        "measures. Call this first, then select_project, before asking about visibility, competitors, " +
-        "prompts or sources. Each row includes its label, brand/name and domain; use these fields together " +
+        "measures. Call this first and pass the id of the project in question as projectId to every other " +
+        "tool. Each row includes its label, brand/name and domain; use these fields together " +
         "to identify a project. Projects with different labels are distinct: do not call them duplicates " +
         "based only on similar brand names. When unsure which one the user means, ask using the labels " +
-        "and domains shown, and use the project id to select the confirmed one.",
+        "and domains shown, and use the id of the confirmed one.",
       annotations: READ_ONLY,
       inputSchema: {
         workspaceId: z
@@ -48,63 +47,13 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
   );
 
   server.registerTool(
-    "select_project",
-    {
-      title: "Select the project to work on",
-      description:
-        "Makes one project the active one. Every read tool reports on the active project and takes " +
-        "no project argument, so call this once before asking about visibility, competitors, prompts, " +
-        "answers or sources. Tools that change something never use it: they take a projectId. Call it again to switch projects mid-conversation.\n\n" +
-        EXCLUSIONS_POINTER,
-      annotations: READ_ONLY,
-      inputSchema: {
-        projectId: z
-          .string()
-          .min(1)
-          .describe("Id of the project to make active, as list_projects reports it."),
-      },
-      outputSchema: ProjectOutputSchema.shape,
-    },
-    async ({ projectId }) =>
-      handled(async () => {
-        const project = await session.select(projectId);
-        return ok(toProjectOutput(project));
-      })
-  );
-
-  server.registerTool(
-    "get_active_project",
-    {
-      title: "Read the active project",
-      description:
-        "The project every other tool is currently reporting on. Call this when unsure which project " +
-        "the numbers in this conversation refer to.",
-      annotations: READ_ONLY,
-      inputSchema: {},
-      outputSchema: ProjectOutputSchema.shape,
-    },
-    async () =>
-      handled(async () => {
-        const project = session.current();
-        if (!project) {
-          return fail(
-            "No project is selected. Call list_projects to see the projects this API key reaches, " +
-              "then select_project with the id of the one to work on."
-          );
-        }
-
-        return ok(toProjectOutput(project));
-      })
-  );
-
-  server.registerTool(
     "create_project",
     {
       title: "Create a project",
       description:
         "Starts tracking one brand in one market. The project is the unit everything else hangs off — " +
-        "prompts, answers, competitors and the visibility computed from them — and it becomes the " +
-        "active project, so the following tools report on it without another call.\n\n" +
+        "prompts, answers, competitors and the visibility computed from them. Pass the id it returns " +
+        "as projectId to the following tools.\n\n" +
         "A brand tracked in several markets needs one project per market: the same `brand` with a " +
         "different `country`. Check list_projects first; creating a second project for a brand and " +
         "market already tracked is refused.\n\n" +
@@ -176,8 +125,6 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     async (args) =>
       handled(async () => {
         const project = await client.createProject(args);
-        await session.select(project.id);
-
         return ok(toProjectOutput(project));
       })
   );
@@ -198,7 +145,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         EXCLUSIONS_POINTER,
       annotations: WRITES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         name: z.string().min(1).max(120).optional().describe("Display name of the project. Defaults to the brand name."),
         label: z.string().min(1).max(40).optional().describe("Short label used to group projects in listings."),
         domain: z.string().min(3).max(253).optional().describe("Primary domain of the brand, without protocol or path, e.g. prompteye.com."),
@@ -222,8 +169,6 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     async ({ projectId, ...args }) =>
       handled(async () => {
         const project = await client.updateProject(projectId, args);
-        await session.refreshIfActive(projectId);
-
         return ok(toProjectOutput(project));
       })
   );
@@ -237,11 +182,11 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         "Whoever has the link sees the project's visibility read-only, the same view the app shares from project settings.\n\n" +
         "Before publishing, confirm with the user that the project's data may be visible to anyone holding the link. " +
         "Publishing a project that is already public answers the link it already has, so it is safe to call again to " +
-        "read the link back; get_active_project also shows it as publicUrl. Taking the link down and publishing again " +
+        "read the link back; list_projects also shows it as publicUrl. Taking the link down and publishing again " +
         "creates a new link and the old one stops working, so warn the user before disabling a link they have handed out.",
       annotations: WRITES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         enabled: z.boolean().describe("true publishes the project under a public link, false takes the link down."),
       },
       outputSchema: PublicLinkSchema.shape,
@@ -249,7 +194,6 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     async ({ projectId, enabled }) =>
       handled(async () => {
         const publicLink = await client.setProjectPublicLink(projectId, enabled);
-        await session.refreshIfActive(projectId);
         return ok(publicLink);
       })
   );
@@ -263,13 +207,12 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         "whom. Everything PromptEye writes for the project reads this first, so it is worth knowing " +
         "what a brand is being judged against before trusting a prompt or a competitor.",
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape },
+      inputSchema: { ...projectIdShape },
       outputSchema: KnowledgeBaseSchema.shape,
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
-        const knowledgeBase = await client.getKnowledgeBase(project.id);
+        const knowledgeBase = await client.getKnowledgeBase(projectId);
         return ok(knowledgeBase);
       })
   );
@@ -285,7 +228,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         "Only provided fields are updated; omitted fields keep their current values.",
       annotations: WRITES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         industry: z.string().max(4000).optional().describe("The industry the brand sells into, e.g. 'AI search analytics'."),
         productCategory: z
           .string()

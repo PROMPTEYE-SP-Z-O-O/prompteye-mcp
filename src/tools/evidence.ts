@@ -6,18 +6,18 @@ import { ANSWER_BRAND_PRESENCE, AnswerSchema, CitedDomainSchema, CitedPageSchema
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
 export const SOURCES_WIDGET = "sources";
 
-export function registerSourceTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerSourceTools(server: McpServer, { client }: ToolContext): void {
   registerAppTool(
     server,
     "list_sources",
     {
       title: "List the domains assistants cite",
       description:
-        "The domains the assistants leaned on when answering the active project's prompts, ranked by " +
+        "The domains the assistants leaned on when answering the project's prompts, ranked by " +
         "how often they were cited. Call this to see which pages shape what the assistants say about " +
         "the brand, and where to go to change it.\n\n" +
         `${CITED_DOMAINS}\n\n` +
@@ -41,7 +41,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         "then pass it straight away.",
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...dateRangeShape,
         ...modelFilterShape,
         ...promptScopeShape("Count citations from"),
@@ -70,8 +70,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
-        const page = await client.listSources(project.id, args);
+        const [project, page] = await Promise.all([client.getProject(projectId), client.listSources(projectId, args)]);
 
         return ok({
           ...page,
@@ -99,7 +98,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         "the pages reported. `model` narrows it to one assistant.",
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...dateRangeShape,
         ...modelFilterShape,
         limit: z
@@ -114,8 +113,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
-        const page = await client.listSourcePages(project.id, args);
+        const page = await client.listSourcePages(projectId, args);
         return ok(page);
       })
   );
@@ -137,7 +135,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         "as `cursor` to read the next page.",
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...dateRangeShape,
         ...modelFilterShape,
         resultId: z
@@ -167,8 +165,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
-        const page = await client.listAnswers(project.id, args);
+        const page = await client.listAnswers(projectId, args);
         return ok(page);
       })
   );

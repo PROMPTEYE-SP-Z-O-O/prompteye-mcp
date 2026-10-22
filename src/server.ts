@@ -5,7 +5,6 @@ import { notifyOnUnauthorized } from "./client/unauthorized.js";
 import { SERVER_ICONS } from "./icon.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
 import { registerPromptWorkflows } from "./prompts.js";
-import { ProjectSession } from "./session.js";
 import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
 import { registerAuditTools } from "./tools/audits.js";
@@ -52,7 +51,7 @@ function advertiseDraft202012OutputSchemas(server: McpServer): void {
 
 export function buildToolContext(credentials: ApiCredentials, onUnauthorized?: () => void): ToolContext {
   const client = onUnauthorized ? notifyOnUnauthorized(createClient(credentials), onUnauthorized) : createClient(credentials);
-  return { client, session: new ProjectSession(client), baseUrl: credentials.baseUrl };
+  return { client, baseUrl: credentials.baseUrl };
 }
 
 export function createMcpServer(context: ToolContext): McpServer {

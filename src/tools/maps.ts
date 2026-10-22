@@ -2,14 +2,13 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TopicalMapSchema, TopicalMapSummarySchema } from "../schemas/prompteye.js";
 import { READ_ONLY, REGENERATES, WRITES, handled, ok, type ToolContext } from "./result.js";
-import { writeProjectIdShape } from "./write-project.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
 const mapIdShape = {
   mapId: z.string().min(1).describe("Id of the map, as create_topical_map or list_topical_maps reports it."),
 };
 
-export function registerTopicalMapTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerTopicalMapTools(server: McpServer, { client }: ToolContext): void {
   server.registerTool(
     "create_topical_map",
     {
@@ -24,7 +23,7 @@ export function registerTopicalMapTools(server: McpServer, { client, session }: 
         "Every call starts a new map; there is no limit on how many a project can have.",
       annotations: WRITES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         topic: z.string().min(1).describe("The topic to build a map for, e.g. 'cloud backup for small teams'."),
         language: z.string().min(1).describe("Language to write the map in, as a two-letter code such as en or pl."),
       },
@@ -42,16 +41,15 @@ export function registerTopicalMapTools(server: McpServer, { client, session }: 
     {
       title: "List the topical maps of the project",
       description:
-        "Every map built for the active project, newest first, without their clusters — read one with " +
+        "Every map built for the project, newest first, without their clusters — read one with " +
         "get_topical_map.",
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape },
+      inputSchema: { ...projectIdShape },
       outputSchema: { data: z.array(TopicalMapSummarySchema) },
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
-        const list = await client.listTopicalMaps(project.id);
+        const list = await client.listTopicalMaps(projectId);
         return ok(list);
       })
   );
@@ -65,13 +63,12 @@ export function registerTopicalMapTools(server: McpServer, { client, session }: 
         "create_topical_map until `status` is `ready` — `pillar` is null and `clusters` is empty until " +
         "then, and `errorMessage` is set instead if generation failed.",
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape, ...mapIdShape },
+      inputSchema: { ...projectIdShape, ...mapIdShape },
       outputSchema: TopicalMapSchema.shape,
     },
     async ({ projectId, mapId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
-        const map = await client.getTopicalMap(project.id, mapId);
+        const map = await client.getTopicalMap(projectId, mapId);
         return ok(map);
       })
   );
@@ -86,7 +83,7 @@ export function registerTopicalMapTools(server: McpServer, { client, session }: 
         "map's clusters carry.",
       annotations: REGENERATES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         ...mapIdShape,
         category: z.string().min(1).describe("The category to regenerate; every existing article under it is replaced."),
       },

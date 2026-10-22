@@ -41,7 +41,6 @@ Every one of these calls the PromptEye API.
 | `get_account` | `GET /v1/me` |
 | `list_workspaces` | `GET /v1/workspaces` |
 | `list_projects` | `GET /v1/projects` |
-| `select_project`, `get_active_project` | `GET /v1/projects/{projectId}` |
 | `create_project` | `POST /v1/projects` |
 | `get_knowledge_base` | `GET /v1/projects/{projectId}/knowledge-base` |
 | `list_categories` | `GET /v1/projects/{projectId}/categories` |
@@ -133,7 +132,7 @@ PromptEye generates content as well as measuring visibility, and the two make on
 prompts, generate an article for the ones where the brand is weak, then read whether that
 prompt's visibility and citations move.
 
-`create_content_brief` starts it for the active project. It orders a brief — a title and an H2/H3
+`create_content_brief` starts it for a project. It orders a brief — a title and an H2/H3
 outline — for an article that targets one prompt; passing `promptId` links the brief to a tracked
 prompt, which is what later measures the article. The brief comes back `processing`, and
 `get_content_brief` reads it until it is `ready`: the outline, the fan-out phrases it covers and the
@@ -141,7 +140,7 @@ phrases that deserve an article of their own.
 
 `create_article` writes the article from a `ready` brief. It comes back `processing` and takes a few
 minutes; `get_article` reads the Markdown text until the status is no longer `processing`, and
-`list_articles` lists the active project's articles without their text. Once the user has published it,
+`list_articles` lists a project's articles without their text. Once the user has published it,
 `publish_article` records the live URL and marks it `published`. Requesting indexing and following
 citations are done in the PromptEye app under [Content](https://app.prompteye.com/content), and the
 server instructions say so.
@@ -222,28 +221,28 @@ X-API-Key: pe_live_…
 
 What happens with it:
 
-- **Verified at initialize.** The first request of a session (`initialize`) is answered only
-  after `GET /v1/me` on the PromptEye API accepts the key. A key PromptEye rejects gets `401`
+- **Verified on every request.** A request is answered only after `GET /v1/me` on the
+  PromptEye API has accepted the key; an accepted key is remembered for a minute, so requests
+  that follow closely do not call it again, and a `401` from the API to a tool call forgets it. A key PromptEye rejects gets `401`
   with a `WWW-Authenticate: Bearer` challenge; a key PromptEye throttles gets `429` with its
   `Retry-After`; a PromptEye API that cannot be reached gets `503` with `Retry-After`. A request
-  without a key gets `401` before anything else is looked at, and a request without a session
-  that is not a `POST` gets `405` before the key is looked at.
-- **Sessions are bound to the key.** The `Mcp-Session-Id` the server hands out is usable only
-  with the key that opened it; with any other key it is `404 Session not found`, as if it never
-  existed. Each session has its own `McpServer`, its own API client and its own project
-  selection, so nothing leaks between users. Sessions idle for `MCP_SESSION_IDLE_MINUTES` are
-  closed, and a key holds at most `MCP_MAX_SESSIONS_PER_KEY` at a time — the oldest goes first.
+  without a key gets `401` before anything else is looked at, and a request that is
+  not a `POST` gets `405` before the key is looked at.
+- **No sessions.** The server is stateless: every `POST` gets its own `McpServer` and API
+  client built from the key it carries, and nothing is kept between requests. No
+  `Mcp-Session-Id` is handed out, one sent by a client is ignored, and a request does not need
+  an `initialize` before it. Nothing can expire mid-conversation, and nothing leaks between users.
 - **Rate limits.** `MCP_RATE_LIMIT_PER_KEY` requests a minute per key and
   `MCP_RATE_LIMIT_PER_IP` per client address, answered with `429` and `Retry-After` when
   exceeded. `MCP_RATE_LIMIT_AUTH_FAILURES` counts the keys PromptEye rejected per client
-  address; past it, every initialize from that address gets `429` until the minute is up, a
+  address; past it, every request from that address gets `429` until the minute is up, a
   valid key included, so a script guessing keys stops costing calls to PromptEye. `Retry-After`
   from the PromptEye API itself is passed on to the model in the tool error text.
 - **Logs** are one JSON line per request on stdout — method, path, status, duration, the
   JSON-RPC method and the tool name for `tools/call`, and a SHA-256 fingerprint of the key.
   Never the key, never headers, never arguments. `LOG_LEVEL=error` keeps only failures.
 - **`GET /healthz`** (and `GET /`) answer `{ "status": "ok", "server": { "name", "version" } }`
-  and nothing about the deployment or the sessions.
+  and nothing about the deployment.
 
 Pointing a client at it:
 
@@ -274,12 +273,11 @@ links to it. Enable it by setting both `MCP_PUBLIC_URL` and `MCP_AUTHORIZATION_S
 (startup fails if only one is set).
 
 The OAuth access token is forwarded to the PromptEye API like an API key; the API verifies
-it. When the client refreshes its token, the old session no longer matches and the server
-answers `404`, so the client starts a new session. `pe_live_…` keys keep working, which is
-the method for Claude Desktop (`.mcpb`), Cursor and Claude Code. If the API answers `401`
-to a tool call (token expired mid-session), the session is dropped so the client refreshes
-its token. With OAuth the per-key rate limit and session cap follow the token, so they reset
-when the client refreshes (the per-IP limit still applies).
+it. A refreshed token is simply the key of the next request; no session has to be started
+again. `pe_live_…` keys keep working, which is the method for Claude Desktop (`.mcpb`), Cursor
+and Claude Code. If the API answers `401` to a tool call (the token expired), the next request
+is challenged with `401` so the client refreshes its token. With OAuth the per-key rate limit
+follows the token, so it resets when the client refreshes (the per-IP limit still applies).
 
 Set `MCP_PUBLIC_HOSTS` to the `Host` values the server is reachable under and
 `MCP_ALLOWED_ORIGINS` to the browser origins allowed to call it; together they are the
@@ -365,19 +363,17 @@ which maps every documented error code to a human message.
 
 ## How a conversation goes
 
-Every tool but `list_projects`, `create_project`, `select_project` and `get_account` reports
-on **the active project**, and takes no project argument. So a session starts by choosing one:
+Every tool that works on a project, read or change, takes its `projectId`. The server keeps no
+project between calls, so a conversation starts by finding the id and passes it every time:
 
 ```
-list_projects                  → the projects, with their ids
-select_project(projectId: …)   → that project is now active
-list_prompt_suggestions()
-list_prompts(by group or category)
+list_projects                              → the projects, with their ids
+list_prompt_suggestions(projectId: …)
+list_prompts(projectId: …, by group or category)
 ```
 
-Calling a project-scoped tool before selecting returns a recoverable error telling the
-model to list and select first — except when the key reaches exactly one project, which is
-then selected automatically. `create_project` also makes what it created active.
+A call that names no project is refused by its input schema. `create_project` answers the id of
+what it created.
 
 ## Layout
 
@@ -388,17 +384,16 @@ src/
   index-http.ts       Streamable HTTP entry point — reads the settings, starts the server
   http/
     settings.ts       every HTTP setting read from the environment, with its default
-    server.ts         builds the registry, the budgets and the app from the settings, sweeps idle sessions, listens
+    server.ts         builds the verified-key cache, the budgets and the app from the settings, listens
     app.ts            the express app: wires the middleware chain — CORS, logging, JSON body, then the /mcp steps
-    steps.ts          the /mcp steps as express handlers: IP limit, POST for new sessions, key required, key limit, error guard
-    mcp.ts            routes a request to its session: verifies the key and starts one at initialize, resumes by Mcp-Session-Id
-    credentials.ts    reads the key from X-PromptEye-Key / X-API-Key / Authorization, fingerprints it, verifies it at initialize
+    steps.ts          the /mcp steps as express handlers: IP limit, POST only, key required, key limit, error guard
+    mcp.ts            serves one request: verifies the key, builds a server and a stateless transport for it
+    credentials.ts    reads the key from X-PromptEye-Key / X-API-Key / Authorization, fingerprints it, verifies it
     rejections.ts     every refusal the app answers with — status, JSON-RPC code, message, headers
-    sessions.ts       SessionRegistry — sessions bound to a key, idle sweep, per-key cap
+    verified-keys.ts  VerifiedKeys — keys the API accepted in the last minute
     rate-limit.ts     RequestBudget — requests per minute, per key and per client address
     logging.ts        one JSON line per event and per request, never a key or a header
-  server.ts           builds one server from a ToolContext: session and tools
-  session.ts          ProjectSession — which project the tools report on
+  server.ts           builds one server from a ToolContext: its tools
   config.ts           environment, credentials, and the client factory
   client/             PromptEyeClient interface, implemented over the API client
   schemas/            the input shapes tools share, and the API schemas re-exported for them
@@ -421,8 +416,6 @@ scripts/bundle.mjs    stages dist/, public/ and production deps, then packs the 
 | `MCP_SERVER_VERSION` | `version` from `package.json` | both | Version reported to clients |
 | `PORT` | `3000` | HTTP | Port to listen on |
 | `LOG_LEVEL` | `info` | HTTP | `info` logs every request, `error` only failures |
-| `MCP_SESSION_IDLE_MINUTES` | `30` | HTTP | Sessions idle this long are closed |
-| `MCP_MAX_SESSIONS_PER_KEY` | `20` | HTTP | Open sessions one key may hold; the oldest is closed first |
 | `MCP_RATE_LIMIT_PER_KEY` | `120` | HTTP | Requests a minute per key |
 | `MCP_RATE_LIMIT_PER_IP` | `600` | HTTP | Requests a minute per client address |
 | `MCP_RATE_LIMIT_AUTH_FAILURES` | `10` | HTTP | Rejected keys a minute per client address before its initializes get `429`, valid key or not |

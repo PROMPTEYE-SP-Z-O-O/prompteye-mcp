@@ -59,7 +59,6 @@ export function requestLogging(logger: Logger): express.RequestHandler {
         status: res.statusCode,
         durationMs: Date.now() - startedAt,
         keyFingerprint: res.locals.keyFingerprint,
-        sessionId: res.locals.sessionId,
         ...describeRpc(req.body),
       });
     });
