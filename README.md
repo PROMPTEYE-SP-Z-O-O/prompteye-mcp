@@ -226,8 +226,8 @@ What happens with it:
   that follow closely do not call it again, and a `401` from the API to a tool call forgets it. A key PromptEye rejects gets `401`
   with a `WWW-Authenticate: Bearer` challenge; a key PromptEye throttles gets `429` with its
   `Retry-After`; a PromptEye API that cannot be reached gets `503` with `Retry-After`. A request
-  without a key gets `401` before anything else is looked at, and a request without a session
-  that is not a `POST` gets `405` before the key is looked at.
+  without a key gets `401` before anything else is looked at, and a request that is
+  not a `POST` gets `405` before the key is looked at.
 - **No sessions.** The server is stateless: every `POST` gets its own `McpServer` and API
   client built from the key it carries, and nothing is kept between requests. No
   `Mcp-Session-Id` is handed out, one sent by a client is ignored, and a request does not need

@@ -5,7 +5,7 @@ import { buildToolContext, createMcpServer } from "../server.js";
 import { verifyApiKey } from "./credentials.js";
 import type { Logger } from "./logging.js";
 import type { RequestBudget } from "./rate-limit.js";
-import { REJECTIONS, reject, tooManyRequests } from "./rejections.js";
+import { REJECTIONS, reject, tooManyRequests, type Rejection } from "./rejections.js";
 import { clientIp, type Handler } from "./steps.js";
 import type { VerifiedKeys } from "./verified-keys.js";
 
@@ -22,37 +22,31 @@ const dnsRebindingOptions = (allowedHosts: string[] | undefined, allowedOrigins:
     ? { enableDnsRebindingProtection: true, allowedHosts, allowedOrigins }
     : {};
 
-async function verifyKey(
+async function rejectionOf(
   deps: McpRequestDeps,
   credentials: ApiCredentials,
   fingerprint: string,
   req: express.Request,
   res: express.Response
-): Promise<boolean> {
+): Promise<Rejection | undefined> {
   const { verifiedKeys, logger, authFailureBudget } = deps;
+  if (verifiedKeys.has(fingerprint)) return undefined;
+
   const ip = clientIp(req, res);
   const failureDecision = authFailureBudget.peek(ip);
-  if (!failureDecision.allowed) {
-    reject(res, tooManyRequests(failureDecision));
-    return false;
-  }
-  if (verifiedKeys.has(fingerprint)) return true;
+  if (!failureDecision.allowed) return tooManyRequests(failureDecision);
 
   const rejection = await verifyApiKey(credentials, logger);
   if (rejection === REJECTIONS.rejectedKey || rejection === REJECTIONS.insufficientScope) authFailureBudget.take(ip);
-  if (rejection) {
-    reject(res, rejection);
-    return false;
-  }
-
-  verifiedKeys.add(fingerprint);
-  return true;
+  if (!rejection) verifiedKeys.add(fingerprint);
+  return rejection;
 }
 
 export function serveMcpRequest(deps: McpRequestDeps): Handler {
   return async (req, res) => {
     const { credentials, keyFingerprint } = res.locals;
-    if (!(await verifyKey(deps, credentials, keyFingerprint, req, res))) return;
+    const rejection = await rejectionOf(deps, credentials, keyFingerprint, req, res);
+    if (rejection) return reject(res, rejection);
 
     const server = createMcpServer(buildToolContext(credentials, () => deps.verifiedKeys.forget(keyFingerprint)));
     const transport = new StreamableHTTPServerTransport({

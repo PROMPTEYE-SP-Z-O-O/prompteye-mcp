@@ -55,10 +55,10 @@ export function registerWidget(server: McpServer, name: string, title: string, d
       if (html === undefined) {
         try {
           html = widgetHtml(name, title);
+          pages.set(name, html);
         } catch {
           html = `<html><body>${title} is unavailable.</body></html>`;
         }
-        pages.set(name, html);
       }
 
       return { contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: html }] };

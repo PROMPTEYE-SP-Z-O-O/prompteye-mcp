@@ -13,7 +13,7 @@ import {
 } from "../schemas/prompteye.js";
 import { BOT_TRAFFIC, INTEGRATION_STATE, VERIFIED } from "./glossary.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
 const trafficRangeShape = {
   startDate: z
@@ -89,7 +89,7 @@ export function registerTrafficTools(server: McpServer, { client }: ToolContext)
         `${BOT_TRAFFIC}\n\n${VERIFIED}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...trafficRangeShape,
         ...kindShape,
         ...botShape,
@@ -101,8 +101,7 @@ export function registerTrafficTools(server: McpServer, { client }: ToolContext)
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const page = await client.listBotVisits(project.id, args);
+        const page = await client.listBotVisits(projectId, args);
         return ok(page);
       })
   );
@@ -131,7 +130,7 @@ export function registerTrafficTools(server: McpServer, { client }: ToolContext)
         `${BOT_TRAFFIC}\n\n${VERIFIED}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         groupBy: TrafficGroupSchema.describe("What to count by."),
         ...trafficRangeShape,
         ...kindShape,
@@ -150,8 +149,7 @@ export function registerTrafficTools(server: McpServer, { client }: ToolContext)
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const counts = await client.countBotVisits(project.id, args);
+        const counts = await client.countBotVisits(projectId, args);
         return ok(counts);
       })
   );
@@ -177,7 +175,7 @@ export function registerTrafficTools(server: McpServer, { client }: ToolContext)
         `${BOT_TRAFFIC}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...trafficRangeShape,
         kind: TrafficKindSchema.describe(
           "`ai` for AI assistants and their bots, `seo` for search engines and SEO tools. Required: there is no combined health."
@@ -188,8 +186,7 @@ export function registerTrafficTools(server: McpServer, { client }: ToolContext)
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const health = await client.getCrawlHealth(project.id, args);
+        const health = await client.getCrawlHealth(projectId, args);
         return ok(health);
       })
   );
@@ -212,13 +209,12 @@ export function registerTrafficTools(server: McpServer, { client }: ToolContext)
         "reads all of its rows.\n\n" +
         `${BOT_TRAFFIC}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape, ...kindShape, ...botShape, ...pathShape, ...paginationShape },
+      inputSchema: { ...projectIdShape, ...kindShape, ...botShape, ...pathShape, ...paginationShape },
       outputSchema: { data: z.array(TrafficCrawlSchema), nextCursor: NextCursorSchema },
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const page = await client.listCrawls(project.id, args);
+        const page = await client.listCrawls(projectId, args);
         return ok(page);
       })
   );
@@ -238,7 +234,7 @@ export function registerTrafficTools(server: McpServer, { client }: ToolContext)
         "addresses can be paged to.",
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         active: z
           .enum(["true", "false"])
           .optional()
@@ -249,8 +245,7 @@ export function registerTrafficTools(server: McpServer, { client }: ToolContext)
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const result = await client.getSitemap(project.id, args);
+        const result = await client.getSitemap(projectId, args);
         return ok(result);
       })
   );

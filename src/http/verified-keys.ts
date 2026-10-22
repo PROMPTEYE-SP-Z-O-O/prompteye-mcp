@@ -9,12 +9,7 @@ export class VerifiedKeys {
   }
 
   has(fingerprint: string): boolean {
-    const until = this.verifiedUntil.get(fingerprint);
-    if (until === undefined) return false;
-    if (until > this.now()) return true;
-
-    this.verifiedUntil.delete(fingerprint);
-    return false;
+    return (this.verifiedUntil.get(fingerprint) ?? 0) > this.now();
   }
 
   add(fingerprint: string): void {

@@ -24,8 +24,8 @@ export type HttpAppOptions = {
 };
 
 const CORS_OPTIONS: cors.CorsOptions = {
-  methods: ["GET", "POST", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-PromptEye-Key", "X-API-Key", "Mcp-Session-Id", "MCP-Protocol-Version", "Last-Event-ID"],
+  methods: ["POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-PromptEye-Key", "X-API-Key", "Mcp-Session-Id", "MCP-Protocol-Version"],
   exposedHeaders: ["WWW-Authenticate"],
 };
 

@@ -96,9 +96,14 @@ const SUGGESTION_RUN = { runId: null, skipped: "nothing_to_suggest" };
 
 const suggestionRuns: Array<{ projectId: string; groupId: string }> = [];
 
+let projectReads = 0;
+
 const fakeClient = {
   listProjects: async () => ({ data: [PROJECT] }),
-  getProject: async () => PROJECT,
+  getProject: async () => {
+    projectReads += 1;
+    return PROJECT;
+  },
   getAccount: async () => ACCOUNT,
   listWorkspaces: async () => WORKSPACES,
   listPrompts: async () => PROMPTS,
@@ -233,6 +238,42 @@ describe("read tools", () => {
 
     expect(result.isError).toBe(true);
     expect(readProjectIds).toEqual([]);
+  });
+});
+
+describe("project reads", () => {
+  it("read a project's data without fetching the project first", async () => {
+    const client = await connectedClient();
+    projectReads = 0;
+
+    const result = await client.callTool({ name: "get_sitemap", arguments: { projectId: PROJECT.id } });
+
+    expect(result.isError).toBeFalsy();
+    expect(projectReads).toBe(0);
+  });
+});
+
+describe("help center", () => {
+  it("reads the help index once for every server the process builds", async () => {
+    const index = "# PromptEye Help\n\n## Reports\n\n- [Reports overview](/help/raw/reports/index.md) — [read online](/help/reports/)\n";
+    const fetched: string[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string | URL) => {
+      fetched.push(String(url));
+      return new Response(index, { status: 200 });
+    }) as typeof fetch;
+
+    try {
+      for (let server = 0; server < 2; server += 1) {
+        const client = await connectedClient();
+        const result = await client.callTool({ name: "list_help_articles", arguments: {} });
+        expect(result.isError).toBeFalsy();
+      }
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+
+    expect(fetched.filter((url) => url.endsWith("/help/index.md"))).toHaveLength(1);
   });
 });
 

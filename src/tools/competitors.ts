@@ -6,8 +6,7 @@ import { CompetitorExclusionSchema, CompetitorSchema, NextCursorSchema } from ".
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
 import { READ_ONLY, REPLACES, handled, ok, type ToolContext } from "./result.js";
-import { writeProjectIdShape } from "./write-project.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
 export const COMPETITORS_WIDGET = "competitors";
 
@@ -35,7 +34,7 @@ export function registerCompetitorTools(server: McpServer, { client }: ToolConte
         "tool once per `promptId`, and keep the ones where the named competitor's position beats the brand's.",
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...dateRangeShape,
         ...modelFilterShape,
         ...promptScopeShape("Rank"),
@@ -58,8 +57,7 @@ export function registerCompetitorTools(server: McpServer, { client }: ToolConte
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const page = await client.listCompetitors(project.id, args);
+        const [project, page] = await Promise.all([client.getProject(projectId), client.listCompetitors(projectId, args)]);
 
         return ok({
           ...page,
@@ -80,13 +78,12 @@ export function registerCompetitorTools(server: McpServer, { client }: ToolConte
         "agency until they are excluded here.\n\n" +
         "Excluding a brand drops it from competitor rankings and share-of-voice calculations across historical data.",
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape },
+      inputSchema: { ...projectIdShape },
       outputSchema: { data: z.array(CompetitorExclusionSchema) },
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const list = await client.listCompetitorExclusions(project.id);
+        const list = await client.listCompetitorExclusions(projectId);
         return ok(list);
       })
   );
@@ -102,7 +99,7 @@ export function registerCompetitorTools(server: McpServer, { client }: ToolConte
         "Accepts up to 50 excluded brands, each with optional alternative spellings/aliases.",
       annotations: REPLACES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         exclusions: z
           .array(
             z.object({

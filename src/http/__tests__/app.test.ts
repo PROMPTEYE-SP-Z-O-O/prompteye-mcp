@@ -244,7 +244,7 @@ describe("createHttpApp", () => {
     expect(tools.tools.map((tool) => tool.name)).toContain("list_projects");
   });
 
-  it("answers /healthz without the data source or the session count", async () => {
+  it("answers /healthz without the data source", async () => {
     const response = await fetch(`${app.url}/healthz`);
     const body = await response.json();
 
@@ -331,7 +331,7 @@ describe("createHttpApp", () => {
     await proxied.close();
   });
 
-  it("refuses a non-POST without a session with 405 before the key is verified", async () => {
+  it("refuses a non-POST with 405 before the key is verified", async () => {
     const before = meCalls;
 
     for (const method of ["PUT", "PATCH"]) {
@@ -368,6 +368,20 @@ describe("createHttpApp", () => {
     expect((await eleventh.json()).error.message).toContain("Too many requests");
     expect(valid.status).toBe(429);
     expect(meCalls).toBe(before);
+
+    await limited.close();
+  });
+
+  it("keeps serving a key verified before its client address ran out of failed key checks", async () => {
+    const started = startApp(api.url, { authFailureBudget: new RequestBudget({ perMinute: 1 }) });
+    const limited = await started.listening;
+
+    const verified = await rawPost(limited.url, { Authorization: `Bearer ${KEY_A}` });
+    const guess = await rawPost(limited.url, { Authorization: `Bearer ${KEY_UNKNOWN}` });
+    const again = await rawPost(limited.url, { Authorization: `Bearer ${KEY_A}` });
+    const anotherGuess = await rawPost(limited.url, { Authorization: `Bearer pe_live_guess_next` });
+
+    expect([verified.status, guess.status, again.status, anotherGuess.status]).toEqual([200, 401, 200, 429]);
 
     await limited.close();
   });
@@ -488,7 +502,7 @@ describe("createHttpApp", () => {
     await configured.close();
   });
 
-  it("keeps answering a connection after its bearer is refreshed", async () => {
+  it("ignores a client's Mcp-Session-Id and keeps answering after its bearer is refreshed", async () => {
     const first = await connect(app.url, { Authorization: `Bearer ${JWT_A}` });
     clients.push(first.client);
 
@@ -502,7 +516,7 @@ describe("createHttpApp", () => {
     expect(await refreshed.text()).toContain("list_projects");
   });
 
-  it("starts a session with a JWT-shaped bearer and forwards exactly that bearer on tool calls", async () => {
+  it("accepts a JWT-shaped bearer and forwards exactly that bearer on tool calls", async () => {
     const { client } = await connect(app.url, { Authorization: `Bearer ${JWT_A}` });
     clients.push(client);
     tokensSeen.length = 0;
@@ -515,7 +529,7 @@ describe("createHttpApp", () => {
     expect(new Set(tokensSeen)).toEqual(new Set([JWT_A]));
   });
 
-  it("challenges an unauthenticated GET without a session, while an authenticated one is 405", async () => {
+  it("challenges an unauthenticated GET, while an authenticated one is 405", async () => {
     const started = startApp(api.url, { oauth: { resource: "https://mcp.example.com/mcp", authorizationServer: "https://auth.example.com" } });
     const configured = await started.listening;
 
@@ -531,7 +545,7 @@ describe("createHttpApp", () => {
     await configured.close();
   });
 
-  it("answers 403 insufficient_scope when the API refuses the token at session start", async () => {
+  it("answers 403 insufficient_scope when the API refuses the token", async () => {
     const started = startApp(api.url, { oauth: { resource: "https://mcp.example.com/mcp", authorizationServer: "https://auth.example.com" } });
     const configured = await started.listening;
 

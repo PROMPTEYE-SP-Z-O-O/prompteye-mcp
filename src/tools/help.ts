@@ -3,7 +3,9 @@ import { z } from "zod";
 import { HelpCenter } from "../help/help.js";
 import { READ_ONLY, handled, ok } from "./result.js";
 
-export function registerHelpTools(server: McpServer, help: HelpCenter = new HelpCenter()): void {
+const SHARED_HELP_CENTER = new HelpCenter();
+
+export function registerHelpTools(server: McpServer, help: HelpCenter = SHARED_HELP_CENTER): void {
   server.registerTool(
     "read_full_help_knowledge_base",
     {

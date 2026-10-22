@@ -189,7 +189,7 @@ describe("content generation", () => {
     expect(result.content).toEqual([{ type: "text", text: JSON.stringify(PROCESSING_BRIEF) }]);
   });
 
-  it("orders the brief for the given project, not the one the session would resolve", async () => {
+  it("orders the brief for the given project", async () => {
     const { mcp, created } = await connect(READY_BRIEF);
 
     await mcp.callTool({

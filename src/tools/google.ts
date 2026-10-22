@@ -13,7 +13,7 @@ import {
 } from "../schemas/prompteye.js";
 import { GOOGLE_BINDING, GOOGLE_DATA, INTEGRATION_STATE } from "./glossary.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
 /** Which axis a Search Console reading is split along, or the totals when omitted. */
 const SearchBreakdownSchema = z.enum(["query", "page"]);
@@ -56,13 +56,12 @@ export function registerGoogleTools(server: McpServer, { client }: ToolContext):
         "and the sitemap as well.\n\n" +
         GOOGLE_BINDING,
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape },
+      inputSchema: { ...projectIdShape },
       outputSchema: GoogleStatusSchema.shape,
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const status = await client.getGoogleStatus(project.id);
+        const status = await client.getGoogleStatus(projectId);
         return ok(status);
       })
   );
@@ -83,7 +82,7 @@ export function registerGoogleTools(server: McpServer, { client }: ToolContext):
         INTEGRATION_STATE,
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...dateRangeShape,
         by: SearchBreakdownSchema.optional().describe(
           "Rank the period along this axis instead of reporting its totals."
@@ -102,17 +101,16 @@ export function registerGoogleTools(server: McpServer, { client }: ToolContext):
     },
     async ({ projectId, by, limit, ...range }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
 
         if (by === undefined) {
-          const summary = await client.getSearchSummary(project.id, range);
+          const summary = await client.getSearchSummary(projectId, range);
           return ok({ by: null, summary, data: null, nextCursor: null });
         }
 
         const page =
           by === "query"
-            ? await client.listSearchQueries(project.id, { ...range, limit })
-            : await client.listSearchPages(project.id, { ...range, limit });
+            ? await client.listSearchQueries(projectId, { ...range, limit })
+            : await client.listSearchPages(projectId, { ...range, limit });
 
         return ok({ by, summary: null, ...page });
       })
@@ -135,7 +133,7 @@ export function registerGoogleTools(server: McpServer, { client }: ToolContext):
         INTEGRATION_STATE,
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...dateRangeShape,
         ...assistantShape,
         by: AiTrafficBreakdownSchema.optional().describe(
@@ -156,18 +154,17 @@ export function registerGoogleTools(server: McpServer, { client }: ToolContext):
     },
     async ({ projectId, by, limit, assistant, ...range }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
 
         if (by === undefined) {
-          const summary = await client.getAiTrafficSummary(project.id, { ...range, assistant });
+          const summary = await client.getAiTrafficSummary(projectId, { ...range, assistant });
           return ok({ assistant: assistant ?? null, by: null, summary, data: null, nextCursor: null });
         }
 
         const query = { ...range, assistant, limit };
         const page =
           by === "source"
-            ? await client.listAiTrafficSources(project.id, query)
-            : await client.listAiTrafficPages(project.id, query);
+            ? await client.listAiTrafficSources(projectId, query)
+            : await client.listAiTrafficPages(projectId, query);
 
         return ok({ assistant: assistant ?? null, by, summary: null, ...page });
       })

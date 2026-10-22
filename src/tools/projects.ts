@@ -4,8 +4,7 @@ import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema, PublicLinkSchema } f
 import type { Project } from "../schemas/prompteye.js";
 import { PROMPT_GENERATION } from "./glossary.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
-import { writeProjectIdShape } from "./write-project.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
 const ProjectOutputSchema = ProjectSchema.omit({ excludedCompetitors: true });
 
@@ -146,7 +145,7 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
         EXCLUSIONS_POINTER,
       annotations: WRITES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         name: z.string().min(1).max(120).optional().describe("Display name of the project. Defaults to the brand name."),
         label: z.string().min(1).max(40).optional().describe("Short label used to group projects in listings."),
         domain: z.string().min(3).max(253).optional().describe("Primary domain of the brand, without protocol or path, e.g. prompteye.com."),
@@ -187,7 +186,7 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
         "creates a new link and the old one stops working, so warn the user before disabling a link they have handed out.",
       annotations: WRITES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         enabled: z.boolean().describe("true publishes the project under a public link, false takes the link down."),
       },
       outputSchema: PublicLinkSchema.shape,
@@ -208,13 +207,12 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
         "whom. Everything PromptEye writes for the project reads this first, so it is worth knowing " +
         "what a brand is being judged against before trusting a prompt or a competitor.",
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape },
+      inputSchema: { ...projectIdShape },
       outputSchema: KnowledgeBaseSchema.shape,
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const knowledgeBase = await client.getKnowledgeBase(project.id);
+        const knowledgeBase = await client.getKnowledgeBase(projectId);
         return ok(knowledgeBase);
       })
   );
@@ -230,7 +228,7 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
         "Only provided fields are updated; omitted fields keep their current values.",
       annotations: WRITES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         industry: z.string().max(4000).optional().describe("The industry the brand sells into, e.g. 'AI search analytics'."),
         productCategory: z
           .string()

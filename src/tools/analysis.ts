@@ -2,8 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { BrandAnalysisAvailabilitySchema, BrandAnalysisRunSchema } from "../schemas/prompteye.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
-import { writeProjectIdShape } from "./write-project.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
 export function registerBrandAnalysisTools(server: McpServer, { client }: ToolContext): void {
   server.registerTool(
@@ -23,7 +22,7 @@ export function registerBrandAnalysisTools(server: McpServer, { client }: ToolCo
         "refused for exactly the same reasons. Running an analysis also counts against the workspace's " +
         "monthly plan quota for brand analyses.",
       annotations: WRITES,
-      inputSchema: { ...writeProjectIdShape },
+      inputSchema: { ...projectIdShape },
       outputSchema: BrandAnalysisRunSchema.shape,
     },
     async ({ projectId }) =>
@@ -41,13 +40,12 @@ export function registerBrandAnalysisTools(server: McpServer, { client }: ToolCo
         "Whether create_brand_analysis_run would start a new run for the project right now, and " +
         "if not, why — the same check that tool runs itself, without starting anything.",
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape },
+      inputSchema: { ...projectIdShape },
       outputSchema: BrandAnalysisAvailabilitySchema.shape,
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const availability = await client.getBrandAnalysisAvailability(project.id);
+        const availability = await client.getBrandAnalysisAvailability(projectId);
         return ok(availability);
       })
   );
@@ -63,15 +61,14 @@ export function registerBrandAnalysisTools(server: McpServer, { client }: ToolCo
         "if it failed.",
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         runId: z.string().min(1).describe("Id of the run, as create_brand_analysis_run reports it."),
       },
       outputSchema: BrandAnalysisRunSchema.shape,
     },
     async ({ projectId, runId }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const run = await client.getBrandAnalysisRun(project.id, runId);
+        const run = await client.getBrandAnalysisRun(projectId, runId);
         return ok(run);
       })
   );

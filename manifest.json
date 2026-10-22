@@ -68,6 +68,7 @@
   ],
   "tools": [
     { "name": "list_help_articles", "description": "The PromptEye help center: guides on how the product works" },
+    { "name": "read_full_help_knowledge_base", "description": "The whole PromptEye help knowledge base in one text" },
     { "name": "read_help_article", "description": "Reads one help guide, to answer how PromptEye works" },
     { "name": "get_account", "description": "Who the key belongs to, which plan, how many prompts" },
     { "name": "list_workspaces", "description": "The workspaces the account belongs to, and its role in each" },

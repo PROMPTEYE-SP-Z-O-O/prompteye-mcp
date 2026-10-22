@@ -9,8 +9,7 @@ import {
 } from "../schemas/prompteye.js";
 import { CONTENT_GENERATION } from "./glossary.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
-import { writeProjectIdShape } from "./write-project.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
 export function registerContentTools(server: McpServer, { client }: ToolContext): void {
   server.registerTool(
@@ -30,7 +29,7 @@ export function registerContentTools(server: McpServer, { client }: ToolContext)
         "it with get_content_brief a little later.",
       annotations: WRITES,
       inputSchema: {
-        ...writeProjectIdShape,
+        ...projectIdShape,
         prompt: z
           .string()
           .min(1)
@@ -153,13 +152,12 @@ export function registerContentTools(server: McpServer, { client }: ToolContext)
         "whose article has not been requested yet are not listed; read those with get_content_brief.\n\n" +
         CONTENT_GENERATION,
       annotations: READ_ONLY,
-      inputSchema: { ...readProjectIdShape, ...paginationShape },
+      inputSchema: { ...projectIdShape, ...paginationShape },
       outputSchema: { data: z.array(ContentArticleSummarySchema), nextCursor: NextCursorSchema },
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const page = await client.listContentArticles(project.id, args);
+        const page = await client.listContentArticles(projectId, args);
         return ok(page);
       })
   );

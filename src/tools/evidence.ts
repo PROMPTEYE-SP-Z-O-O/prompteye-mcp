@@ -6,7 +6,7 @@ import { ANSWER_BRAND_PRESENCE, AnswerSchema, CitedDomainSchema, CitedPageSchema
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { CITED_DOMAINS } from "./glossary.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
-import { readProjectIdShape } from "./read-project.js";
+import { projectIdShape } from "./project-id.js";
 
 export const SOURCES_WIDGET = "sources";
 
@@ -41,7 +41,7 @@ export function registerSourceTools(server: McpServer, { client }: ToolContext):
         "then pass it straight away.",
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...dateRangeShape,
         ...modelFilterShape,
         ...promptScopeShape("Count citations from"),
@@ -70,8 +70,7 @@ export function registerSourceTools(server: McpServer, { client }: ToolContext):
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const page = await client.listSources(project.id, args);
+        const [project, page] = await Promise.all([client.getProject(projectId), client.listSources(projectId, args)]);
 
         return ok({
           ...page,
@@ -99,7 +98,7 @@ export function registerSourceTools(server: McpServer, { client }: ToolContext):
         "the pages reported. `model` narrows it to one assistant.",
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...dateRangeShape,
         ...modelFilterShape,
         limit: z
@@ -114,8 +113,7 @@ export function registerSourceTools(server: McpServer, { client }: ToolContext):
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const page = await client.listSourcePages(project.id, args);
+        const page = await client.listSourcePages(projectId, args);
         return ok(page);
       })
   );
@@ -137,7 +135,7 @@ export function registerSourceTools(server: McpServer, { client }: ToolContext):
         "as `cursor` to read the next page.",
       annotations: READ_ONLY,
       inputSchema: {
-        ...readProjectIdShape,
+        ...projectIdShape,
         ...dateRangeShape,
         ...modelFilterShape,
         resultId: z
@@ -167,8 +165,7 @@ export function registerSourceTools(server: McpServer, { client }: ToolContext):
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await client.getProject(projectId);
-        const page = await client.listAnswers(project.id, args);
+        const page = await client.listAnswers(projectId, args);
         return ok(page);
       })
   );
