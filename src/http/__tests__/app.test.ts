@@ -197,21 +197,13 @@ describe("createHttpApp", () => {
     expect(response.status).toBe(400);
   });
 
-  it("keeps the project selection of one key away from another", async () => {
+  it("keeps the session of one key away from another", async () => {
     const a = await connect(app.url, { Authorization: `Bearer ${KEY_A}` });
     const b = await connect(app.url, { Authorization: `Bearer ${KEY_B}` });
     clients.push(a.client, b.client);
 
-    const selected = await a.client.callTool({ name: "select_project", arguments: { projectId: "a2" } });
-    expect(textOf(selected)).toContain("Acme UK");
-
-    const activeInB = await b.client.callTool({ name: "get_active_project", arguments: {} });
-    expect(activeInB.isError).toBe(true);
-    expect(textOf(activeInB)).toContain("No project is selected");
-
-    const activeInA = await a.client.callTool({ name: "get_active_project", arguments: {} });
-    expect(activeInA.isError).toBeFalsy();
-    expect(textOf(activeInA)).toContain("Acme UK");
+    const listed = await a.client.callTool({ name: "list_projects", arguments: {} });
+    expect(textOf(listed)).toContain("Acme UK");
 
     const stolen = await rawPost(
       app.url,
@@ -227,7 +219,7 @@ describe("createHttpApp", () => {
     clients.push(client);
 
     const tools = await client.listTools();
-    expect(tools.tools.map((tool) => tool.name)).toContain("select_project");
+    expect(tools.tools.map((tool) => tool.name)).toContain("list_projects");
   });
 
   it("accepts the key from X-API-Key", async () => {
@@ -235,7 +227,7 @@ describe("createHttpApp", () => {
     clients.push(client);
 
     const tools = await client.listTools();
-    expect(tools.tools.map((tool) => tool.name)).toContain("select_project");
+    expect(tools.tools.map((tool) => tool.name)).toContain("list_projects");
   });
 
   it("prefers X-API-Key over a bearer token that is not a PromptEye key", async () => {
@@ -243,7 +235,7 @@ describe("createHttpApp", () => {
     clients.push(client);
 
     const tools = await client.listTools();
-    expect(tools.tools.map((tool) => tool.name)).toContain("select_project");
+    expect(tools.tools.map((tool) => tool.name)).toContain("list_projects");
   });
 
   it("answers /healthz without the data source or the session count", async () => {
@@ -280,7 +272,7 @@ describe("createHttpApp", () => {
   it("never writes a key into the log", () => {
     const logged = logLines.join("");
     expect(logged).toContain('"event":"mcp.request"');
-    expect(logged).toContain('"tool":"select_project"');
+    expect(logged).toContain('"tool":"list_projects"');
     expect(logged).not.toContain(KEY_A);
     expect(logged).not.toContain(KEY_B);
   });

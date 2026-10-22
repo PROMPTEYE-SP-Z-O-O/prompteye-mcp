@@ -4,7 +4,6 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { PromptEyeClient } from "../../client/prompteye-client.js";
 import { SERVER_INSTRUCTIONS } from "../../instructions.js";
 import type { ContentArticle, ContentBrief, CreateContentBriefInput } from "../../schemas/prompteye.js";
-import { ProjectSession } from "../../session.js";
 import { registerContentTools } from "../content.js";
 
 const PROJECT = {
@@ -141,7 +140,7 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
   } as unknown as PromptEyeClient;
 
   const server = new McpServer({ name: "test", version: "0.0.0" });
-  registerContentTools(server, { client, session: new ProjectSession(client), baseUrl: "https://api.test" });
+  registerContentTools(server, { client, baseUrl: "https://api.test" });
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const mcp = new Client({ name: "test-client", version: "0.0.0" });

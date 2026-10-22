@@ -1,7 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { PromptEyeClient } from "../../client/prompteye-client.js";
-import { ProjectSession } from "../../session.js";
 import { registerIntegrationTools } from "../integrations.js";
 
 type Handler = (args: Record<string, unknown>) => Promise<CallToolResult>;
@@ -30,7 +29,6 @@ const registeredTool = (client: Partial<PromptEyeClient>) => {
   const fullClient = { getProject: async () => PROJECT, ...client } as PromptEyeClient;
   registerIntegrationTools(server, {
     client: fullClient,
-    session: new ProjectSession(fullClient),
     baseUrl: "https://example.test",
   });
   return (name: string, args: Record<string, unknown> = {}) => handlers.get(name)!({ projectId: PROJECT.id, ...args });

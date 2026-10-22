@@ -3,7 +3,6 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { PromptEyeClient } from "../../client/prompteye-client.js";
 import type { Project } from "../../schemas/prompteye.js";
-import { ProjectSession } from "../../session.js";
 import { registerProjectTools } from "../projects.js";
 
 const PROJECT_OUTPUT = {
@@ -43,7 +42,6 @@ async function connectedClient(): Promise<Client> {
   const server = new McpServer({ name: "test", version: "0.0.0" });
   registerProjectTools(server, {
     client: fakeClient,
-    session: new ProjectSession(fakeClient),
     baseUrl: "https://api.example",
   });
 
@@ -55,7 +53,6 @@ async function connectedClient(): Promise<Client> {
 
 describe("project tools keep competitor exclusions to list_competitor_exclusions", () => {
   it.each([
-    ["select_project", { projectId: PROJECT.id }],
     ["update_project", { projectId: PROJECT.id, name: "Acme DE" }],
     ["create_project", { brand: "Acme", domain: "acme.example", country: "DE" }],
   ])("%s answers the project without the flattened exclusion list", async (tool, args) => {
@@ -66,14 +63,6 @@ describe("project tools keep competitor exclusions to list_competitor_exclusions
     expect(result.structuredContent).toEqual(PROJECT_OUTPUT);
   });
 
-  it("get_active_project answers the project without the flattened exclusion list", async () => {
-    const client = await connectedClient();
-    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
-    const result = await client.callTool({ name: "get_active_project", arguments: {} });
-
-    expect(result.structuredContent).toEqual(PROJECT_OUTPUT);
-  });
-
   it("list_projects answers every project without the flattened exclusion list", async () => {
     const client = await connectedClient();
     const result = await client.callTool({ name: "list_projects", arguments: {} });
@@ -81,12 +70,11 @@ describe("project tools keep competitor exclusions to list_competitor_exclusions
     expect(result.structuredContent).toEqual({ data: [PROJECT_OUTPUT] });
   });
 
-  it("points select_project and update_project at list_competitor_exclusions", async () => {
+  it("points update_project at list_competitor_exclusions", async () => {
     const client = await connectedClient();
     const { tools } = await client.listTools();
     const described = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
 
-    expect(described("select_project")).toContain("list_competitor_exclusions");
     expect(described("update_project")).toContain("list_competitor_exclusions");
   });
 });
@@ -121,23 +109,8 @@ describe("set_project_public_link", () => {
     expect(publicLinkCalls).toEqual([{ projectId: PROJECT.id, enabled: false }]);
   });
 
-  it("writes to the given project and leaves the active project alone", async () => {
-    const client = await connectedClient();
-    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
-
-    await client.callTool({
-      name: "set_project_public_link",
-      arguments: { projectId: "other-project", enabled: true },
-    });
-    const active = await client.callTool({ name: "get_active_project", arguments: {} });
-
-    expect(publicLinkCalls).toEqual([{ projectId: "other-project", enabled: true }]);
-    expect(active.structuredContent).toEqual(PROJECT_OUTPUT);
-  });
-
   it("refuses a change that names no project", async () => {
     const client = await connectedClient();
-    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
 
     const result = await client.callTool({ name: "set_project_public_link", arguments: { enabled: true } });
 

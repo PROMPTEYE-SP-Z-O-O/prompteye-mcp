@@ -10,7 +10,7 @@ const projectIdShape = (what: string) => ({
     .optional()
     .describe(
       `${what} to that project's workspace plan instead of the API key holder's own plan. ` +
-        "The active project's id is what get_active_project reports. Left out, the key holder's own plan is used."
+        "The project's id is what list_projects reports. Left out, the key holder's own plan is used."
     ),
 });
 

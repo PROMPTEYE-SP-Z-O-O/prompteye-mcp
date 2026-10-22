@@ -3,7 +3,6 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { PromptEyeClient } from "../client/prompteye-client.js";
 import { createMcpServer } from "../server.js";
-import { ProjectSession } from "../session.js";
 
 const PROJECT = {
   id: "p1",
@@ -116,7 +115,6 @@ const fakeClient = {
 async function connectedClient(): Promise<Client> {
   const server = createMcpServer({
     client: fakeClient,
-    session: new ProjectSession(fakeClient),
     baseUrl: "https://api.example",
   });
 
@@ -167,19 +165,16 @@ describe("write tools", () => {
     suggestionRuns.length = 0;
   });
 
-  it("write to the project they are given, not the active one", async () => {
+  it("write to the project they are given", async () => {
     const client = await connectedClient();
-    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
 
     const result = await client.callTool({
       name: "generate_prompt_suggestions",
       arguments: { projectId: "other-project", groupId: "g1" },
     });
-    const active = await client.callTool({ name: "get_active_project", arguments: {} });
 
     expect(result.isError).toBeFalsy();
     expect(suggestionRuns).toEqual([{ projectId: "other-project", groupId: "g1" }]);
-    expect((active.structuredContent as { id: string }).id).toBe(PROJECT.id);
   });
 
   it("refuse a change that names no project", async () => {
@@ -206,10 +201,9 @@ describe("read tools", () => {
     },
   } as unknown as PromptEyeClient;
 
-  async function freshSession(): Promise<Client> {
+  async function connectedTo(): Promise<Client> {
     const server = createMcpServer({
       client: twoProjectClient,
-      session: new ProjectSession(twoProjectClient),
       baseUrl: "https://api.example",
     });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -222,8 +216,8 @@ describe("read tools", () => {
     readProjectIds.length = 0;
   });
 
-  it("read the project they are given in a session that has lost its selection", async () => {
-    const client = await freshSession();
+  it("read the project they are given", async () => {
+    const client = await connectedTo();
 
     const result = (await client.callTool({ name: "list_prompts", arguments: { projectId: "p2" } })) as CallToolResult;
 
@@ -232,20 +226,8 @@ describe("read tools", () => {
     expect((result.structuredContent as { projectName: string }).projectName).toBe(SECOND_PROJECT.name);
   });
 
-  it("leave the active project unchanged when given another one", async () => {
-    const client = await freshSession();
-    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
-
-    await client.callTool({ name: "list_prompts", arguments: { projectId: "p2" } });
-    const active = await client.callTool({ name: "get_active_project", arguments: {} });
-
-    expect(readProjectIds).toEqual(["p2"]);
-    expect((active.structuredContent as { id: string }).id).toBe(PROJECT.id);
-  });
-
-  it("refuse a read that names no project, even with an active one", async () => {
-    const client = await freshSession();
-    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
+  it("refuse a read that names no project", async () => {
+    const client = await connectedTo();
 
     const result = await client.callTool({ name: "list_prompts", arguments: {} });
 

@@ -41,7 +41,6 @@ Every one of these calls the PromptEye API.
 | `get_account` | `GET /v1/me` |
 | `list_workspaces` | `GET /v1/workspaces` |
 | `list_projects` | `GET /v1/projects` |
-| `select_project`, `get_active_project` | `GET /v1/projects/{projectId}` |
 | `create_project` | `POST /v1/projects` |
 | `get_knowledge_base` | `GET /v1/projects/{projectId}/knowledge-base` |
 | `list_categories` | `GET /v1/projects/{projectId}/categories` |
@@ -133,7 +132,7 @@ PromptEye generates content as well as measuring visibility, and the two make on
 prompts, generate an article for the ones where the brand is weak, then read whether that
 prompt's visibility and citations move.
 
-`create_content_brief` starts it for the active project. It orders a brief — a title and an H2/H3
+`create_content_brief` starts it for a project. It orders a brief — a title and an H2/H3
 outline — for an article that targets one prompt; passing `promptId` links the brief to a tracked
 prompt, which is what later measures the article. The brief comes back `processing`, and
 `get_content_brief` reads it until it is `ready`: the outline, the fan-out phrases it covers and the
@@ -141,7 +140,7 @@ phrases that deserve an article of their own.
 
 `create_article` writes the article from a `ready` brief. It comes back `processing` and takes a few
 minutes; `get_article` reads the Markdown text until the status is no longer `processing`, and
-`list_articles` lists the active project's articles without their text. Once the user has published it,
+`list_articles` lists a project's articles without their text. Once the user has published it,
 `publish_article` records the live URL and marks it `published`. Requesting indexing and following
 citations are done in the PromptEye app under [Content](https://app.prompteye.com/content), and the
 server instructions say so.
@@ -365,19 +364,17 @@ which maps every documented error code to a human message.
 
 ## How a conversation goes
 
-Every tool but `list_projects`, `create_project`, `select_project` and `get_account` reports
-on **the active project**, and takes no project argument. So a session starts by choosing one:
+Every tool that works on a project, read or change, takes its `projectId`. The server keeps no
+project between calls, so a conversation starts by finding the id and passes it every time:
 
 ```
-list_projects                  → the projects, with their ids
-select_project(projectId: …)   → that project is now active
-list_prompt_suggestions()
-list_prompts(by group or category)
+list_projects                              → the projects, with their ids
+list_prompt_suggestions(projectId: …)
+list_prompts(projectId: …, by group or category)
 ```
 
-Calling a project-scoped tool before selecting returns a recoverable error telling the
-model to list and select first — except when the key reaches exactly one project, which is
-then selected automatically. `create_project` also makes what it created active.
+A call that names no project is refused by its input schema. `create_project` answers the id of
+what it created.
 
 ## Layout
 

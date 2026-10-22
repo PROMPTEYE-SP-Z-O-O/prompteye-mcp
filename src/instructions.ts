@@ -17,7 +17,7 @@ Where a project stands is read from the workspace rather than from this text: ge
 
 How the product works, in order:
 
-1. The project. One brand tracked in one market; the same brand in another market is a second project. Everything else hangs off it. list_projects, select_project, create_project. A project lives in a workspace, whose plan it counts against: list_workspaces names them, and its ids narrow list_projects or pick where create_project creates. Every tool that works on a project, read or change, takes its projectId and never falls back to a project chosen earlier, so pass it on every call.
+1. The project. One brand tracked in one market; the same brand in another market is a second project. Everything else hangs off it. list_projects, create_project. A project lives in a workspace, whose plan it counts against: list_workspaces names them, and its ids narrow list_projects or pick where create_project creates. Every tool that works on a project, read or change, takes its projectId and never falls back to a project chosen earlier, so pass it on every call.
 
 2. The brand description (get_knowledge_base, update_knowledge_base). What the company sells and to whom — industry, product category, audience, ICP, operating area. Everything PromptEye writes for the project reads this first, so a thin or wrong description quietly poisons the prompts it proposes. Fixing it is the highest-leverage edit in the product, and it can be done from here.
 

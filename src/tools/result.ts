@@ -1,7 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { toolMessageFor } from "../client/errors.js";
 import type { PromptEyeClient } from "../client/prompteye-client.js";
-import type { ProjectSession } from "../session.js";
 
 /**
  * Every tool here reads and nothing writes, and each one reaches an external
@@ -38,7 +37,6 @@ export const REGENERATES = { ...DELETES, idempotentHint: false } as const;
 /** What every tool module is handed when it registers itself. */
 export type ToolContext = {
   client: PromptEyeClient;
-  session: ProjectSession;
   /**
    * The API root the client talks to. Tools that hand out a request for
    * somebody else to make — the public reports endpoint an agency's own site

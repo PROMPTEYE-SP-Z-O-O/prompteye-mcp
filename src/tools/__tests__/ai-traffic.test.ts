@@ -4,7 +4,6 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { PromptEyeClient } from "../../client/prompteye-client.js";
 import type { PromptDetail } from "../../schemas/prompteye.js";
 import { createMcpServer } from "../../server.js";
-import { ProjectSession } from "../../session.js";
 
 const PROJECT = {
   id: "p1",
@@ -43,7 +42,7 @@ async function getPrompt(prompt: PromptDetail): Promise<CallToolResult> {
     getProject: async () => PROJECT,
     getPrompt: async () => prompt,
   } as unknown as PromptEyeClient;
-  const server = createMcpServer({ client, session: new ProjectSession(client), baseUrl: "https://api.example" });
+  const server = createMcpServer({ client, baseUrl: "https://api.example" });
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const mcp = new Client({ name: "test-client", version: "0.0.0" });
