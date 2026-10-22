@@ -163,6 +163,17 @@ describe("tools/list", () => {
       expect(draft07Keywords(tool.outputSchema)).toEqual([]);
     });
   });
+
+  it("never sends the model to a project chosen earlier or to a removed tool", async () => {
+    const client = await connectedClient();
+    const { tools } = await client.listTools();
+
+    const stale = tools
+      .filter((tool) => /active project|select_project|get_active_project/i.test(JSON.stringify(tool)))
+      .map((tool) => tool.name);
+
+    expect(stale).toEqual([]);
+  });
 });
 
 describe("write tools", () => {

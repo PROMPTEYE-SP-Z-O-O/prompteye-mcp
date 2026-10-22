@@ -330,8 +330,8 @@ export function registerPromptTools(server: McpServer, { client }: ToolContext):
     {
       title: "Check whether new suggestions can be generated for a group",
       description:
-        "Whether generate_prompt_suggestions would schedule a new run for one prompt group of the active " +
-        "project right now, and if not, why — the same check that tool runs itself, without scheduling " +
+        "Whether generate_prompt_suggestions would schedule a new run for one prompt group of the project " +
+        "right now, and if not, why — the same check that tool runs itself, without scheduling " +
         "anything.\n\n" +
         "After calling generate_prompt_suggestions, poll this endpoint until lastRun.status is not running. " +
         "When a run finishes with producedCount 0, read emptyReason (or error if status is failed) to see why " +
