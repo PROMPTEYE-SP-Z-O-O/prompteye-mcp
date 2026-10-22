@@ -289,36 +289,21 @@ describe("help center", () => {
 });
 
 describe("widgets", () => {
-  const ASSETS = "https://mcp.prompteye.com";
-
   it.each(["prompts", "sources", "competitors"])(
-    "declares the %s page's border and a CSP that admits only the PromptEye script host",
+    "declares the %s page's border and an empty CSP where ChatGPT reads them",
     async (name) => {
       const client = await connectedClient();
       const uri = `ui://prompteye/${name}.html`;
 
       const [listed, read] = await Promise.all([client.listResources(), client.readResource({ uri })]);
       const expected = {
-        ui: { prefersBorder: true, csp: { connectDomains: [], resourceDomains: [ASSETS] } },
+        ui: { prefersBorder: true, csp: { connectDomains: [], resourceDomains: [] } },
         "openai/widgetPrefersBorder": true,
-        "openai/widgetCSP": { connect_domains: [], resource_domains: [ASSETS] },
+        "openai/widgetCSP": { connect_domains: [], resource_domains: [] },
       };
 
       expect(read.contents[0]._meta).toMatchObject(expected);
       expect(listed.resources.find((resource) => resource.uri === uri)?._meta).toMatchObject(expected);
-    }
-  );
-
-  it.each(["prompts", "sources", "competitors"])(
-    "loads the %s script from the PromptEye host instead of inline, which ChatGPT blocks",
-    async (name) => {
-      const client = await connectedClient();
-
-      const read = await client.readResource({ uri: `ui://prompteye/${name}.html` });
-      const html = String((read.contents[0] as { text: string }).text);
-
-      expect(html).toContain(`<script src="${ASSETS}/widgets/${name}.js"></script>`);
-      expect(html).not.toMatch(/<script>|<script type="module">/);
     }
   );
 });
