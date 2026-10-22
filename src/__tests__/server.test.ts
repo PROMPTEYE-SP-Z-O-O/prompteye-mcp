@@ -232,6 +232,7 @@ describe("output schema descriptions", () => {
     ["list_competitors", ["data", "[]", "shareOfVoice"], "whole percent 0-100"],
     ["list_competitors", ["data", "[]", "citationShare"], "null = no answer carried sources"],
     ["list_sources", ["data", "[]", "share"], "percent 0-100"],
+    ["list_sources", ["data", "[]", "offer"], "never on the own domain"],
     ["get_report", ["score"], "null = the report is not ready yet"],
     ["get_content_brief", ["outline"], "null until ready"],
     ["get_sitemap", ["sitemap"], "null = no sitemap is connected"],

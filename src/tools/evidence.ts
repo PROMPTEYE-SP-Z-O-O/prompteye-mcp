@@ -27,7 +27,14 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
         "a source every assistant trusts from one that only a single assistant leans on.\n\n" +
         "Narrow the count to one prompt (`promptId`), one prompt group (`groupId`), or one category — " +
         "`categoryId` alone, or `categoryId` with `subcategoryId` — the same way the app's own screens " +
-        "narrow it. Give at most one of these; combining them fails. list_source_pages does not take them.",
+        "narrow it. Give at most one of these; combining them fails. list_source_pages does not take them.\n\n" +
+        "`includeOffers` adds the sponsored publication offers (WhitePress availability, price, currency, DR, " +
+        "estimated monthly visits) for each cited domain, which is how to build a shortlist of cited domains " +
+        "where the brand can buy a sponsored article and rank them by cost per citation — price divided by " +
+        "sourceOccurrences, which you compute yourself. The own domain never carries an offer. The call takes " +
+        "noticeably longer because the offers are fetched, so before passing it ASK the user whether they want " +
+        "offers — unless the user already asked for prices, sponsored publications or where to buy articles, " +
+        "then pass it straight away.",
       annotations: READ_ONLY,
       inputSchema: {
         ...dateRangeShape,
@@ -40,6 +47,12 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
           .max(MAX_LIMIT)
           .optional()
           .describe(`How many domains to return, at most ${MAX_LIMIT}.`),
+        includeOffers: z
+          .boolean()
+          .optional()
+          .describe(
+            "Add each cited domain's sponsored publication offer (WhitePress availability, price, currency, DR, estimated monthly visits). Slower; ask the user first."
+          ),
       },
       outputSchema: {
         data: z.array(CitedDomainSchema),

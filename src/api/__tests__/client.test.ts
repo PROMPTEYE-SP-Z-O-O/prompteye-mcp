@@ -760,6 +760,23 @@ describe("PromptEyeApi", () => {
       expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/competitors?groupId=g1&limit=5`);
     });
 
+    it("asks the source ranking for sponsored offers only when set", async () => {
+      const offer = { available: true, price: 450, currency: "PLN", domainRank: 61, monthlyVisits: 120000 };
+      const { api, calls } = stubFetch(
+        json(200, { data: [{ domain: "g2.com", sourceOccurrences: 4, share: 10, ownDomain: false, offer }], nextCursor: null })
+      );
+
+      await expect(api.sources.list("p1", { includeOffers: true, limit: 5 })).resolves.toMatchObject({ data: [{ offer }] });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/sources?includeOffers=true&limit=5`);
+    });
+
+    it("leaves includeOffers out of the source ranking request when false", async () => {
+      const { api, calls } = stubFetch(json(200, { data: [], nextCursor: null }));
+
+      await api.sources.list("p1", { includeOffers: false });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/sources`);
+    });
+
     it("scopes the source ranking to a category and subcategory", async () => {
       const { api, calls } = stubFetch(json(200, { data: [], nextCursor: null }));
 

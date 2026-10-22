@@ -77,7 +77,7 @@ export type ProjectQuery = { workspaceId?: string };
 export type PromptScopeQuery = { promptId?: string; groupId?: string; categoryId?: string; subcategoryId?: string };
 
 /** Sources rank rather than page: `limit` strongest domains, no cursor. */
-export type SourceQuery = RangeQuery & PromptScopeQuery & { limit?: number };
+export type SourceQuery = RangeQuery & PromptScopeQuery & { limit?: number; includeOffers?: boolean };
 
 /** Source pages take no prompt scope; the API rejects it. */
 export type SourcePageQuery = RangeQuery & { limit?: number };
