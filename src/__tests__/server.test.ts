@@ -288,6 +288,26 @@ describe("help center", () => {
   });
 });
 
+describe("widgets", () => {
+  it.each(["prompts", "sources", "competitors"])(
+    "declares the %s page's border and an empty CSP where ChatGPT reads them",
+    async (name) => {
+      const client = await connectedClient();
+      const uri = `ui://prompteye/${name}.html`;
+
+      const [listed, read] = await Promise.all([client.listResources(), client.readResource({ uri })]);
+      const expected = {
+        ui: { prefersBorder: true, csp: { connectDomains: [], resourceDomains: [] } },
+        "openai/widgetPrefersBorder": true,
+        "openai/widgetCSP": { connect_domains: [], resource_domains: [] },
+      };
+
+      expect(read.contents[0]._meta).toMatchObject(expected);
+      expect(listed.resources.find((resource) => resource.uri === uri)?._meta).toMatchObject(expected);
+    }
+  );
+});
+
 describe("tool results", () => {
   it.each([
     ["get_account", {}, ACCOUNT],

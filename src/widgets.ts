@@ -12,6 +12,15 @@ export const widgetUri = (name: string): string => `ui://prompteye/${name}.html`
 
 const pages = new Map<string, string>();
 
+const NO_EXTERNAL_DOMAINS = { connectDomains: [], resourceDomains: [] };
+
+const widgetResourceMeta = (description: string): Record<string, unknown> => ({
+  ui: { prefersBorder: true, csp: NO_EXTERNAL_DOMAINS },
+  "openai/widgetDescription": description,
+  "openai/widgetPrefersBorder": true,
+  "openai/widgetCSP": { connect_domains: [], resource_domains: [] },
+});
+
 /**
  * One branded page per widget: the shell carries the PromptEye mark, the
  * palette and both handshakes, and each widget only contributes its `render`.
@@ -33,6 +42,8 @@ function widgetHtml(name: string, title: string): string {
  *
  * The `ui` metadata is what Claude reads; the `openai/*` keys are the same
  * facts under the names the Apps SDK looks for, so one resource serves both.
+ * ChatGPT reads them from the page it fetches, so they go on the read result as
+ * well as on the listing, and it refuses to open a page that declares no CSP.
  */
 export function registerWidget(server: McpServer, name: string, title: string, description: string): string {
   const uri = widgetUri(name);
@@ -41,14 +52,7 @@ export function registerWidget(server: McpServer, name: string, title: string, d
     server,
     title,
     uri,
-    {
-      description,
-      _meta: {
-        ui: { preferBorder: true },
-        "openai/widgetDescription": description,
-        "openai/widgetPrefersBorder": true,
-      },
-    },
+    { description, _meta: widgetResourceMeta(description) },
     async () => {
       // Read once per process, since every request builds its own server, and never let a missing file take the tool down.
       let html = pages.get(name);
@@ -61,7 +65,7 @@ export function registerWidget(server: McpServer, name: string, title: string, d
         }
       }
 
-      return { contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: html }] };
+      return { contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: html, _meta: widgetResourceMeta(description) }] };
     }
   );
 
