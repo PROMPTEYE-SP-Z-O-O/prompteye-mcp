@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import { serverName, serverVersion } from "../config.js";
 import { ICON_PATH } from "../icon.js";
+import { widgetScript } from "../widgets.js";
 import { requestLogging, type Logger } from "./logging.js";
 import { serveMcpRequest } from "./mcp.js";
 import type { RequestBudget } from "./rate-limit.js";
@@ -37,6 +38,15 @@ function icon(_req: express.Request, res: express.Response): void {
   res.set("Cache-Control", "public, max-age=86400").type("png").sendFile(ICON_PATH);
 }
 
+function widgetScriptFile(req: express.Request, res: express.Response): void {
+  const script = widgetScript(String(req.params.name));
+  if (script === undefined) {
+    res.status(404).end();
+    return;
+  }
+  res.set("Cache-Control", "public, max-age=300").type("text/javascript").send(script);
+}
+
 function health(_req: express.Request, res: express.Response): void {
   res.json({ status: "ok", server: { name: serverName, version: serverVersion } });
 }
@@ -52,6 +62,7 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
 
   app.get(["/", "/healthz"], health);
   app.get(ICON_PATHS, icon);
+  app.get("/widgets/:name.js", widgetScriptFile);
 
   if (oauth) {
     const { origin, pathname } = new URL(oauth.resource);
