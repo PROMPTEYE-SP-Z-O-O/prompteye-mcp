@@ -5,7 +5,6 @@ export type OAuthSettings = { resource: string; authorizationServer: string };
 export type HttpSettings = {
   port: number;
   baseUrl: string;
-  sessions: { idleMs: number; maxPerKey: number };
   rateLimits: { perKey: number; perIp: number; authFailures: number };
   allowedHosts?: string[];
   allowedOrigins?: string[];
@@ -60,10 +59,6 @@ export function readHttpSettings(env: NodeJS.ProcessEnv = process.env): HttpSett
   return {
     port: numberSetting(env, "PORT", 3000),
     baseUrl: requireBaseUrl(env),
-    sessions: {
-      idleMs: numberSetting(env, "MCP_SESSION_IDLE_MINUTES", 30) * 60_000,
-      maxPerKey: numberSetting(env, "MCP_MAX_SESSIONS_PER_KEY", 20),
-    },
     rateLimits: {
       perKey: numberSetting(env, "MCP_RATE_LIMIT_PER_KEY", 120),
       perIp: numberSetting(env, "MCP_RATE_LIMIT_PER_IP", 600),

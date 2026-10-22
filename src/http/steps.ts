@@ -1,10 +1,8 @@
 import type express from "express";
-import { fingerprintOf, firstValue, readApiKey } from "./credentials.js";
+import { fingerprintOf, readApiKey } from "./credentials.js";
 import { describeError, type Logger } from "./logging.js";
 import type { RequestBudget } from "./rate-limit.js";
 import { REJECTIONS, reject, tooManyRequests } from "./rejections.js";
-
-export const SESSION_HEADER = "mcp-session-id";
 
 export type Handler = (req: express.Request, res: express.Response) => Promise<void>;
 
@@ -22,9 +20,8 @@ export function limitBy(budget: RequestBudget, keyOf: KeySelector): express.Requ
   };
 }
 
-export const requirePostForNewSessions: express.RequestHandler = (req, res, next) => {
-  const isNewSession = firstValue(req.headers, SESSION_HEADER) === undefined;
-  if (isNewSession && req.method !== "POST") return reject(res, REJECTIONS.methodNotAllowed);
+export const requirePost: express.RequestHandler = (req, res, next) => {
+  if (req.method !== "POST") return reject(res, REJECTIONS.methodNotAllowed);
   next();
 };
 

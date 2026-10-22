@@ -10,6 +10,8 @@ const PUBLIC_DIR = path.resolve(__dirname, "../public");
 /** The uri a tool points at, and the resource is served under. */
 export const widgetUri = (name: string): string => `ui://prompteye/${name}.html`;
 
+const pages = new Map<string, string>();
+
 /**
  * One branded page per widget: the shell carries the PromptEye mark, the
  * palette and both handshakes, and each widget only contributes its `render`.
@@ -34,7 +36,6 @@ function widgetHtml(name: string, title: string): string {
  */
 export function registerWidget(server: McpServer, name: string, title: string, description: string): string {
   const uri = widgetUri(name);
-  let html: string | undefined;
 
   registerAppResource(
     server,
@@ -49,13 +50,15 @@ export function registerWidget(server: McpServer, name: string, title: string, d
       },
     },
     async () => {
-      // Read once per server, and never let a missing file take the tool down.
+      // Read once per process, since every request builds its own server, and never let a missing file take the tool down.
+      let html = pages.get(name);
       if (html === undefined) {
         try {
           html = widgetHtml(name, title);
         } catch {
           html = `<html><body>${title} is unavailable.</body></html>`;
         }
+        pages.set(name, html);
       }
 
       return { contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: html }] };

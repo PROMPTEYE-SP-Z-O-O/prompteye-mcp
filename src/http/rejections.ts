@@ -62,22 +62,10 @@ export const REJECTIONS = {
     message: "PromptEye API is unreachable. Retry in a moment.",
     headers: { "Retry-After": "5" },
   },
-  sessionNotFound: {
-    status: 404,
-    code: -32001,
-    message: "Session not found. Initialize a new session.",
-    headers: {},
-  },
-  notInitialized: {
-    status: 400,
-    code: -32600,
-    message: "Bad request. Send an initialize request first, then reuse its Mcp-Session-Id.",
-    headers: {},
-  },
   methodNotAllowed: {
     status: 405,
     code: -32600,
-    message: "Method not allowed. Start a session with a POST initialize request.",
+    message: "Method not allowed. Send every MCP request as a POST.",
     headers: { Allow: "POST" },
   },
   badBody: {
