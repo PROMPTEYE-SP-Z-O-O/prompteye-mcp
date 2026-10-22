@@ -238,9 +238,23 @@ export const PromptSuggestionSchema = z.object({
 });
 
 export const SponsoredOfferSchema = z.object({
-  available: z.boolean().describe("Whether a sponsored publication (WhitePress) can be bought on this domain."),
-  price: z.number().nullable().describe("The publication price, in `currency`. null = no price."),
-  currency: z.string().nullable().describe("The currency of `price`. null = no price."),
+  available: z
+    .boolean()
+    .describe(
+      "Whether WhitePress sells anything on this domain: a new sponsored article, a link insert in an existing article, or a mention in an existing article."
+    ),
+  price: z.number().nullable().describe("The price of a NEW sponsored article, in `currency`. null = no new article on sale."),
+  currency: z.string().nullable().describe("The currency of `price`. null = no new article on sale."),
+  linkInsert: z.boolean().describe("Whether a link can be bought in an existing article on this domain."),
+  mention: z.boolean().describe("Whether a brand mention can be bought in an existing article on this domain."),
+  linkOrMentionPriceFrom: z
+    .number()
+    .nullable()
+    .describe("The cheapest link insert or mention price, in `linkOrMentionCurrency`. null = none or not checked yet."),
+  linkOrMentionCurrency: z
+    .string()
+    .nullable()
+    .describe("The currency of `linkOrMentionPriceFrom`. null = none or not checked yet."),
   domainRank: z.number().nullable().describe("The domain's DataForSEO rank, shown as DR in the app. null = unknown."),
   monthlyVisits: z.number().nullable().describe("Estimated monthly organic visits to the domain. null = unknown."),
 });
