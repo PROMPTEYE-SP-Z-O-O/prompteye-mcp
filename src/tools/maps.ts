@@ -3,6 +3,7 @@ import { z } from "zod";
 import { TopicalMapSchema, TopicalMapSummarySchema } from "../schemas/prompteye.js";
 import { READ_ONLY, REGENERATES, WRITES, handled, ok, type ToolContext } from "./result.js";
 import { writeProjectIdShape } from "./write-project.js";
+import { readProjectIdShape } from "./read-project.js";
 
 const mapIdShape = {
   mapId: z.string().min(1).describe("Id of the map, as create_topical_map or list_topical_maps reports it."),
@@ -44,12 +45,12 @@ export function registerTopicalMapTools(server: McpServer, { client, session }: 
         "Every map built for the active project, newest first, without their clusters — read one with " +
         "get_topical_map.",
       annotations: READ_ONLY,
-      inputSchema: {},
+      inputSchema: { ...readProjectIdShape },
       outputSchema: { data: z.array(TopicalMapSummarySchema) },
     },
-    async () =>
+    async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const list = await client.listTopicalMaps(project.id);
         return ok(list);
       })
@@ -64,12 +65,12 @@ export function registerTopicalMapTools(server: McpServer, { client, session }: 
         "create_topical_map until `status` is `ready` — `pillar` is null and `clusters` is empty until " +
         "then, and `errorMessage` is set instead if generation failed.",
       annotations: READ_ONLY,
-      inputSchema: mapIdShape,
+      inputSchema: { ...readProjectIdShape, ...mapIdShape },
       outputSchema: TopicalMapSchema.shape,
     },
-    async ({ mapId }) =>
+    async ({ projectId, mapId }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const map = await client.getTopicalMap(project.id, mapId);
         return ok(map);
       })

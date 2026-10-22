@@ -30,11 +30,13 @@ export class ProjectSession {
   }
 
   /**
-   * The active project, selecting it first when the key reaches exactly one —
-   * with a single project there is nothing to choose, and making the model call
-   * `select_project` to learn that wastes a turn.
+   * The project a read names, otherwise the active project, selecting it first
+   * when the key reaches exactly one — with a single project there is nothing
+   * to choose, and making the model call `select_project` to learn that wastes
+   * a turn.
    */
-  async require(): Promise<Project> {
+  async require(projectId?: string): Promise<Project> {
+    if (projectId) return this.client.getProject(projectId);
     if (this.active) return this.active;
 
     const { data } = await this.client.listProjects();

@@ -7,6 +7,7 @@ import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
 import { READ_ONLY, REPLACES, handled, ok, type ToolContext } from "./result.js";
 import { writeProjectIdShape } from "./write-project.js";
+import { readProjectIdShape } from "./read-project.js";
 
 export const COMPETITORS_WIDGET = "competitors";
 
@@ -34,6 +35,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
         "tool once per `promptId`, and keep the ones where the named competitor's position beats the brand's.",
       annotations: READ_ONLY,
       inputSchema: {
+        ...readProjectIdShape,
         ...dateRangeShape,
         ...modelFilterShape,
         ...promptScopeShape("Rank"),
@@ -54,9 +56,9 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
       },
       _meta: widgetMeta(widgetUri(COMPETITORS_WIDGET), "Ranking the brands…", "Ranked the brands"),
     },
-    async (args) =>
+    async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const page = await client.listCompetitors(project.id, args);
 
         return ok({
@@ -78,12 +80,12 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
         "agency until they are excluded here.\n\n" +
         "Excluding a brand drops it from competitor rankings and share-of-voice calculations across historical data.",
       annotations: READ_ONLY,
-      inputSchema: {},
+      inputSchema: { ...readProjectIdShape },
       outputSchema: { data: z.array(CompetitorExclusionSchema) },
     },
-    async () =>
+    async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const list = await client.listCompetitorExclusions(project.id);
         return ok(list);
       })

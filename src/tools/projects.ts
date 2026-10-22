@@ -5,6 +5,7 @@ import type { Project } from "../schemas/prompteye.js";
 import { PROMPT_GENERATION } from "./glossary.js";
 import { READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
 import { writeProjectIdShape } from "./write-project.js";
+import { readProjectIdShape } from "./read-project.js";
 
 const ProjectOutputSchema = ProjectSchema.omit({ excludedCompetitors: true });
 
@@ -262,12 +263,12 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
         "whom. Everything PromptEye writes for the project reads this first, so it is worth knowing " +
         "what a brand is being judged against before trusting a prompt or a competitor.",
       annotations: READ_ONLY,
-      inputSchema: {},
+      inputSchema: { ...readProjectIdShape },
       outputSchema: KnowledgeBaseSchema.shape,
     },
-    async () =>
+    async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const knowledgeBase = await client.getKnowledgeBase(project.id);
         return ok(knowledgeBase);
       })
