@@ -13,6 +13,7 @@ import {
 } from "../schemas/prompteye.js";
 import { BOT_TRAFFIC, INTEGRATION_STATE, VERIFIED } from "./glossary.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
+import { readProjectIdShape } from "./read-project.js";
 
 const trafficRangeShape = {
   startDate: z
@@ -88,6 +89,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         `${BOT_TRAFFIC}\n\n${VERIFIED}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
       inputSchema: {
+        ...readProjectIdShape,
         ...trafficRangeShape,
         ...kindShape,
         ...botShape,
@@ -97,9 +99,9 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
       },
       outputSchema: { data: z.array(TrafficEventSchema), nextCursor: NextCursorSchema },
     },
-    async (args) =>
+    async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const page = await client.listBotVisits(project.id, args);
         return ok(page);
       })
@@ -129,6 +131,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         `${BOT_TRAFFIC}\n\n${VERIFIED}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
       inputSchema: {
+        ...readProjectIdShape,
         groupBy: TrafficGroupSchema.describe("What to count by."),
         ...trafficRangeShape,
         ...kindShape,
@@ -145,9 +148,9 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
       },
       outputSchema: TrafficCountPageSchema.shape,
     },
-    async (args) =>
+    async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const counts = await client.countBotVisits(project.id, args);
         return ok(counts);
       })
@@ -174,6 +177,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         `${BOT_TRAFFIC}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
       inputSchema: {
+        ...readProjectIdShape,
         ...trafficRangeShape,
         kind: TrafficKindSchema.describe(
           "`ai` for AI assistants and their bots, `seo` for search engines and SEO tools. Required: there is no combined health."
@@ -182,9 +186,9 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
       },
       outputSchema: TrafficCrawlHealthSchema.shape,
     },
-    async (args) =>
+    async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const health = await client.getCrawlHealth(project.id, args);
         return ok(health);
       })
@@ -208,12 +212,12 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         "reads all of its rows.\n\n" +
         `${BOT_TRAFFIC}\n\n${INTEGRATION_STATE}`,
       annotations: READ_ONLY,
-      inputSchema: { ...kindShape, ...botShape, ...pathShape, ...paginationShape },
+      inputSchema: { ...readProjectIdShape, ...kindShape, ...botShape, ...pathShape, ...paginationShape },
       outputSchema: { data: z.array(TrafficCrawlSchema), nextCursor: NextCursorSchema },
     },
-    async (args) =>
+    async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const page = await client.listCrawls(project.id, args);
         return ok(page);
       })
@@ -234,6 +238,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
         "addresses can be paged to.",
       annotations: READ_ONLY,
       inputSchema: {
+        ...readProjectIdShape,
         active: z
           .enum(["true", "false"])
           .optional()
@@ -242,9 +247,9 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
       },
       outputSchema: TrafficSitemapPageSchema.shape,
     },
-    async (args) =>
+    async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const result = await client.getSitemap(project.id, args);
         return ok(result);
       })

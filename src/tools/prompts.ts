@@ -28,6 +28,7 @@ import {
 } from "./glossary.js";
 import { DELETES, READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
 import { writeProjectIdShape } from "./write-project.js";
+import { readProjectIdShape } from "./read-project.js";
 
 export const PROMPTS_WIDGET = "prompts";
 
@@ -49,6 +50,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         `${VISIBILITY}\n\n${AI_TRAFFIC}\n\n${BUSINESS_PRIORITY}`,
       annotations: READ_ONLY,
       inputSchema: {
+        ...readProjectIdShape,
         ...dateRangeShape,
         ...paginationShape,
         groupId: z.string().optional().describe("Only prompts in this prompt group."),
@@ -65,9 +67,9 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
       },
       _meta: widgetMeta(widgetUri(PROMPTS_WIDGET), "Reading the prompts…", "Read the prompts"),
     },
-    async (args) =>
+    async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const page = await client.listPrompts(project.id, args);
 
         return ok({ ...page, projectName: project.name, brand: project.brand });
@@ -87,14 +89,15 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         `${VISIBILITY}\n\n${AI_TRAFFIC}\n\n${BUSINESS_PRIORITY}`,
       annotations: READ_ONLY,
       inputSchema: {
+        ...readProjectIdShape,
         ...dateRangeShape,
         promptId: z.string().min(1).describe("Id of the prompt, as list_prompts reports it."),
       },
       outputSchema: PromptDetailSchema.shape,
     },
-    async ({ promptId, ...range }) =>
+    async ({ projectId, promptId, ...range }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const prompt = await client.getPrompt(project.id, promptId, range);
         return ok(prompt);
       })
@@ -114,12 +117,12 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "aiTrafficTotal adds up the demand behind the prompts of the group that are still being asked, " +
         "so a paused prompt contributes nothing. It is null when none of those prompts has a measured figure.",
       annotations: READ_ONLY,
-      inputSchema: { ...dateRangeShape, ...paginationShape },
+      inputSchema: { ...readProjectIdShape, ...dateRangeShape, ...paginationShape },
       outputSchema: { data: z.array(PromptGroupSchema), nextCursor: NextCursorSchema },
     },
-    async (args) =>
+    async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const page = await client.listPromptGroups(project.id, args);
         return ok(page);
       })
@@ -223,12 +226,12 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "top-level category in parentId, which is null on a top-level one, and source says whether " +
         "PromptEye proposed it (`ai`) or it was written by hand (`manual`).",
       annotations: READ_ONLY,
-      inputSchema: {},
+      inputSchema: { ...readProjectIdShape },
       outputSchema: { data: z.array(CategorySchema) },
     },
-    async () =>
+    async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const list = await client.listCategories(project.id);
         return ok(list);
       })
@@ -281,6 +284,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "PromptEye for new ones for a group.",
       annotations: READ_ONLY,
       inputSchema: {
+        ...readProjectIdShape,
         groupId: z
           .string()
           .min(1)
@@ -289,9 +293,9 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
       },
       outputSchema: { data: z.array(PromptSuggestionSchema) },
     },
-    async ({ groupId }) =>
+    async ({ projectId, groupId }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const list = await client.listPromptSuggestions(project.id, { groupId });
         return ok(list);
       })
@@ -341,13 +345,14 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
         "yet been accepted or rejected.",
       annotations: READ_ONLY,
       inputSchema: {
+        ...readProjectIdShape,
         groupId: z.string().min(1).describe("Id of the prompt group, as list_prompt_groups reports it."),
       },
       outputSchema: SuggestionRunAvailabilitySchema.shape,
     },
-    async ({ groupId }) =>
+    async ({ projectId, groupId }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const availability = await client.getPromptSuggestionAvailability(project.id, groupId);
         return ok(availability);
       })

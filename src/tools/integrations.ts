@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { IntegrationsStatusSchema } from "../schemas/prompteye.js";
 import { READ_ONLY, handled, ok, type ToolContext } from "./result.js";
+import { readProjectIdShape } from "./read-project.js";
 
 export function registerIntegrationTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
@@ -20,12 +21,12 @@ export function registerIntegrationTools(server: McpServer, { client, session }:
         "PromptEye has no CMS integration. The WordPress and Laravel collectors are ways of installing " +
         "the bot tracker and are reported under `botLogs`.",
       annotations: READ_ONLY,
-      inputSchema: {},
+      inputSchema: { ...readProjectIdShape },
       outputSchema: IntegrationsStatusSchema.shape,
     },
-    async () =>
+    async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const status = await client.getIntegrationsStatus(project.id);
         return ok(status);
       })

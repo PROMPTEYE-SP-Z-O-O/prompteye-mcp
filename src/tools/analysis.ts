@@ -3,6 +3,7 @@ import { z } from "zod";
 import { BrandAnalysisAvailabilitySchema, BrandAnalysisRunSchema } from "../schemas/prompteye.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
 import { writeProjectIdShape } from "./write-project.js";
+import { readProjectIdShape } from "./read-project.js";
 
 export function registerBrandAnalysisTools(server: McpServer, { client, session }: ToolContext): void {
   server.registerTool(
@@ -40,12 +41,12 @@ export function registerBrandAnalysisTools(server: McpServer, { client, session 
         "Whether create_brand_analysis_run would start a new run for the active project right now, and " +
         "if not, why — the same check that tool runs itself, without starting anything.",
       annotations: READ_ONLY,
-      inputSchema: {},
+      inputSchema: { ...readProjectIdShape },
       outputSchema: BrandAnalysisAvailabilitySchema.shape,
     },
-    async () =>
+    async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const availability = await client.getBrandAnalysisAvailability(project.id);
         return ok(availability);
       })
@@ -62,13 +63,14 @@ export function registerBrandAnalysisTools(server: McpServer, { client, session 
         "if it failed.",
       annotations: READ_ONLY,
       inputSchema: {
+        ...readProjectIdShape,
         runId: z.string().min(1).describe("Id of the run, as create_brand_analysis_run reports it."),
       },
       outputSchema: BrandAnalysisRunSchema.shape,
     },
-    async ({ runId }) =>
+    async ({ projectId, runId }) =>
       handled(async () => {
-        const project = await session.require();
+        const project = await session.require(projectId);
         const run = await client.getBrandAnalysisRun(project.id, runId);
         return ok(run);
       })

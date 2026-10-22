@@ -192,6 +192,58 @@ describe("write tools", () => {
   });
 });
 
+describe("read tools", () => {
+  const SECOND_PROJECT = { ...PROJECT, id: "p2", name: "Acme — Poland", country: "PL" };
+  const readProjectIds: string[] = [];
+
+  const twoProjectClient = {
+    ...fakeClient,
+    listProjects: async () => ({ data: [PROJECT, SECOND_PROJECT] }),
+    getProject: async (projectId: string) => [PROJECT, SECOND_PROJECT].find((project) => project.id === projectId),
+    listPrompts: async (projectId: string) => {
+      readProjectIds.push(projectId);
+      return PROMPTS;
+    },
+  } as unknown as PromptEyeClient;
+
+  async function freshSession(): Promise<Client> {
+    const server = createMcpServer({
+      client: twoProjectClient,
+      session: new ProjectSession(twoProjectClient),
+      baseUrl: "https://api.example",
+    });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: "test-client", version: "0.0.0" });
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    return client;
+  }
+
+  beforeEach(() => {
+    readProjectIds.length = 0;
+  });
+
+  it("read the project they are given in a session that has lost its selection", async () => {
+    const client = await freshSession();
+
+    const result = (await client.callTool({ name: "list_prompts", arguments: { projectId: "p2" } })) as CallToolResult;
+
+    expect(result.isError).toBeFalsy();
+    expect(readProjectIds).toEqual(["p2"]);
+    expect((result.structuredContent as { projectName: string }).projectName).toBe(SECOND_PROJECT.name);
+  });
+
+  it("leave the active project unchanged when given another one", async () => {
+    const client = await freshSession();
+    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
+
+    await client.callTool({ name: "list_prompts", arguments: { projectId: "p2" } });
+    const active = await client.callTool({ name: "get_active_project", arguments: {} });
+
+    expect(readProjectIds).toEqual(["p2"]);
+    expect((active.structuredContent as { id: string }).id).toBe(PROJECT.id);
+  });
+});
+
 describe("tool results", () => {
   it.each([
     ["get_account", {}, ACCOUNT],
