@@ -10,14 +10,14 @@ import { readProjectIdShape } from "./read-project.js";
 
 export const SOURCES_WIDGET = "sources";
 
-export function registerSourceTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerSourceTools(server: McpServer, { client }: ToolContext): void {
   registerAppTool(
     server,
     "list_sources",
     {
       title: "List the domains assistants cite",
       description:
-        "The domains the assistants leaned on when answering the active project's prompts, ranked by " +
+        "The domains the assistants leaned on when answering the project's prompts, ranked by " +
         "how often they were cited. Call this to see which pages shape what the assistants say about " +
         "the brand, and where to go to change it.\n\n" +
         `${CITED_DOMAINS}\n\n` +
@@ -70,7 +70,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const page = await client.listSources(project.id, args);
 
         return ok({
@@ -114,7 +114,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const page = await client.listSourcePages(project.id, args);
         return ok(page);
       })
@@ -167,7 +167,7 @@ export function registerSourceTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const page = await client.listAnswers(project.id, args);
         return ok(page);
       })

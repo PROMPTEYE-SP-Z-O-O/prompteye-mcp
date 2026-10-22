@@ -1,17 +1,6 @@
 import { PromptEyeApiError } from "../api/index.js";
 import { HelpError } from "../help/help.js";
 
-/** Raised when a tool needs an active project and the session has none. */
-export class NoActiveProjectError extends Error {
-  constructor() {
-    super(
-      "No project is selected. Call list_projects to see the projects this API key reaches, " +
-        "then select_project with the id of the one to work on."
-    );
-    this.name = "NoActiveProjectError";
-  }
-}
-
 const retryAdvice = (error: PromptEyeApiError): string =>
   error.retryAfterSeconds === undefined ? "" : ` Retry after ${error.retryAfterSeconds} s.`;
 
@@ -24,7 +13,7 @@ export function toolMessageFor(error: unknown): string | undefined {
     ].join("\n");
   }
 
-  if (error instanceof NoActiveProjectError || error instanceof HelpError) {
+  if (error instanceof HelpError) {
     return error.message;
   }
 

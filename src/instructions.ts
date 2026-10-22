@@ -13,11 +13,11 @@ PromptEye measures how often AI assistants name a brand when they answer buying 
 
 Content generation is part of PromptEye, not only tracking: create_content_brief orders the brief an article is written from, get_content_brief reads it, create_article writes the article from a ready brief, and get_article and list_articles read it back; the Content library in the PromptEye app (https://app.prompteye.com/content) shows the same articles.
 
-Where a project stands is read from the workspace rather than from this text: get_account, list_projects, and for the active project get_knowledge_base, list_prompts, list_prompt_groups and list_prompt_suggestions, plus list_reports. What they return shows which step of the order below the project is on. onboard_brand is the whole walk for a new brand.
+Where a project stands is read from the workspace rather than from this text: get_account, list_projects, and for the project get_knowledge_base, list_prompts, list_prompt_groups and list_prompt_suggestions, plus list_reports. What they return shows which step of the order below the project is on. onboard_brand is the whole walk for a new brand.
 
 How the product works, in order:
 
-1. The project. One brand tracked in one market; the same brand in another market is a second project. Everything else hangs off it. list_projects, select_project, create_project. A project lives in a workspace, whose plan it counts against: list_workspaces names them, and its ids narrow list_projects or pick where create_project creates. Every change names its project with projectId, never the active one. Reads take projectId too and fall back to the active project only when it is left out; pass it on every read as well, because the active project is forgotten whenever the connection is renewed.
+1. The project. One brand tracked in one market; the same brand in another market is a second project. Everything else hangs off it. list_projects, select_project, create_project. A project lives in a workspace, whose plan it counts against: list_workspaces names them, and its ids narrow list_projects or pick where create_project creates. Every tool that works on a project, read or change, takes its projectId and never falls back to a project chosen earlier, so pass it on every call.
 
 2. The brand description (get_knowledge_base, update_knowledge_base). What the company sells and to whom — industry, product category, audience, ICP, operating area. Everything PromptEye writes for the project reads this first, so a thin or wrong description quietly poisons the prompts it proposes. Fixing it is the highest-leverage edit in the product, and it can be done from here.
 

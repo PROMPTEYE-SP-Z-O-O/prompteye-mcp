@@ -32,14 +32,14 @@ import { readProjectIdShape } from "./read-project.js";
 
 export const PROMPTS_WIDGET = "prompts";
 
-export function registerPromptTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerPromptTools(server: McpServer, { client }: ToolContext): void {
   registerAppTool(
     server,
     "list_prompts",
     {
       title: "List the prompts of the project",
       description:
-        "The questions the active project puts to the assistants, with the visibility each one earns " +
+        "The questions the project puts to the assistants, with the visibility each one earns " +
         "over the period and how it moved against the period before. Every measurement PromptEye " +
         "reports is taken on the answers to these prompts, so this is where to look for which " +
         "questions carry the brand and which do not. Paused prompts are listed too, newest first.\n\n" +
@@ -69,7 +69,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const page = await client.listPrompts(project.id, args);
 
         return ok({ ...page, projectName: project.name, brand: project.brand });
@@ -81,7 +81,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "Read one prompt",
       description:
-        "One prompt of the active project, with its visibility broken down per assistant — only the " +
+        "One prompt of the project, with its visibility broken down per assistant — only the " +
         "assistants that actually answered are listed. Call this to see which assistant is carrying a " +
         "prompt and which is dropping the brand from it. When the brand is weak here, " +
         "create_content_brief starts an article aimed at this prompt.\n\n" +
@@ -97,7 +97,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, promptId, ...range }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const prompt = await client.getPrompt(project.id, promptId, range);
         return ok(prompt);
       })
@@ -108,7 +108,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "List the prompt groups of the project",
       description:
-        "How the active project's prompts are grouped — comparison queries, problem queries, brand " +
+        "How the project's prompts are grouped — comparison queries, problem queries, brand " +
         "queries — with the visibility of each group over the period. A group is the unit a strategy " +
         "is judged by. Use a group id to narrow list_prompts. Ungrouped prompts have no row here; " +
         "they show up in list_prompts with groupId null. upsert_prompt_group renames, describes or " +
@@ -122,7 +122,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const page = await client.listPromptGroups(project.id, args);
         return ok(page);
       })
@@ -222,7 +222,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "List the categories the project files prompts under",
       description:
-        "Every category of the active project, two levels deep: a subcategory carries the id of its " +
+        "Every category of the project, two levels deep: a subcategory carries the id of its " +
         "top-level category in parentId, which is null on a top-level one, and source says whether " +
         "PromptEye proposed it (`ai`) or it was written by hand (`manual`).",
       annotations: READ_ONLY,
@@ -231,7 +231,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const list = await client.listCategories(project.id);
         return ok(list);
       })
@@ -274,7 +274,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     {
       title: "List the prompts worth adding next",
       description:
-        "The prompts PromptEye proposes the active project start tracking, still awaiting a decision. " +
+        "The prompts PromptEye proposes the project start tracking, still awaiting a decision. " +
         "**This is the recommended way to add prompts** — each suggestion is generated from real " +
         "demand and carries why it was proposed: a gap in the funnel, or a theme close to prompts that " +
         "already perform. Grouped by the prompt group each would join, strongest demand first. Call " +
@@ -295,7 +295,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, groupId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const list = await client.listPromptSuggestions(project.id, { groupId });
         return ok(list);
       })
@@ -352,7 +352,7 @@ export function registerPromptTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, groupId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const availability = await client.getPromptSuggestionAvailability(project.id, groupId);
         return ok(availability);
       })

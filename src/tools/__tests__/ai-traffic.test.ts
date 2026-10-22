@@ -40,7 +40,7 @@ const PROMPT: PromptDetail = {
 
 async function getPrompt(prompt: PromptDetail): Promise<CallToolResult> {
   const client = {
-    listProjects: async () => ({ data: [PROJECT] }),
+    getProject: async () => PROJECT,
     getPrompt: async () => prompt,
   } as unknown as PromptEyeClient;
   const server = createMcpServer({ client, session: new ProjectSession(client), baseUrl: "https://api.example" });
@@ -50,7 +50,7 @@ async function getPrompt(prompt: PromptDetail): Promise<CallToolResult> {
   await Promise.all([server.connect(serverTransport), mcp.connect(clientTransport)]);
   await mcp.listTools();
 
-  return (await mcp.callTool({ name: "get_prompt", arguments: { promptId: prompt.id } })) as CallToolResult;
+  return (await mcp.callTool({ name: "get_prompt", arguments: { projectId: PROJECT.id, promptId: prompt.id } })) as CallToolResult;
 }
 
 describe("get_prompt passes aiTraffic through as the API returns it", () => {

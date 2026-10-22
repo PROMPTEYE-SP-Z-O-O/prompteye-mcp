@@ -44,13 +44,13 @@ const assistantShape = {
 };
 
 /** What Google reports for the project's own site — bound to the project in the app. */
-export function registerGoogleTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerGoogleTools(server: McpServer, { client }: ToolContext): void {
   server.registerTool(
     "get_google_status",
     {
       title: "Check which Google data the project has",
       description:
-        "Whether Search Console and Google Analytics are bound to the active project, and how their " +
+        "Whether Search Console and Google Analytics are bound to the project, and how their " +
         "last sync went. Call this when a Google figure looks wrong or empty, or before promising a " +
         "report built on one. get_integrations_status answers the same question for the bot tracker " +
         "and the sitemap as well.\n\n" +
@@ -61,7 +61,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const status = await client.getGoogleStatus(project.id);
         return ok(status);
       })
@@ -72,7 +72,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
     {
       title: "Read how the site does in Google Search",
       description:
-        "Clicks, impressions, click-through rate and average position of the active project's site " +
+        "Clicks, impressions, click-through rate and average position of the project's site " +
         "in ordinary Google results, with the daily timeline behind them.\n\n" +
         "Pass `by` to rank the period instead of totalling it: `query` for the phrases people found " +
         "the site with, `page` for the pages Google sends them to. A ranking is built by adding the " +
@@ -102,7 +102,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, by, limit, ...range }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
 
         if (by === undefined) {
           const summary = await client.getSearchSummary(project.id, range);
@@ -123,7 +123,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
     {
       title: "Read the visits that came from AI assistants",
       description:
-        "The sessions Google Analytics attributes to AI assistants for the active project's site: " +
+        "The sessions Google Analytics attributes to AI assistants for the project's site: " +
         "how many arrived, how engaged they were, and how many key events they triggered. This is " +
         "the tool for 'is any of this visibility turning into visits'.\n\n" +
         "Pass `by` to rank the period instead of totalling it: `source` for the assistants that sent " +
@@ -156,7 +156,7 @@ export function registerGoogleTools(server: McpServer, { client, session }: Tool
     },
     async ({ projectId, by, limit, assistant, ...range }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
 
         if (by === undefined) {
           const summary = await client.getAiTrafficSummary(project.id, { ...range, assistant });

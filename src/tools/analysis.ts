@@ -5,7 +5,7 @@ import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
 import { writeProjectIdShape } from "./write-project.js";
 import { readProjectIdShape } from "./read-project.js";
 
-export function registerBrandAnalysisTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerBrandAnalysisTools(server: McpServer, { client }: ToolContext): void {
   server.registerTool(
     "create_brand_analysis_run",
     {
@@ -38,7 +38,7 @@ export function registerBrandAnalysisTools(server: McpServer, { client, session 
     {
       title: "Check whether a brand analysis run can be started",
       description:
-        "Whether create_brand_analysis_run would start a new run for the active project right now, and " +
+        "Whether create_brand_analysis_run would start a new run for the project right now, and " +
         "if not, why — the same check that tool runs itself, without starting anything.",
       annotations: READ_ONLY,
       inputSchema: { ...readProjectIdShape },
@@ -46,7 +46,7 @@ export function registerBrandAnalysisTools(server: McpServer, { client, session 
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const availability = await client.getBrandAnalysisAvailability(project.id);
         return ok(availability);
       })
@@ -70,7 +70,7 @@ export function registerBrandAnalysisTools(server: McpServer, { client, session 
     },
     async ({ projectId, runId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const run = await client.getBrandAnalysisRun(project.id, runId);
         return ok(run);
       })

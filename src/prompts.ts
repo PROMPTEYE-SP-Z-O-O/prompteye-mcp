@@ -16,8 +16,8 @@ const message = (text: string) => ({
 });
 
 const ORIENT =
-  "Start from the active project. If none is selected, call list_projects and select_project — " +
-  "with a single project this happens on its own.";
+  "Start from the project the conversation is about: call list_projects if its id is not known yet, " +
+  "and pass that id as projectId to every tool.";
 
 export function registerPromptWorkflows(server: McpServer): void {
   server.registerPrompt(

@@ -9,7 +9,7 @@ const mapIdShape = {
   mapId: z.string().min(1).describe("Id of the map, as create_topical_map or list_topical_maps reports it."),
 };
 
-export function registerTopicalMapTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerTopicalMapTools(server: McpServer, { client }: ToolContext): void {
   server.registerTool(
     "create_topical_map",
     {
@@ -42,7 +42,7 @@ export function registerTopicalMapTools(server: McpServer, { client, session }: 
     {
       title: "List the topical maps of the project",
       description:
-        "Every map built for the active project, newest first, without their clusters — read one with " +
+        "Every map built for the project, newest first, without their clusters — read one with " +
         "get_topical_map.",
       annotations: READ_ONLY,
       inputSchema: { ...readProjectIdShape },
@@ -50,7 +50,7 @@ export function registerTopicalMapTools(server: McpServer, { client, session }: 
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const list = await client.listTopicalMaps(project.id);
         return ok(list);
       })
@@ -70,7 +70,7 @@ export function registerTopicalMapTools(server: McpServer, { client, session }: 
     },
     async ({ projectId, mapId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const map = await client.getTopicalMap(project.id, mapId);
         return ok(map);
       })

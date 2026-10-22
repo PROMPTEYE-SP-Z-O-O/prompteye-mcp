@@ -1,9 +1,8 @@
 import type { PromptEyeClient } from "./client/prompteye-client.js";
-import { NoActiveProjectError } from "./client/errors.js";
 import type { Project } from "./schemas/prompteye.js";
 
 /**
- * The project every project-scoped tool reports on.
+ * The project chosen with select_project, kept for get_active_project.
  *
  * One instance per MCP session: the stdio entry point runs one session per
  * process, and the HTTP entry point builds a fresh `McpServer` — and so a fresh
@@ -14,7 +13,7 @@ export class ProjectSession {
 
   constructor(private readonly client: PromptEyeClient) {}
 
-  /** Makes `project` the one every project-scoped tool reports on. */
+  /** Remembers `project` as the one the conversation is about. */
   async select(projectId: string): Promise<Project> {
     this.active = await this.client.getProject(projectId);
     return this.active;
@@ -27,24 +26,5 @@ export class ProjectSession {
   /** The active project, or undefined when nothing has been selected yet. */
   current(): Project | undefined {
     return this.active;
-  }
-
-  /**
-   * The project a read names, otherwise the active project, selecting it first
-   * when the key reaches exactly one — with a single project there is nothing
-   * to choose, and making the model call `select_project` to learn that wastes
-   * a turn.
-   */
-  async require(projectId?: string): Promise<Project> {
-    if (projectId) return this.client.getProject(projectId);
-    if (this.active) return this.active;
-
-    const { data } = await this.client.listProjects();
-    if (data.length === 1) {
-      this.active = data[0];
-      return data[0];
-    }
-
-    throw new NoActiveProjectError();
   }
 }

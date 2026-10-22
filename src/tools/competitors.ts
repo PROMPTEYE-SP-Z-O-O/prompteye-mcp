@@ -11,14 +11,14 @@ import { readProjectIdShape } from "./read-project.js";
 
 export const COMPETITORS_WIDGET = "competitors";
 
-export function registerCompetitorTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerCompetitorTools(server: McpServer, { client }: ToolContext): void {
   registerAppTool(
     server,
     "list_competitors",
     {
       title: "Rank the brands answering alongside yours",
       description:
-        "Every brand the assistants named on the active project's prompts, measured the same way the " +
+        "Every brand the assistants named on the project's prompts, measured the same way the " +
         "project's own brand is and ranked by visibility, then by average position. Call this for 'who are " +
         "we losing to' and for how a market splits between brands.\n\n" +
         "The order is not share of voice. The ranking is cut to the strongest brands by visibility first, so " +
@@ -58,7 +58,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const page = await client.listCompetitors(project.id, args);
 
         return ok({
@@ -75,7 +75,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
     {
       title: "List brands excluded from competitor rankings",
       description:
-        "The brands the active project keeps out of its competitor rankings. Everything the assistants name is " +
+        "The brands the project keeps out of its competitor rankings. Everything the assistants name is " +
         "a candidate competitor, so the ranking picks up resellers, marketplaces, directories, and the client's own " +
         "agency until they are excluded here.\n\n" +
         "Excluding a brand drops it from competitor rankings and share-of-voice calculations across historical data.",
@@ -85,7 +85,7 @@ export function registerCompetitorTools(server: McpServer, { client, session }: 
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const list = await client.listCompetitorExclusions(project.id);
         return ok(list);
       })

@@ -52,9 +52,9 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     {
       title: "Select the project to work on",
       description:
-        "Makes one project the active one. Every read tool reports on the active project and takes " +
-        "no project argument, so call this once before asking about visibility, competitors, prompts, " +
-        "answers or sources. Tools that change something never use it: they take a projectId. Call it again to switch projects mid-conversation.\n\n" +
+        "Remembers which project the conversation is about and returns its details. No other tool reads " +
+        "this choice: every tool takes the projectId itself, so pass the id of this project to each of them. " +
+        "Call it again to switch projects mid-conversation.\n\n" +
         EXCLUSIONS_POINTER,
       annotations: READ_ONLY,
       inputSchema: {
@@ -77,8 +77,8 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     {
       title: "Read the active project",
       description:
-        "The project every other tool is currently reporting on. Call this when unsure which project " +
-        "the numbers in this conversation refer to.",
+        "The project last chosen with select_project in this connection. Call this when unsure which project " +
+        "the conversation is about; pass its id as projectId to the other tools.",
       annotations: READ_ONLY,
       inputSchema: {},
       outputSchema: ProjectOutputSchema.shape,
@@ -104,7 +104,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
       description:
         "Starts tracking one brand in one market. The project is the unit everything else hangs off — " +
         "prompts, answers, competitors and the visibility computed from them — and it becomes the " +
-        "active project, so the following tools report on it without another call.\n\n" +
+        "active project; pass its id as projectId to the following tools.\n\n" +
         "A brand tracked in several markets needs one project per market: the same `brand` with a " +
         "different `country`. Check list_projects first; creating a second project for a brand and " +
         "market already tracked is refused.\n\n" +
@@ -268,7 +268,7 @@ export function registerProjectTools(server: McpServer, { client, session }: Too
     },
     async ({ projectId }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const knowledgeBase = await client.getKnowledgeBase(project.id);
         return ok(knowledgeBase);
       })

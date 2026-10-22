@@ -242,17 +242,27 @@ describe("read tools", () => {
     expect(readProjectIds).toEqual(["p2"]);
     expect((active.structuredContent as { id: string }).id).toBe(PROJECT.id);
   });
+
+  it("refuse a read that names no project, even with an active one", async () => {
+    const client = await freshSession();
+    await client.callTool({ name: "select_project", arguments: { projectId: PROJECT.id } });
+
+    const result = await client.callTool({ name: "list_prompts", arguments: {} });
+
+    expect(result.isError).toBe(true);
+    expect(readProjectIds).toEqual([]);
+  });
 });
 
 describe("tool results", () => {
   it.each([
     ["get_account", {}, ACCOUNT],
-    ["list_prompts", {}, { ...PROMPTS, projectName: PROJECT.name, brand: PROJECT.brand }],
-    ["list_competitors", {}, { ...COMPETITORS, projectName: PROJECT.name, brand: PROJECT.brand, model: null }],
-    ["get_search_performance", {}, { by: null, summary: SEARCH_SUMMARY, data: null, nextCursor: null }],
-    ["get_sitemap", {}, NO_SITEMAP],
+    ["list_prompts", { projectId: PROJECT.id }, { ...PROMPTS, projectName: PROJECT.name, brand: PROJECT.brand }],
+    ["list_competitors", { projectId: PROJECT.id }, { ...COMPETITORS, projectName: PROJECT.name, brand: PROJECT.brand, model: null }],
+    ["get_search_performance", { projectId: PROJECT.id }, { by: null, summary: SEARCH_SUMMARY, data: null, nextCursor: null }],
+    ["get_sitemap", { projectId: PROJECT.id }, NO_SITEMAP],
     ["list_workspaces", {}, WORKSPACES],
-    ["get_crawl_health", { kind: "ai" }, CRAWL_HEALTH],
+    ["get_crawl_health", { projectId: PROJECT.id, kind: "ai" }, CRAWL_HEALTH],
     ["generate_prompt_suggestions", { projectId: PROJECT.id, groupId: "g1" }, SUGGESTION_RUN],
   ])("%s answers the API data as structured content and as its serialized JSON", async (name, args, expected) => {
     const client = await connectedClient();

@@ -74,13 +74,13 @@ const statusShape = {
     .describe("An exact HTTP status code, or a class such as `4xx` to see only the failures."),
 };
 
-export function registerTrafficTools(server: McpServer, { client, session }: ToolContext): void {
+export function registerTrafficTools(server: McpServer, { client }: ToolContext): void {
   server.registerTool(
     "list_bot_visits",
     {
       title: "List the requests bots made to the site",
       description:
-        "The individual requests AI assistants and search engines made to the active project's site, " +
+        "The individual requests AI assistants and search engines made to the project's site, " +
         "newest first — which bot, which path, what the site answered and how long it took.\n\n" +
         "This is the evidence layer: call it to show what actually happened, or to see what a bot got " +
         "when a page moved. For totals call count_bot_visits instead — paging through this to add " +
@@ -101,7 +101,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const page = await client.listBotVisits(project.id, args);
         return ok(page);
       })
@@ -150,7 +150,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const counts = await client.countBotVisits(project.id, args);
         return ok(counts);
       })
@@ -188,7 +188,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const health = await client.getCrawlHealth(project.id, args);
         return ok(health);
       })
@@ -217,7 +217,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const page = await client.listCrawls(project.id, args);
         return ok(page);
       })
@@ -228,7 +228,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
     {
       title: "List the addresses in the connected sitemap",
       description:
-        "The sitemap connected to the active project, how its last sync went, and the addresses it " +
+        "The sitemap connected to the project, how its last sync went, and the addresses it " +
         "found — what the site says it wants read.\n\n" +
         "Each address carries `path` in the same form list_crawls reports, so the two can be compared: " +
         "an address here with no crawl row is a page published into silence. `active` is false for an " +
@@ -249,7 +249,7 @@ export function registerTrafficTools(server: McpServer, { client, session }: Too
     },
     async ({ projectId, ...args }) =>
       handled(async () => {
-        const project = await session.require(projectId);
+        const project = await client.getProject(projectId);
         const result = await client.getSitemap(project.id, args);
         return ok(result);
       })

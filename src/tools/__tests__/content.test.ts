@@ -119,7 +119,7 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
   const listed: { projectId: string; query: unknown }[] = [];
   const published: Array<{ articleId: string; url: string }> = [];
   const client = {
-    listProjects: async () => ({ data: [PROJECT] }),
+    getProject: async () => PROJECT,
     createContentBrief: async (input: CreateContentBriefInput) => {
       created.push(input);
       return PROCESSING_BRIEF;
@@ -249,10 +249,10 @@ describe("content generation", () => {
     expect(result.content).toEqual([{ type: "text", text: JSON.stringify(article) }]);
   });
 
-  it("lists the articles of the active project without their text", async () => {
+  it("lists the articles of the project without their text", async () => {
     const { mcp, listed } = await connect(READY_BRIEF);
 
-    const result = await mcp.callTool({ name: "list_articles", arguments: { limit: 5, cursor: "c1" } });
+    const result = await mcp.callTool({ name: "list_articles", arguments: { projectId: PROJECT.id, limit: 5, cursor: "c1" } });
 
     expect(listed).toEqual([{ projectId: PROJECT.id, query: { limit: 5, cursor: "c1" } }]);
     expect(result.structuredContent).toEqual({ data: [ARTICLE_SUMMARY], nextCursor: null });

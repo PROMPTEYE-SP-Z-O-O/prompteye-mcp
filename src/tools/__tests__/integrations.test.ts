@@ -27,17 +27,17 @@ const registeredTool = (client: Partial<PromptEyeClient>) => {
   const server = {
     registerTool: (name: string, _config: unknown, handler: Handler) => handlers.set(name, handler),
   } as unknown as McpServer;
-  const fullClient = { listProjects: async () => ({ data: [PROJECT] }), ...client } as PromptEyeClient;
+  const fullClient = { getProject: async () => PROJECT, ...client } as PromptEyeClient;
   registerIntegrationTools(server, {
     client: fullClient,
     session: new ProjectSession(fullClient),
     baseUrl: "https://example.test",
   });
-  return (name: string, args: Record<string, unknown> = {}) => handlers.get(name)!(args);
+  return (name: string, args: Record<string, unknown> = {}) => handlers.get(name)!({ projectId: PROJECT.id, ...args });
 };
 
 describe("get_integrations_status", () => {
-  it("answers every integration of the active project as the API returns it", async () => {
+  it("answers every integration of the project as the API returns it", async () => {
     const status = {
       searchConsole: { connected: true, reason: null },
       analytics: { connected: true, reason: "sync_failing" },
