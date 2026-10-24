@@ -104,6 +104,24 @@ describe("PromptEyeApi", () => {
     expect(toolMessageFor(error)).toContain(message);
   });
 
+  it("passes on why the project's metrics are being rebuilt", async () => {
+    const body = {
+      error: {
+        code: "project_metrics_rebuilding",
+        message: "Project metrics are being rebuilt.",
+        reason: "competitor_grouping_changed",
+      },
+    };
+    const { api } = stubFetch(json(409, body));
+
+    const error = await api.projects.get("p").catch((e: unknown) => e);
+
+    expect(error).toMatchObject({ status: 409, code: "project_metrics_rebuilding", reason: "competitor_grouping_changed" });
+    expect(toolMessageFor(error)).toContain(
+      "Reason: competitor_grouping_changed (the way competitors are grouped changed)."
+    );
+  });
+
   it("throws on a non-JSON failure too", async () => {
     const { api } = stubFetch(new Response("<html>Bad gateway</html>", { status: 502 }));
 
