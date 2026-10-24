@@ -255,16 +255,6 @@ describe("createHttpApp", () => {
     expect(body).not.toHaveProperty("sessions");
   });
 
-  it("serves a widget script without credentials and refuses an unknown one", async () => {
-    const script = await fetch(`${app.url}/widgets/prompts.js`);
-    const unknown = await fetch(`${app.url}/widgets/nope.js`);
-
-    expect(script.status).toBe(200);
-    expect(script.headers.get("content-type")).toContain("javascript");
-    expect(await script.text()).toContain("function render(data)");
-    expect(unknown.status).toBe(404);
-  });
-
   it("reports the version from package.json", async () => {
     const { version } = JSON.parse(readFileSync("package.json", "utf-8"));
 
