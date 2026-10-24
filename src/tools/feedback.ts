@@ -14,9 +14,10 @@ export function registerFeedbackTools(server: McpServer, { client }: ToolContext
         "Use it when something does not work, the user cannot find something they expected, the server " +
         "cannot do what they asked, or they want to share feedback with the team. Ask first and send " +
         "nothing until the user agrees in this conversation.\n\n" +
-        "Send only a short description of the need and of what you were trying to do. Never include " +
-        "conversation transcripts, quoted messages, figures from the workspace or personal data such " +
-        "as names, email addresses or phone numbers.",
+        "Describe the need and what you were trying to do. When something does not work, include the " +
+        "details the team needs to reproduce it: the project, prompt or report ids involved, the period, " +
+        "and the figures you saw next to the figures you expected. Never include conversation " +
+        "transcripts, quoted messages or personal data such as names, email addresses or phone numbers.",
       annotations: WRITES,
       inputSchema: {
         need: z
@@ -25,8 +26,8 @@ export function registerFeedbackTools(server: McpServer, { client }: ToolContext
           .min(1)
           .max(20000)
           .describe(
-            "What the user needs that the server cannot do, in a few plain sentences. No transcripts " +
-              "and no personal data."
+            "What the user needs or what does not work, in plain sentences, with the ids and figures " +
+              "that reproduce it. No transcripts and no personal data."
           ),
         attemptedAction: z
           .string()
