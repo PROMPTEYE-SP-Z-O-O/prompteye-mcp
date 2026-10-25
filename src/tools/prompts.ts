@@ -370,7 +370,11 @@ export function registerPromptTools(server: McpServer, { client }: ToolContext):
         "work might not currently cover it, or the last run might still have proposals awaiting a " +
         "decision. Then nothing is scheduled and runId comes back null with `skipped` saying why; that " +
         "is not an error. A run already in progress, or no free plan slots left, is refused by the API " +
-        "instead — call get_prompt_suggestion_availability first to know which case applies.",
+        "instead — call get_prompt_suggestion_availability first to know which case applies.\n\n" +
+        "When skipped is nothing_to_suggest, tell the user why: suggestions need at least 5 active prompts " +
+        "in the group already measured and scored for purchase intent, or at least 2 active prompts with a " +
+        "computed business priority. In a new project add prompts, wait for their first measurement, then " +
+        "generate again.",
       annotations: WRITES,
       inputSchema: {
         ...projectIdShape,
