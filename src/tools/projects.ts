@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema, PublicLinkSchema } from "../schemas/prompteye.js";
 import type { Project } from "../schemas/prompteye.js";
-import { PROMPT_GENERATION } from "./glossary.js";
+import { FIRST_MEASUREMENT, PROMPT_GENERATION } from "./glossary.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
 import { projectIdShape } from "./project-id.js";
 
@@ -59,7 +59,9 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
         "market already tracked is refused.\n\n" +
         "Creating a project counts against the workspace plan. Nothing is asked of the assistants " +
         "until the project has prompts — " +
-        PROMPT_GENERATION,
+        PROMPT_GENERATION +
+        "\n\n" +
+        FIRST_MEASUREMENT,
       annotations: WRITES,
       inputSchema: {
         brand: z
