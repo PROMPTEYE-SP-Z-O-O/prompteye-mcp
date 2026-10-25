@@ -21,6 +21,7 @@ import {
   AI_TRAFFIC,
   BUSINESS_PRIORITY,
   COMPANY_FIT,
+  FIRST_MEASUREMENT,
   PROMPT_GENERATION,
   PURCHASE_INTENT,
   RELATIVE_VOLUME,
@@ -304,8 +305,8 @@ export function registerPromptTools(server: McpServer, { client }: ToolContext):
         "the same way accepting it in the PromptEye app does. promptText edits the wording before it " +
         "starts being asked; leave it out to accept the suggestion exactly as written.\n\n" +
         "The suggestion leaves the pending list; its siblings from the same cycle are left untouched. " +
-        "The new prompt counts against the workspace plan and is measured from the next run on, like " +
-        "any prompt — get_account says when that starts.",
+        "The new prompt counts against the workspace plan.\n\n" +
+        FIRST_MEASUREMENT,
       annotations: WRITES,
       inputSchema: {
         ...projectIdShape,
@@ -400,6 +401,8 @@ export function registerPromptTools(server: McpServer, { client }: ToolContext):
         "rather than the way people actually ask assistants will quietly measure nothing — it will sit " +
         "in the project at 0% visibility and look like a brand problem when it is a prompt problem. " +
         "Every prompt also counts against the workspace plan.\n\n" +
+        FIRST_MEASUREMENT +
+        "\n\n" +
         "Groups are handled by name: a groupName that does not exist yet is created after the existing " +
         "groups, and one that does is reused. upsert_prompt_group renames or describes a group afterwards.\n\n" +
         "Use it only when the user has prompts of their own that must be tracked verbatim — migrating " +
