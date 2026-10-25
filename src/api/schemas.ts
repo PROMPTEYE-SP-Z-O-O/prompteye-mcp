@@ -353,7 +353,7 @@ export const SuggestionRunSchema = z.object({
     .describe(
       "Why no run was scheduled; set exactly when runId is null. not_eligible = the project's plan does not currently pay for background work, " +
         "cooldown = the last run finished less than 7 days ago and its proposals still await a decision, " +
-        "nothing_to_suggest = the group is already healthy: no funnel gap to fill and nothing worth imitating."
+        "nothing_to_suggest = the group is already healthy: no funnel gap to fill and nothing worth imitating. In a new group it usually means too few measured prompts: a run needs at least 5 active prompts already measured and scored for purchase intent, or at least 2 active prompts with a computed business priority. Add prompts, wait for their first measurement, then try again."
     ),
 });
 
@@ -374,7 +374,8 @@ export const SuggestionRunAvailabilitySchema = z.object({
       "Why a run would or would not be scheduled: not_eligible = the project's plan does not currently pay for background work, " +
         "no_slots = no free prompt slots remain on the plan, running = a run is already in progress for this group, " +
         "cooldown = the last run finished less than 7 days ago and its proposals still await a decision, " +
-        "nothing_to_suggest = the group is already healthy, ready = nothing is blocking a new run."
+        "nothing_to_suggest = the group is already healthy, or too few of its prompts are measured yet (a run needs at least 5 active prompts scored for purchase intent, or at least 2 with a computed business priority), " +
+        "ready = nothing is blocking a new run."
     ),
   pendingSuggestionCount: z.number().describe("Suggestions from this group still awaiting a decision."),
   availableSlots: z.number().describe("Free prompt slots left on the plan; a run proposes at most this many."),
