@@ -70,6 +70,19 @@ describe("project tools keep competitor exclusions to list_competitor_exclusions
     expect(result.structuredContent).toEqual({ data: [PROJECT_OUTPUT] });
   });
 
+  it("list_projects keeps the workspace each project lives in", async () => {
+    const inClientWorkspace = { ...PROJECT, workspaceId: "m976client", workspaceName: "Client Co" };
+    const listProjects = fakeClient.listProjects;
+    fakeClient.listProjects = async () => ({ data: [inClientWorkspace] });
+    const client = await connectedClient();
+    const result = await client.callTool({ name: "list_projects", arguments: {} });
+    fakeClient.listProjects = listProjects;
+
+    expect(result.structuredContent).toEqual({
+      data: [{ ...PROJECT_OUTPUT, workspaceId: "m976client", workspaceName: "Client Co" }],
+    });
+  });
+
   it("points update_project at list_competitor_exclusions", async () => {
     const client = await connectedClient();
     const { tools } = await client.listTools();

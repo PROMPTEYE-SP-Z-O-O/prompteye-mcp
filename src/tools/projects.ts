@@ -23,7 +23,9 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
         "Every project the API key reaches, newest first, with the access the key has to each. A " +
         "project is one brand tracked in one market, and it is the root of everything else PromptEye " +
         "measures. Call this first and pass the id of the project in question as projectId to every other " +
-        "tool. Each row includes its label, brand/name and domain; use these fields together " +
+        "tool. Without workspaceId the list mixes every workspace the key reaches, clients' included; " +
+        "check a row's workspaceName before changing that project. " +
+        "Each row includes its label, brand/name and domain; use these fields together " +
         "to identify a project. Projects with different labels are distinct: do not call them duplicates " +
         "based only on similar brand names. When unsure which one the user means, ask using the labels " +
         "and domains shown, and use the id of the confirmed one.",

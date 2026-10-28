@@ -85,7 +85,18 @@ export const ProjectSchema = z.object({
   alternativeBrandNames: z.array(z.string()),
   alternativeDomains: z.array(z.string()),
   excludedCompetitors: z.array(z.string()),
-  accessRole: z.string().describe("OWNER manages the project, FULL_ACCESS edits it, READ_ONLY reads it."),
+  accessRole: z
+    .string()
+    .describe(
+      "OWNER manages the project, FULL_ACCESS edits it, READ_ONLY reads it. An OWNER or ADMIN of a workspace is OWNER of " +
+        "every project in it, so OWNER does not mean the project is the key holder's own: workspaceName says whose it is."
+    ),
+  workspaceId: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Workspace the project lives in, as list_workspaces reports it. null = a project that predates workspaces."),
+  workspaceName: z.string().nullable().optional().describe("Name of that workspace. null alongside workspaceId."),
   createdAt: timestamp("When the project was created"),
   publicUrl: z
     .string()
