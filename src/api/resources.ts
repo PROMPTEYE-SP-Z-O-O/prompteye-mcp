@@ -460,6 +460,15 @@ export class ContentArticlesResource {
     return this.http.get(`/v1/content/articles/${encodeURIComponent(articleId)}`, ContentArticleSchema, options);
   }
 
+  save(briefId: string, input: { content: string; title?: string }, options?: RequestOptions): Promise<ContentArticle> {
+    return this.http.put(
+      `/v1/content/briefs/${encodeURIComponent(briefId)}/article`,
+      input,
+      ContentArticleSchema,
+      options
+    );
+  }
+
   publish(articleId: string, url: string, options?: RequestOptions): Promise<ContentArticle> {
     return this.http.post(
       `/v1/content/articles/${encodeURIComponent(articleId)}/publication`,

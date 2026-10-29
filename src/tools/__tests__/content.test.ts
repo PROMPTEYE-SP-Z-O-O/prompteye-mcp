@@ -117,6 +117,7 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
   const requested: string[] = [];
   const listed: { projectId: string; query: unknown }[] = [];
   const published: Array<{ articleId: string; url: string }> = [];
+  const saved: Array<{ briefId: string; content: string; title?: string }> = [];
   const client = {
     getProject: async () => PROJECT,
     createContentBrief: async (input: CreateContentBriefInput) => {
@@ -133,6 +134,10 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
       return { data: [ARTICLE_SUMMARY], nextCursor: null };
     },
     getContentArticle: async () => article,
+    saveContentArticle: async (briefId: string, content: string, title?: string) => {
+      saved.push({ briefId, content, title });
+      return { ...DRAFT_ARTICLE, content };
+    },
     publishContentArticle: async (articleId: string, url: string) => {
       published.push({ articleId, url });
       return { ...DRAFT_ARTICLE, status: "published", publishUrl: url };
@@ -146,7 +151,7 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
   const mcp = new Client({ name: "test-client", version: "0.0.0" });
   await Promise.all([server.connect(serverTransport), mcp.connect(clientTransport)]);
 
-  return { mcp, created, requested, listed, published };
+  return { mcp, created, requested, listed, published, saved };
 }
 
 describe("content generation", () => {
@@ -157,6 +162,7 @@ describe("content generation", () => {
     expect(SERVER_INSTRUCTIONS).toContain("create_content_brief");
     expect(SERVER_INSTRUCTIONS).toContain("get_content_brief");
     expect(SERVER_INSTRUCTIONS).toContain("create_article");
+    expect(SERVER_INSTRUCTIONS).toContain("save_article");
     expect(SERVER_INSTRUCTIONS).toContain("get_article");
     expect(SERVER_INSTRUCTIONS).toContain("list_articles");
   });
@@ -170,6 +176,7 @@ describe("content generation", () => {
       "create_content_brief",
       "get_content_brief",
       "create_article",
+      "save_article",
       "get_article",
       "list_articles",
       "publish_article",
@@ -255,6 +262,27 @@ describe("content generation", () => {
 
     expect(listed).toEqual([{ projectId: PROJECT.id, query: { limit: 5, cursor: "c1" } }]);
     expect(result.structuredContent).toEqual({ data: [ARTICLE_SUMMARY], nextCursor: null });
+  });
+
+  it("saves text written outside PromptEye as the article of a brief", async () => {
+    const { mcp, saved } = await connect(READY_BRIEF);
+
+    const result = await mcp.callTool({
+      name: "save_article",
+      arguments: { briefId: "b1", content: "## Heading\n\nText", title: "My title" },
+    });
+
+    expect(saved).toEqual([{ briefId: "b1", content: "## Heading\n\nText", title: "My title" }]);
+    expect(result.structuredContent).toMatchObject({ status: "draft", content: "## Heading\n\nText" });
+  });
+
+  it("refuses to save an empty article text", async () => {
+    const { mcp, saved } = await connect(READY_BRIEF);
+
+    const result = await mcp.callTool({ name: "save_article", arguments: { briefId: "b1", content: "" } });
+
+    expect(result.isError).toBe(true);
+    expect(saved).toEqual([]);
   });
 
   it("records where an article went live", async () => {

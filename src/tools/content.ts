@@ -116,6 +116,44 @@ export function registerContentTools(server: McpServer, { client }: ToolContext)
   );
 
   server.registerTool(
+    "save_article",
+    {
+      title: "Save an article written outside PromptEye",
+      description:
+        "Saves the Markdown text of an article that was written or edited outside PromptEye — for example " +
+        "by the user's own assistant from the brief — as the article of a content brief, so it is stored in " +
+        "PromptEye at the brief and the prompt it measures and shows in the app's Content library. Use it " +
+        "when the user wrote the article themselves or had you write it from get_content_brief; do not use " +
+        "create_article for that, which has PromptEye write the text. The brief must be `ready`. Nothing is " +
+        "generated and nothing counts against the plan's monthly article limit. A brief has one article: " +
+        "when it has none, this creates it as a `draft`; when it already has one, the text replaces the " +
+        "current text and the article keeps its status. It is refused while PromptEye is still writing the " +
+        "article. Returns the article with its id, to read with get_article or record with publish_article; " +
+        "the user finds it in the app under Content (https://app.prompteye.com/content).\n\n" +
+        CONTENT_GENERATION,
+      annotations: WRITES,
+      inputSchema: {
+        briefId: z.string().min(1).describe("Id of the brief the article belongs to, as create_content_brief reports it."),
+        content: z
+          .string()
+          .min(1)
+          .describe("The full article text in Markdown, with ## and ### headings, up to 50000 characters."),
+        title: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("The article title. Left out, the brief's title is kept."),
+      },
+      outputSchema: ContentArticleSchema.shape,
+    },
+    async ({ briefId, content, title }) =>
+      handled(async () => {
+        const article = await client.saveContentArticle(briefId, content, title);
+        return ok(article);
+      })
+  );
+
+  server.registerTool(
     "get_article",
     {
       title: "Read one article",
