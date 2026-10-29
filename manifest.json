@@ -98,6 +98,7 @@
     { "name": "create_content_brief", "description": "Starts content generation: orders the brief an article for a prompt is written from" },
     { "name": "get_content_brief", "description": "One content brief: title, outline and the phrases it covers" },
     { "name": "create_article", "description": "Writes the article for a ready content brief" },
+    { "name": "save_article", "description": "Saves an article written outside PromptEye for a content brief" },
     { "name": "get_article", "description": "One article with its full Markdown text" },
     { "name": "list_articles", "description": "The articles of a project, newest first, without text" },
     { "name": "publish_article", "description": "Marks an article as published at its live URL" },

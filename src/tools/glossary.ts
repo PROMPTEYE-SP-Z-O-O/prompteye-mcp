@@ -145,7 +145,7 @@ export const CONTENT_GENERATION =
   "that deserve an article of their own, and writes a title and an H2/H3 outline from them. " +
   "create_content_brief orders one and get_content_brief reads it. create_article then writes the " +
   "article from a ready brief, from the brand description, the knowledge documents picked for it and the " +
-  "chosen writing style; get_article reads its text and list_articles lists the project's articles, also " +
+  "chosen writing style; save_article stores text written outside PromptEye as a brief's article, get_article reads its text and list_articles lists the project's articles, also " +
   "those added in the app under Content (" +
   CONTENT_APP_URL +
   "). Publishing the page is done on the user's own site; publish_article then records the URL it went " +

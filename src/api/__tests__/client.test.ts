@@ -489,6 +489,18 @@ describe("PromptEyeApi", () => {
       expect(calls[0].url).toBe(`${BASE_URL}/v1/content/articles/a%201`);
     });
 
+    it("saves the text of an article written outside PromptEye", async () => {
+      const { api, calls } = stubFetch(json(200, { ...article, status: "draft", content: "## Heading" }));
+
+      await expect(
+        api.contentArticles.save("b 1", { content: "## Heading", title: "T" })
+      ).resolves.toMatchObject({ status: "draft", content: "## Heading" });
+
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/content/briefs/b%201/article`);
+      expect(calls[0].init.method).toBe("PUT");
+      expect(JSON.parse(String(calls[0].init.body))).toEqual({ content: "## Heading", title: "T" });
+    });
+
     it("marks an article as published at its live address", async () => {
       const { api, calls } = stubFetch(json(200, { ...article, status: "published", publishUrl: "https://example.com/x" }));
 
