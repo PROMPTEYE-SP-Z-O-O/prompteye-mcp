@@ -671,6 +671,19 @@ export const CreatedReportSchema = ReportSchema.omit({
   leadStatus: true,
   projectId: true,
   contactCount: true,
+}).extend({
+  // A plain string, not an enum: the response is parsed after the report was already ordered, so a
+  // value this server does not know yet must not turn a spent order into an error.
+  emailStatus: z
+    .string()
+    .optional()
+    .describe(
+      "Whether this call emails the report, as decided at the moment of the call; it is not updated " +
+        "later. scheduled = the email is queued; when_ready = it goes out once the report finishes, " +
+        "and not at all if the report fails; not_sent_different_email = a reused report is only " +
+        "emailed to the address it was first ordered for, so this address gets none; " +
+        "not_sent_report_failed = the reused report failed, so no email goes out. Absent = unknown."
+    ),
 });
 
 export const ReportDetailSchema = ReportSchema.extend({

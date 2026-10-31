@@ -404,8 +404,8 @@ export class ReportsResource {
    *
    * `reused` says which of the two answers came back: a fresh report that is
    * still processing, or one generated for the same domain and account within
-   * the last 30 days, sent again to this address. It spends the account's
-   * lead-magnet quota either way.
+   * the last 30 days. A reused report is emailed only to the address it was
+   * first ordered for; `report.emailStatus` says whether this call sends one.
    */
   async create(
     input: CreateReportInput,

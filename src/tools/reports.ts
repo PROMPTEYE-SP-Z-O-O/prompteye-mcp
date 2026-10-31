@@ -12,7 +12,7 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
       title: "Generate a public report for a brand",
       description:
         "Generates the free visibility report an agency hands to a prospect, and emails it to the " +
-        "address given. " +
+        "address given (a reused report only to the address it was first ordered for, see below). " +
         PUBLIC_REPORTS +
         "\n\nThe report is booked to the account the configured API key belongs to, and spends that " +
         "account's lead-magnet quota. Nothing has to be asked for or passed in: the account's own id " +
@@ -20,14 +20,23 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
         "itself. The call to PromptEye is the one that carries no API key — the endpoint is public, " +
         "which is what lets an agency's website post to it straight from a form. Reach for " +
         "get_report_integration when the question is how to wire that form up.\n\n" +
-        "A report for the same domain and account generated in the last 30 days is not built again; " +
-        "it is sent to the address once more, and the result says which of the two happened. A new " +
+        "A report for the same domain and account generated in the last 30 days is not built again " +
+        "(`reused`). It is emailed again only to the address it was first ordered for; any other " +
+        "address gets no email. `emailStatus` says whether this call queues one, as decided at the " +
+        "moment of the call; when it is absent, it is unknown. Tell the user rather than promising an " +
+        "email that will not come. A new " +
         "one comes back as `processing` with no score — the figures land minutes later, so read them " +
         "with get_report rather than promising them straight away.",
       annotations: WRITES,
       inputSchema: {
         brand: z.string().min(1).max(200).describe("The brand the report is about."),
-        email: z.string().min(3).describe("Where the finished report is sent. The prospect's address."),
+        email: z
+          .string()
+          .min(3)
+          .describe(
+            "Where the finished report is sent. The prospect's address. A reused report that was " +
+              "ordered for another address is not emailed here; see emailStatus in the result."
+          ),
         website: z
           .string()
           .min(3)

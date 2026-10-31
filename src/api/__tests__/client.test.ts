@@ -339,13 +339,40 @@ describe("PromptEyeApi", () => {
       });
     });
 
-    it("reports a 200 as a report that was sent again rather than rebuilt", async () => {
+    it("reports a 200 as a report that was answered again rather than rebuilt", async () => {
       const { api } = stubFetch(json(200, { ...report, status: "ready", score: 42 }));
 
       const result = await api.reports.create({ agencyId: "a1", brand: "Acme", email: "lead@acme.example" });
 
       expect(result.reused).toBe(true);
       expect(result.report.score).toBe(42);
+    });
+
+    it("passes on whether the reused report is emailed to this address", async () => {
+      const { api } = stubFetch(
+        json(200, { ...report, status: "ready", score: 42, emailStatus: "not_sent_different_email" })
+      );
+
+      const result = await api.reports.create({ agencyId: "a1", brand: "Acme", email: "other@acme.example" });
+
+      expect(result.report.emailStatus).toBe("not_sent_different_email");
+    });
+
+    it("still hands back the ordered report when the email status is not known yet", async () => {
+      const { api } = stubFetch(json(201, { ...report, emailStatus: "a_status_added_later" }));
+
+      const result = await api.reports.create({ agencyId: "a1", brand: "Acme", email: "lead@acme.example" });
+
+      expect(result.report.emailStatus).toBe("a_status_added_later");
+    });
+
+    it("still hands back the ordered report when the email status is missing", async () => {
+      const { api } = stubFetch(json(201, report));
+
+      const result = await api.reports.create({ agencyId: "a1", brand: "Acme", email: "lead@acme.example" });
+
+      expect(result.report.id).toBe("r1");
+      expect(result.report.emailStatus).toBeUndefined();
     });
 
     it("lists reports with the key and the page window", async () => {
