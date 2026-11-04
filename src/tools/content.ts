@@ -5,6 +5,7 @@ import {
   ContentArticleSchema,
   ContentArticleSummarySchema,
   ContentBriefSchema,
+  IndexingRequestSchema,
   NextCursorSchema,
 } from "../schemas/prompteye.js";
 import { CONTENT_GENERATION } from "./glossary.js";
@@ -227,6 +228,34 @@ export function registerContentTools(server: McpServer, { client }: ToolContext)
       handled(async () => {
         const article = await client.publishContentArticle(articleId, url);
         return ok(article);
+      })
+  );
+
+  server.registerTool(
+    "request_indexing",
+    {
+      title: "Request indexing of a published article",
+      description:
+        "Sends the live URL of a published article to the indexing service, the same as Request indexing " +
+        "in the PromptEye app; PromptEye then checks whether the search engine picked the page up. Call it " +
+        "after publish_article. The article must be `published` or `tracked` with a live URL, otherwise it " +
+        "is refused. A URL is sent at most once every 7 days and never once it is indexed; then nothing is " +
+        "sent, submitted is false and skipped says why — tell the user rather than retrying. Indexing helps a " +
+        "page get cited but guarantees nothing.\n\n" +
+        CONTENT_GENERATION,
+      annotations: WRITES,
+      inputSchema: {
+        articleId: z
+          .string()
+          .min(1)
+          .describe("Id of the article, as create_article or list_articles reports it."),
+      },
+      outputSchema: IndexingRequestSchema.shape,
+    },
+    async ({ articleId }) =>
+      handled(async () => {
+        const result = await client.requestContentArticleIndexing(articleId);
+        return ok(result);
       })
   );
 }
