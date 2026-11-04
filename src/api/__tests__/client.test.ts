@@ -538,6 +538,14 @@ describe("PromptEyeApi", () => {
       expect(calls[0].init.method).toBe("POST");
       expect(JSON.parse(String(calls[0].init.body))).toEqual({ url: "https://example.com/x" });
     });
+
+    it("requests indexing of an article's live address", async () => {
+      const { api, calls } = stubFetch(json(202, { submitted: true, skipped: null }));
+
+      await expect(api.contentArticles.requestIndexing("a 1")).resolves.toEqual({ submitted: true, skipped: null });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/content/articles/a%201/indexing`);
+      expect(calls[0].init.method).toBe("POST");
+    });
   });
 
   describe("traffic", () => {

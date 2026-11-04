@@ -37,6 +37,7 @@ export function createLiveClient(api: PromptEyeApi): PromptEyeClient {
     getContentArticle: (articleId) => api.contentArticles.get(articleId),
     saveContentArticle: (briefId, content, title) => api.contentArticles.save(briefId, { content, title }),
     publishContentArticle: (articleId, url) => api.contentArticles.publish(articleId, url),
+    requestContentArticleIndexing: (articleId) => api.contentArticles.requestIndexing(articleId),
     reportMissingCapability: (input) => api.feedback.create(input),
     listSources: (projectId, query) => api.sources.list(projectId, query),
     listSourcePages: (projectId, query) => api.sources.listPages(projectId, query),
