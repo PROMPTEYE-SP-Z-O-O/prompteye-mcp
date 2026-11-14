@@ -129,6 +129,8 @@ const RANGE = { startDate: "2026-08-16", endDate: "2026-09-15" };
 
 type Call = { path: string; method: string; body: unknown };
 
+const LIVE_COMPETITOR_GROUP = { id: "g1", name: "PKO BP", aliases: ["PKO Bank Polski"], excludedNames: [] };
+
 /** An API that knows one project and one prompt, recording what it is asked for. */
 function liveClient() {
   const calls: Call[] = [];
@@ -139,6 +141,11 @@ function liveClient() {
       method: init.method ?? "GET",
       body: typeof init.body === "string" ? JSON.parse(init.body) : undefined,
     });
+
+    if (pathname.includes("/competitors/groups")) {
+      const groups = pathname.endsWith("/competitors/groups") ? { data: [LIVE_COMPETITOR_GROUP] } : LIVE_COMPETITOR_GROUP;
+      return new Response(JSON.stringify(groups), { status: 200 });
+    }
 
     if (init.method === "DELETE") {
       return new Response(null, { status: 204 });
@@ -492,5 +499,22 @@ describe("createLiveClient", () => {
       method: "PUT",
       body: { exclusions: [{ name: "Rival Agency", aliases: [] }] },
     });
+  });
+
+  it("reads, merges and ungroups competitor groups", async () => {
+    const { client, calls } = liveClient();
+    const groupsPath = `/v1/projects/${LIVE_PROJECT.id}/competitors/groups`;
+
+    await expect(client.listCompetitorGroups(LIVE_PROJECT.id)).resolves.toEqual({ data: [LIVE_COMPETITOR_GROUP] });
+    await expect(
+      client.mergeCompetitors(LIVE_PROJECT.id, ["PKO BP", "PKO Bank Polski"], "PKO BP")
+    ).resolves.toEqual(LIVE_COMPETITOR_GROUP);
+    await expect(client.ungroupCompetitors(LIVE_PROJECT.id, "g1")).resolves.toEqual(LIVE_COMPETITOR_GROUP);
+
+    expect(calls).toEqual([
+      { path: groupsPath, method: "GET", body: undefined },
+      { path: `${groupsPath}/merge`, method: "POST", body: { names: ["PKO BP", "PKO Bank Polski"], groupName: "PKO BP" } },
+      { path: `${groupsPath}/g1/ungroup`, method: "POST", body: undefined },
+    ]);
   });
 });

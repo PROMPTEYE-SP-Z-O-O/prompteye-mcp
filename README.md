@@ -70,6 +70,9 @@ Every one of these calls the PromptEye API.
 | `get_prompt_answers` | `GET /v1/projects/{projectId}/answers` |
 | `list_source_pages` | `GET /v1/projects/{projectId}/sources/pages` |
 | `list_competitors` | `GET /v1/projects/{projectId}/competitors` |
+| `list_competitor_groups` | `GET /v1/projects/{projectId}/competitors/groups` |
+| `merge_competitors` | `POST /v1/projects/{projectId}/competitors/groups/merge` |
+| `ungroup_competitors` | `POST /v1/projects/{projectId}/competitors/groups/{groupId}/ungroup` |
 | `get_integrations_status` | `GET /v1/projects/{projectId}/integrations/status` |
 | `get_google_status` | `GET /v1/projects/{projectId}/traffic/google/status` |
 | `get_search_performance` | `GET /v1/projects/{projectId}/traffic/google/search`, `…/search/queries`, `…/search/pages` |

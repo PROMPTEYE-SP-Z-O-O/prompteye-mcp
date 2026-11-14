@@ -15,6 +15,8 @@ import {
   CitedDomainPageSchema,
   CitedPagePageSchema,
   CompetitorExclusionListSchema,
+  CompetitorGroupListSchema,
+  CompetitorGroupSchema,
   CompetitorPageSchema,
   ContentArticlePageSchema,
   ContentArticleSchema,
@@ -65,6 +67,8 @@ import {
   type CitedPage,
   type Competitor,
   type CompetitorExclusion,
+  type CompetitorGroup,
+  type MergeCompetitorsInput,
   type ContentArticle,
   type ContentArticleSummary,
   type ContentBrief,
@@ -384,6 +388,26 @@ export class CompetitorsResource {
       `${projectPath(projectId)}/competitors/exclusions`,
       { exclusions },
       CompetitorExclusionListSchema,
+      options
+    );
+  }
+
+  /** `GET /v1/projects/{projectId}/competitors/groups` — read which spellings count as one competitor. */
+  listGroups(projectId: string, options?: RequestOptions): Promise<List<CompetitorGroup>> {
+    return this.http.get(`${projectPath(projectId)}/competitors/groups`, CompetitorGroupListSchema, options);
+  }
+
+  /** `POST /v1/projects/{projectId}/competitors/groups/merge` — count several spellings as one competitor. */
+  merge(projectId: string, input: MergeCompetitorsInput, options?: RequestOptions): Promise<CompetitorGroup> {
+    return this.http.post(`${projectPath(projectId)}/competitors/groups/merge`, input, CompetitorGroupSchema, options);
+  }
+
+  /** `POST /v1/projects/{projectId}/competitors/groups/{groupId}/ungroup` — count a group's spellings separately again. */
+  ungroup(projectId: string, groupId: string, options?: RequestOptions): Promise<CompetitorGroup> {
+    return this.http.post(
+      `${projectPath(projectId)}/competitors/groups/${encodeURIComponent(groupId)}/ungroup`,
+      undefined,
+      CompetitorGroupSchema,
       options
     );
   }

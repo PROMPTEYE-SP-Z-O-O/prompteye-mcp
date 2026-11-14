@@ -9,6 +9,7 @@ import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
 import { registerAuditTools } from "./tools/audits.js";
 import { registerBrandAnalysisTools } from "./tools/analysis.js";
+import { registerCompetitorGroupTools } from "./tools/competitor-groups.js";
 import { COMPETITORS_WIDGET, registerCompetitorTools } from "./tools/competitors.js";
 import { registerContentTools } from "./tools/content.js";
 import { registerFeedbackTools } from "./tools/feedback.js";
@@ -92,6 +93,7 @@ export function createMcpServer(context: ToolContext): McpServer {
     "The brands answering alongside a project's own, ranked by visibility, then position"
   );
   registerCompetitorTools(server, context);
+  registerCompetitorGroupTools(server, context);
   registerContentTools(server, context);
   registerIntegrationTools(server, context);
   registerGoogleTools(server, context);

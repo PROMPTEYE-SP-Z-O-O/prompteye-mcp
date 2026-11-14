@@ -936,6 +936,18 @@ export const CompetitorExclusionSchema = z.object({
 
 export const CompetitorExclusionListSchema = listOf(CompetitorExclusionSchema);
 
+export const CompetitorGroupSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  aliases: z.array(z.string()),
+  excludedNames: z.array(z.string()),
+});
+
+export const CompetitorGroupListSchema = listOf(CompetitorGroupSchema);
+
+/** What merging takes: the spellings of one competitor, and the name a new group is shown under. */
+export type MergeCompetitorsInput = { names: string[]; groupName?: string };
+
 export const ReplaceCompetitorExclusionItemSchema = z.object({
   name: z.string().min(1).max(120),
   aliases: z.array(z.string().min(1).max(120)).max(20).optional(),
@@ -1014,6 +1026,7 @@ export type SponsoredOffer = z.infer<typeof SponsoredOfferSchema>;
 export type CitedDomain = z.infer<typeof CitedDomainSchema>;
 export type Competitor = z.infer<typeof CompetitorSchema>;
 export type CompetitorExclusion = z.infer<typeof CompetitorExclusionSchema>;
+export type CompetitorGroup = z.infer<typeof CompetitorGroupSchema>;
 export type ReplaceCompetitorExclusionItem = z.infer<typeof ReplaceCompetitorExclusionItemSchema>;
 export type ReplaceCompetitorExclusionsInput = z.infer<typeof ReplaceCompetitorExclusionsRequestSchema>;
 export type Prompt = z.infer<typeof PromptSchema>;
