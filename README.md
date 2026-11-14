@@ -66,6 +66,7 @@ Every one of these calls the PromptEye API.
 | `list_articles` | `GET /v1/content/articles` |
 | `publish_article` | `POST /v1/content/articles/{articleId}/publication` |
 | `get_article` | `GET /v1/content/articles/{articleId}` |
+| `generate_article_schema` | `POST /v1/content/articles/{articleId}/schema` |
 | `list_sources` | `GET /v1/projects/{projectId}/sources` |
 | `get_prompt_answers` | `GET /v1/projects/{projectId}/answers` |
 | `list_source_pages` | `GET /v1/projects/{projectId}/sources/pages` |
