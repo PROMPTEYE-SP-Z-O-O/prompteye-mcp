@@ -92,4 +92,33 @@ describe("HelpCenter", () => {
 
     await expect(help.article("/help/raw/missing.md")).rejects.toThrow(/https:\/\/help\.test\/help/);
   });
+
+  const APP_SHELL = "<!DOCTYPE html>\n<html><head><title>Panel - PromptEye</title></head></html>";
+  const htmlResponse = (body: string) => new Response(body, { status: 200, headers: { "content-type": "text/html" } });
+
+  it.each([
+    ["an HTML content type", () => htmlResponse("# looks like Markdown")],
+    ["an HTML body", () => response(APP_SHELL)],
+    ["an <html> body without doctype", () => response("  \n<HTML><body></body></HTML>")],
+  ])("reports a missing article when the host answers with %s", async (_label, answer) => {
+    const help = new HelpCenter({ baseUrl: "https://help.test", fetcher: async (_url: string) => answer() });
+
+    const read = help.article("/help/raw/missing.md");
+
+    await expect(read).rejects.toThrow(/\/help\/raw\/missing\.md does not exist.*list_help_articles/);
+  });
+
+  it("does not cache an HTML answer for the index or the full knowledge base", async () => {
+    const fetcher = jest
+      .fn(async (_url: string) => response(INDEX))
+      .mockImplementationOnce(async () => response(APP_SHELL))
+      .mockImplementationOnce(async () => response(APP_SHELL));
+    const help = new HelpCenter({ baseUrl: "https://help.test", fetcher });
+
+    await expect(help.articles()).rejects.toThrow(/does not exist/);
+    await expect(help.fullKnowledgeBase()).rejects.toThrow(/does not exist/);
+
+    await expect(help.articles()).resolves.toHaveLength(3);
+    await expect(help.fullKnowledgeBase()).resolves.toBe(INDEX);
+  });
 });
