@@ -8,6 +8,7 @@ import {
   AnswerPageSchema,
   AuditSchema,
   AuditUsageSchema,
+  ArticleSchemaMarkupSchema,
   BrandAnalysisAvailabilitySchema,
   BrandAnalysisRunSchema,
   CategoryListSchema,
@@ -23,6 +24,7 @@ import {
   ContentBriefSchema,
   FeedbackSchema,
   GoogleStatusSchema,
+  IndexingRequestSchema,
   IntegrationsStatusSchema,
   KnowledgeBaseSchema,
   NewPromptListSchema,
@@ -67,6 +69,7 @@ import {
   type CitedPage,
   type Competitor,
   type CompetitorExclusion,
+  type ArticleSchemaMarkup,
   type CompetitorGroup,
   type MergeCompetitorsInput,
   type ContentArticle,
@@ -76,12 +79,14 @@ import {
   type CreateCategoryInput,
   type CreateContentBriefInput,
   type CreateFeedbackInput,
+  type GenerateArticleSchemaInput,
   type CreateProjectInput,
   type CreatePromptGroupInput,
   type CreateReportInput,
   type CreateTopicalMapInput,
   type Feedback,
   type GoogleStatus,
+  type IndexingRequest,
   type IntegrationsStatus,
   type Report,
   type CreatedReport,
@@ -498,6 +503,24 @@ export class ContentArticlesResource {
       `/v1/content/articles/${encodeURIComponent(articleId)}/publication`,
       { url },
       ContentArticleSchema,
+      options
+    );
+  }
+
+  requestIndexing(articleId: string, options?: RequestOptions): Promise<IndexingRequest> {
+    return this.http.post(
+      `/v1/content/articles/${encodeURIComponent(articleId)}/indexing`,
+      undefined,
+      IndexingRequestSchema,
+      options
+    );
+  }
+
+  generateSchema(articleId: string, input: GenerateArticleSchemaInput, options?: RequestOptions): Promise<ArticleSchemaMarkup> {
+    return this.http.post(
+      `/v1/content/articles/${encodeURIComponent(articleId)}/schema`,
+      input,
+      ArticleSchemaMarkupSchema,
       options
     );
   }

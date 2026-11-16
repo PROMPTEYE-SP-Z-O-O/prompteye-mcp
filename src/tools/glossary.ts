@@ -149,6 +149,6 @@ export const CONTENT_GENERATION =
   "those added in the app under Content (" +
   CONTENT_APP_URL +
   "). Publishing the page is done on the user's own site; publish_article then records the URL it went " +
-  "live at, and requesting indexing and following citations happen in the app. A generated article is a draft to review, and neither it " +
+  "live at and request_indexing sends that URL for indexing; following citations happens in the app. A generated article is a draft to review, and neither it " +
   "nor its indexing guarantees that an assistant will cite it. Guides: " +
   "https://app.prompteye.com/help/content/ and https://app.prompteye.com/help/content/article-workflow/.";
