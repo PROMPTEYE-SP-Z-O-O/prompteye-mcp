@@ -863,8 +863,21 @@ export const ContentArticleSchema = ContentArticleSummarySchema.extend({
 
 export const ContentArticlePageSchema = pageOf(ContentArticleSummarySchema);
 
+export const IndexingRequestSchema = z.object({
+  submitted: z.boolean().describe("Whether the article's live URL was sent for indexing now."),
+  skipped: z
+    .enum(["not_eligible", "cooldown", "already_indexed"])
+    .nullable()
+    .describe(
+      "Why nothing was sent, set exactly when submitted is false: not_eligible = the project's plan does not pay for background work; " +
+        "cooldown = the URL was sent less than 7 days ago and PromptEye is still checking whether it got indexed; " +
+        "already_indexed = the search engine already has the page."
+    ),
+});
+
 export type ContentArticleSummary = z.infer<typeof ContentArticleSummarySchema>;
 export type ContentArticle = z.infer<typeof ContentArticleSchema>;
+export type IndexingRequest = z.infer<typeof IndexingRequestSchema>;
 
 export type CreateContentBriefInput = {
   projectId: string;

@@ -21,6 +21,7 @@ import {
   ContentBriefSchema,
   FeedbackSchema,
   GoogleStatusSchema,
+  IndexingRequestSchema,
   IntegrationsStatusSchema,
   KnowledgeBaseSchema,
   NewPromptListSchema,
@@ -78,6 +79,7 @@ import {
   type CreateTopicalMapInput,
   type Feedback,
   type GoogleStatus,
+  type IndexingRequest,
   type IntegrationsStatus,
   type Report,
   type CreatedReport,
@@ -474,6 +476,15 @@ export class ContentArticlesResource {
       `/v1/content/articles/${encodeURIComponent(articleId)}/publication`,
       { url },
       ContentArticleSchema,
+      options
+    );
+  }
+
+  requestIndexing(articleId: string, options?: RequestOptions): Promise<IndexingRequest> {
+    return this.http.post(
+      `/v1/content/articles/${encodeURIComponent(articleId)}/indexing`,
+      undefined,
+      IndexingRequestSchema,
       options
     );
   }

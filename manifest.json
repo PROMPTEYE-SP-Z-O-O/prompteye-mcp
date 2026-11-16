@@ -102,6 +102,7 @@
     { "name": "get_article", "description": "One article with its full Markdown text" },
     { "name": "list_articles", "description": "The articles of a project, newest first, without text" },
     { "name": "publish_article", "description": "Marks an article as published at its live URL" },
+    { "name": "request_indexing", "description": "Sends a published article's live URL for indexing" },
     { "name": "update_project", "description": "Correct what a project tracks" },
     { "name": "set_project_public_link", "description": "Share a project under a public link, or take the link down" },
     { "name": "update_knowledge_base", "description": "Describe the brand better in the knowledge base" },
