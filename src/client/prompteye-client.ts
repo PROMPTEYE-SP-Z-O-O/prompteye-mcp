@@ -7,6 +7,7 @@ import type {
   AnalyticsSource,
   Answer,
   AnalyticsSummary,
+  ArticleSchemaMarkup,
   Audit,
   AuditUsage,
   BrandAnalysisAvailability,
@@ -28,6 +29,7 @@ import type {
   CreateReportInput,
   CreateTopicalMapInput,
   Feedback,
+  GenerateArticleSchemaInput,
   GoogleStatus,
   IndexingRequest,
   IntegrationsStatus,
@@ -186,6 +188,7 @@ export interface PromptEyeClient {
   saveContentArticle(briefId: string, content: string, title?: string): Promise<ContentArticle>;
   publishContentArticle(articleId: string, url: string): Promise<ContentArticle>;
   requestContentArticleIndexing(articleId: string): Promise<IndexingRequest>;
+  generateArticleSchema(articleId: string, input: GenerateArticleSchemaInput): Promise<ArticleSchemaMarkup>;
 
   reportMissingCapability(input: CreateFeedbackInput): Promise<Feedback>;
 

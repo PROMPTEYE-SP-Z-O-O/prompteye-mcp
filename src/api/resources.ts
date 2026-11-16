@@ -8,6 +8,7 @@ import {
   AnswerPageSchema,
   AuditSchema,
   AuditUsageSchema,
+  ArticleSchemaMarkupSchema,
   BrandAnalysisAvailabilitySchema,
   BrandAnalysisRunSchema,
   CategoryListSchema,
@@ -66,6 +67,7 @@ import {
   type CitedPage,
   type Competitor,
   type CompetitorExclusion,
+  type ArticleSchemaMarkup,
   type ContentArticle,
   type ContentArticleSummary,
   type ContentBrief,
@@ -73,6 +75,7 @@ import {
   type CreateCategoryInput,
   type CreateContentBriefInput,
   type CreateFeedbackInput,
+  type GenerateArticleSchemaInput,
   type CreateProjectInput,
   type CreatePromptGroupInput,
   type CreateReportInput,
@@ -485,6 +488,15 @@ export class ContentArticlesResource {
       `/v1/content/articles/${encodeURIComponent(articleId)}/indexing`,
       undefined,
       IndexingRequestSchema,
+      options
+    );
+  }
+
+  generateSchema(articleId: string, input: GenerateArticleSchemaInput, options?: RequestOptions): Promise<ArticleSchemaMarkup> {
+    return this.http.post(
+      `/v1/content/articles/${encodeURIComponent(articleId)}/schema`,
+      input,
+      ArticleSchemaMarkupSchema,
       options
     );
   }

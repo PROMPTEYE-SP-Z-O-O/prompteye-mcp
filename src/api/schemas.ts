@@ -879,6 +879,31 @@ export type ContentArticleSummary = z.infer<typeof ContentArticleSummarySchema>;
 export type ContentArticle = z.infer<typeof ContentArticleSchema>;
 export type IndexingRequest = z.infer<typeof IndexingRequestSchema>;
 
+export const ArticleSchemaMarkupSchema = z.object({
+  jsonLd: z
+    .array(z.record(z.string(), z.unknown()))
+    .describe(
+      "schema.org JSON-LD objects, ready to place on the page, each in its own <script type=\"application/ld+json\"> tag. Tell them apart by their @type."
+    ),
+  skipped: z
+    .array(
+      z.object({
+        type: z.literal("Article"),
+        reason: z
+          .enum(["not_published", "author_missing"])
+          .describe("not_published = the article has no live URL and publication date yet; author_missing = no author was given."),
+      })
+    )
+    .describe("Every reason a type was not built; one type can be listed with more than one reason."),
+});
+
+export type ArticleSchemaMarkup = z.infer<typeof ArticleSchemaMarkupSchema>;
+
+export type GenerateArticleSchemaInput = {
+  faq: Array<{ question: string; answer: string }>;
+  author?: { name: string; url?: string };
+};
+
 export type CreateContentBriefInput = {
   projectId: string;
   prompt: string;
