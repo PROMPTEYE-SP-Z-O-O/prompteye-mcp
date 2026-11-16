@@ -17,6 +17,7 @@ import type {
   CitedPage,
   Competitor,
   CompetitorExclusion,
+  CompetitorGroup,
   ContentArticle,
   ContentArticleSummary,
   ContentBrief,
@@ -174,6 +175,9 @@ export interface PromptEyeClient {
     projectId: string,
     exclusions: Array<{ name: string; aliases?: string[] }>
   ): Promise<List<CompetitorExclusion>>;
+  listCompetitorGroups(projectId: string): Promise<List<CompetitorGroup>>;
+  mergeCompetitors(projectId: string, names: string[], groupName?: string): Promise<CompetitorGroup>;
+  ungroupCompetitors(projectId: string, groupId: string): Promise<CompetitorGroup>;
 
   /** The lead-magnet reports: generated through a public endpoint, read with the key. */
   createReport(input: CreateReportInput): Promise<{ report: CreatedReport; reused: boolean }>;
