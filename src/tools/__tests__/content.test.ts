@@ -117,6 +117,7 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
   const requested: string[] = [];
   const listed: { projectId: string; query: unknown }[] = [];
   const published: Array<{ articleId: string; url: string }> = [];
+  const indexed: string[] = [];
   const saved: Array<{ briefId: string; content: string; title?: string }> = [];
   const client = {
     getProject: async () => PROJECT,
@@ -142,6 +143,10 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
       published.push({ articleId, url });
       return { ...DRAFT_ARTICLE, status: "published", publishUrl: url };
     },
+    requestContentArticleIndexing: async (articleId: string) => {
+      indexed.push(articleId);
+      return indexed.length === 1 ? { submitted: true, skipped: null } : { submitted: false, skipped: "cooldown" };
+    },
   } as unknown as PromptEyeClient;
 
   const server = new McpServer({ name: "test", version: "0.0.0" });
@@ -151,7 +156,7 @@ async function connect(brief: ContentBrief, article: ContentArticle = DRAFT_ARTI
   const mcp = new Client({ name: "test-client", version: "0.0.0" });
   await Promise.all([server.connect(serverTransport), mcp.connect(clientTransport)]);
 
-  return { mcp, created, requested, listed, published, saved };
+  return { mcp, created, requested, listed, published, saved, indexed };
 }
 
 describe("content generation", () => {
@@ -165,6 +170,8 @@ describe("content generation", () => {
     expect(SERVER_INSTRUCTIONS).toContain("save_article");
     expect(SERVER_INSTRUCTIONS).toContain("get_article");
     expect(SERVER_INSTRUCTIONS).toContain("list_articles");
+    expect(SERVER_INSTRUCTIONS).toContain("request_indexing");
+    expect(SERVER_INSTRUCTIONS).not.toMatch(/cannot request indexing/);
   });
 
   it("offers the content tools", async () => {
@@ -180,6 +187,7 @@ describe("content generation", () => {
       "get_article",
       "list_articles",
       "publish_article",
+      "request_indexing",
     ]);
   });
 
@@ -295,5 +303,16 @@ describe("content generation", () => {
 
     expect(published).toEqual([{ articleId: "a1", url: "https://example.com/blog/crm" }]);
     expect(result.structuredContent).toMatchObject({ status: "published", publishUrl: "https://example.com/blog/crm" });
+  });
+
+  it("sends a published article for indexing and passes on why a repeat was skipped", async () => {
+    const { mcp, indexed } = await connect(READY_BRIEF);
+
+    const first = await mcp.callTool({ name: "request_indexing", arguments: { articleId: "a1" } });
+    const second = await mcp.callTool({ name: "request_indexing", arguments: { articleId: "a1" } });
+
+    expect(indexed).toEqual(["a1", "a1"]);
+    expect(first.structuredContent).toEqual({ submitted: true, skipped: null });
+    expect(second.structuredContent).toEqual({ submitted: false, skipped: "cooldown" });
   });
 });

@@ -31,6 +31,7 @@ import type {
   Feedback,
   GenerateArticleSchemaInput,
   GoogleStatus,
+  IndexingRequest,
   IntegrationsStatus,
   KnowledgeBase,
   List,
@@ -186,6 +187,7 @@ export interface PromptEyeClient {
   getContentArticle(articleId: string): Promise<ContentArticle>;
   saveContentArticle(briefId: string, content: string, title?: string): Promise<ContentArticle>;
   publishContentArticle(articleId: string, url: string): Promise<ContentArticle>;
+  requestContentArticleIndexing(articleId: string): Promise<IndexingRequest>;
   generateArticleSchema(articleId: string, input: GenerateArticleSchemaInput): Promise<ArticleSchemaMarkup>;
 
   reportMissingCapability(input: CreateFeedbackInput): Promise<Feedback>;

@@ -125,6 +125,19 @@ export class HelpCenter {
       );
     }
 
-    return response.text();
+    const body = await response.text();
+    if (isHtmlPage(response, body)) {
+      throw new HelpError(
+        `${path} does not exist in the PromptEye help center. Take a path from list_help_articles, or send the user to ${this.homeUrl}.`
+      );
+    }
+    return body;
   }
+}
+
+/** The help host answers unknown paths with the app's HTML shell and a 200, so HTML means "not found". */
+function isHtmlPage(response: Response, body: string): boolean {
+  const contentType = response.headers.get("content-type") ?? "";
+  const start = body.trimStart().slice(0, 16).toLowerCase();
+  return contentType.includes("text/html") || start.startsWith("<!doctype") || start.startsWith("<html");
 }
