@@ -87,9 +87,9 @@ export const PROMPT_GENERATION =
 /** When a newly added prompt is first measured, for the tools that add prompts or report the schedule. */
 export const FIRST_MEASUREMENT =
   "A new prompt does not wait for the schedule: it is put to every assistant as soon as it is added, " +
-  "and its first answers come back over the following tens of minutes. get_account's nextScanAt is " +
-  "the next scheduled run, which asks every active prompt again; it is not when a new prompt is first " +
-  "measured, so never tell the user a new prompt waits for it. " +
+  "and its first answers come back over the following tens of minutes. A project's nextScanAt in " +
+  "list_projects is its next scheduled run, which asks its active prompts again while the plan is active; " +
+  "it is not when a new prompt is first measured, so never tell the user a new prompt waits for it. " +
   "Do not wait or poll for results after adding prompts: tell the user the first answers usually appear within tens of minutes and carry on with other work.";
 
 /** What Google's own figures are, and what they are not, for the tools that report them. */

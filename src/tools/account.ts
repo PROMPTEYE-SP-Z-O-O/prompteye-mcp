@@ -17,6 +17,10 @@ export function registerAccountTools(server: McpServer, { client }: ToolContext)
         "assistant and the answers are read back over the tens of minutes that follow, so the " +
         "figures arrive gradually after that time rather than all at once on it. Say the run " +
         "has started rather than that the numbers are ready.\n\n" +
+        "scanFrequency and nextScanAt here describe the account as a whole: the most frequent schedule among " +
+        "its projects and the soonest next run of any of them, which need not be the same project. A project " +
+        "can be asked less often; before calling missing days a fault, read that project's own scanFrequency " +
+        "and nextScanAt in list_projects.\n\n" +
         FIRST_MEASUREMENT,
       annotations: READ_ONLY,
       inputSchema: {},

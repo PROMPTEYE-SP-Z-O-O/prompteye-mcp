@@ -67,11 +67,18 @@ export const AccountSchema = z.object({
     .describe("Prompts the plan allows in total; the room left is promptLimit minus promptCount."),
   /** The assistants every active prompt is asked on, following the plan and its add-ons. */
   models: z.array(z.string()),
-  scanFrequency: z.string().describe("How often every active prompt is asked, e.g. daily."),
+  scanFrequency: z
+    .string()
+    .describe(
+      "How often prompts are asked across the account, e.g. daily: the most frequent among its projects, so a single " +
+        "project may be asked less often. Each project's own frequency is scanFrequency in list_projects."
+    ),
   nextScanAt: z
     .string()
     .describe(
-      "When the next scheduled run starts, not when it finishes, ISO 8601 in UTC; answers land over the hours after it, so figures keep moving. A newly added prompt is asked straight away and does not wait for this run."
+      "When the next scheduled run of any project of the account starts, not when it finishes, ISO 8601 in UTC; a project " +
+        "asked less often may run later, see its nextScanAt in list_projects. Answers land over the hours after it, so " +
+        "figures keep moving. A newly added prompt is asked straight away and does not wait for this run."
     ),
 });
 
@@ -103,6 +110,21 @@ export const ProjectSchema = z.object({
     .nullable()
     .optional()
     .describe("Link anyone can open without logging in to view the project. null = the project is not shared."),
+  scanFrequency: z
+    .string()
+    .optional()
+    .describe(
+      "How often this project's prompts are asked: thriceDaily, twiceDaily, daily, everyTwoDays or weekly. A weekly " +
+        "project has no new answers between its runs, so missing days are expected, not a fault. Read-only: it is " +
+        "set in the app, and update_project does not change it."
+    ),
+  nextScanAt: z
+    .string()
+    .optional()
+    .describe(
+      "When this project's next scheduled run starts, ISO 8601 in UTC; its answers land over the hours after it. The run " +
+        "asks the project's active prompts and only while the workspace's plan is active."
+    ),
 });
 
 export const PublicLinkSchema = z.object({
