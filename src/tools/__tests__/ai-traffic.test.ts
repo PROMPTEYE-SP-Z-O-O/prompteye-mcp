@@ -68,6 +68,24 @@ describe("get_prompt passes aiTraffic through as the API returns it", () => {
     expect(result.content).toEqual([{ type: "text", text: JSON.stringify(prompt) }]);
   });
 
+  it("passes on how the figure was obtained and the phrases it was measured with", async () => {
+    const prompt: PromptDetail = {
+      ...PROMPT,
+      aiTraffic: 1900,
+      aiTrafficMeasuredAt: "2026-11-17T05:30:00.000Z",
+      aiTrafficSource: "measured",
+      aiTrafficPhrases: [
+        { phrase: "crm for small teams", volume: 1880, measuredAt: "2026-11-17T05:30:00.000Z", decisive: true },
+        { phrase: "small business crm", volume: null, measuredAt: null, decisive: false },
+      ],
+    };
+
+    const result = await getPrompt(prompt);
+
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual(prompt);
+  });
+
   it("accepts an API that does not report aiTrafficMeasuredAt yet", async () => {
     const prompt = { ...PROMPT, aiTraffic: 70 };
     delete prompt.aiTrafficMeasuredAt;

@@ -8,8 +8,10 @@
 
 export const AI_TRAFFIC =
   "aiTraffic is the demand behind a prompt: PromptEye expands the question into the phrasings people " +
-  "actually use for it, weighs each one by how much of the question it carries, and adds up how much " +
-  "demand they attract per month. It is a property of the prompt, not a measurement of a period. 0 " +
+  "actually use for it, looks up how many searches each one gets per month, and takes the highest — " +
+  "get_prompt lists those phrases with the decisive one marked, and aiTrafficSource says whether the " +
+  "figure was measured, estimated by AI or carried over from prompt generation. It is a property of " +
+  "the prompt, not a measurement of a period. 0 " +
   "means it was measured and the demand is below the reporting floor of 50 searches a month. null means " +
   "there is no figure: with aiTrafficMeasuredAt null it has not been measured yet, with a date it was " +
   "measured and none of the phrasings came back with a volume, so it is unknown rather than zero. " +

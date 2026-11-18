@@ -191,6 +191,33 @@ const aiTrafficMeasuredAt = z
     "When aiTraffic was last measured, ISO 8601 in UTC. null = never measured. A failed refresh keeps the previous figure and date."
   );
 
+const aiTrafficSource = z
+  .enum(["measured", "estimated", "from_generation"])
+  .nullable()
+  .describe(
+    "How aiTraffic was obtained. measured = the volume of the decisive phrase, looked up for this prompt (also when no volume was found). " +
+      "estimated = an AI estimate, because no phrase reached 50 searches a month. " +
+      "from_generation = carried over from the phrase the prompt was generated from, not looked up for the prompt itself. " +
+      "null = not measured since PromptEye started recording the source."
+  );
+
+const AiTrafficPhraseSchema = z.object({
+  phrase: z.string().describe("A search phrasing of the prompt."),
+  volume: z.number().nullable().describe("Monthly searches for the phrase. null = no volume came back for it."),
+  measuredAt: z.string().nullable().describe("When the phrase was looked up, ISO 8601 in UTC. null = unknown."),
+  decisive: z
+    .boolean()
+    .describe("true = the phrase whose volume became aiTraffic (the highest). No phrase is decisive when the figure is estimated."),
+});
+
+const aiTrafficPhrases = z
+  .array(AiTrafficPhraseSchema)
+  .nullable()
+  .describe(
+    "The search phrases the prompt was measured with. aiTraffic is the volume of the decisive one rounded up to tens, or 0 under 50. " +
+      "null = not measured since PromptEye started recording the phrases."
+  );
+
 const businessPriority = z
   .string()
   .nullable()
@@ -214,6 +241,7 @@ export const PromptSchema = z.object({
   createdAt: promptCreatedAt,
   aiTraffic,
   aiTrafficMeasuredAt: aiTrafficMeasuredAt.optional(),
+  aiTrafficSource: aiTrafficSource.optional(),
   businessPriority,
   businessPriorityReason,
   metrics: MetricsSchema,
@@ -221,6 +249,7 @@ export const PromptSchema = z.object({
 });
 
 export const PromptDetailSchema = PromptSchema.extend({
+  aiTrafficPhrases: aiTrafficPhrases.optional(),
   byModel: z
     .array(z.object({ model: z.string(), metrics: ModelMetricsSchema }))
     .describe("One entry per assistant that actually answered."),
@@ -988,6 +1017,7 @@ export const PromptSettingsSchema = z.object({
   createdAt: promptCreatedAt,
   aiTraffic,
   aiTrafficMeasuredAt: aiTrafficMeasuredAt.optional(),
+  aiTrafficSource: aiTrafficSource.optional(),
   businessPriority,
   businessPriorityReason: businessPriorityReason.optional(),
 });
