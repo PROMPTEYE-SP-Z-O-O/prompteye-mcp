@@ -51,6 +51,7 @@ export {
   ReportDetailSchema,
   ReportSchema,
   CreatedReportSchema,
+  SCAN_FREQUENCY_VALUES,
   SearchPageSchema,
   SearchQuerySchema,
   SearchSummarySchema,
