@@ -232,6 +232,54 @@ describe("PromptEyeApi", () => {
     expect(page.data).toEqual([prompt]);
   });
 
+  describe("period comparison", () => {
+    const prompt = {
+      id: "prompt1",
+      prompt: "best tools",
+      keyword: "",
+      status: "active",
+      categories: [],
+      subcategories: [],
+      groupId: null,
+      createdAt: "2026-09-10T09:24:11.000Z",
+      aiTraffic: null,
+      aiTrafficMeasuredAt: null,
+      businessPriority: null,
+      businessPriorityReason: null,
+      metrics: { visibility: null, reachIndex: null, averagePosition: null },
+      change: null,
+    };
+    const competitor = {
+      brand: "Acme",
+      ownBrand: true,
+      metrics: { visibility: 40, reachIndex: 30, averagePosition: 2 },
+      change: null,
+      shareOfVoice: 12,
+      citedAnswers: 3,
+      citationShare: 5,
+    };
+
+    it("keeps changesHidden on prompt pages, prompts and competitor pages, and rank on competitors", async () => {
+      const promptPage = { data: [prompt], nextCursor: null, changesHidden: true };
+      const detail = { ...prompt, byModel: [], changesHidden: true };
+      const competitorPage = { data: [{ ...competitor, rank: 14 }], nextCursor: null, changesHidden: false };
+
+      await expect(stubFetch(json(200, promptPage)).api.prompts.list("p1")).resolves.toEqual(promptPage);
+      await expect(stubFetch(json(200, detail)).api.prompts.get("p1", "prompt1")).resolves.toEqual(detail);
+      await expect(stubFetch(json(200, competitorPage)).api.competitors.list("p1")).resolves.toEqual(competitorPage);
+    });
+
+    it("still reads responses from an API that sends neither changesHidden nor rank", async () => {
+      const promptPage = { data: [prompt], nextCursor: null };
+      const detail = { ...prompt, byModel: [] };
+      const competitorPage = { data: [competitor], nextCursor: null };
+
+      await expect(stubFetch(json(200, promptPage)).api.prompts.list("p1")).resolves.toEqual(promptPage);
+      await expect(stubFetch(json(200, detail)).api.prompts.get("p1", "prompt1")).resolves.toEqual(detail);
+      await expect(stubFetch(json(200, competitorPage)).api.competitors.list("p1")).resolves.toEqual(competitorPage);
+    });
+  });
+
   it("creates, changes and deletes a prompt group", async () => {
     const group = { id: "g1", name: "Overall", description: null, order: 2, promptCount: 0 };
     const created = stubFetch(json(201, group));

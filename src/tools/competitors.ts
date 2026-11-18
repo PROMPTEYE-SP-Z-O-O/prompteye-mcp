@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { MAX_LIMIT, dateRangeShape, modelFilterShape, promptScopeShape } from "../schemas/common.js";
-import { CompetitorExclusionSchema, CompetitorSchema, NextCursorSchema } from "../schemas/prompteye.js";
+import { ChangesHiddenSchema, CompetitorExclusionSchema, CompetitorSchema, NextCursorSchema } from "../schemas/prompteye.js";
 import { widgetMeta, widgetUri } from "../widgets.js";
 import { SHARE_OF_VOICE, VISIBILITY } from "./glossary.js";
 import { READ_ONLY, REPLACES, handled, ok, type ToolContext } from "./result.js";
@@ -24,8 +24,13 @@ export function registerCompetitorTools(server: McpServer, { client }: ToolConte
         "re-sorting what it returns by share of voice does not give the strongest brands by share of voice.\n\n" +
         "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +
         `${SHARE_OF_VOICE}\n\n${VISIBILITY}\n\n` +
-        "The ranking answers with the strongest brands rather than a list to walk to the end of, so " +
-        "raise `limit` to see further down. `model` narrows it to one assistant, which is how to tell " +
+        "The ranking answers with the `limit` strongest brands rather than a list to walk to the end of, so " +
+        "raise `limit` to see further down. The project's own brand is always included: when it ranks below " +
+        "those brands its row is added after them, so the answer can hold `limit + 1` rows, and `rank` gives " +
+        "every row's true place in the whole ranking. When the own brand is a product line, the row added is " +
+        "its parent company's (`ownBrand: false`). A brand no answer named in the period is not in the ranking. " +
+        "Changes are hidden (`changesHidden` true, every change null) when either period has fewer than 7 " +
+        "measured days. `model` narrows it to one assistant, which is how to tell " +
         "a brand that dominates everywhere from one that owns a single assistant.\n\n" +
         "Narrow the ranking to one prompt (`promptId`), one prompt group (`groupId`), or one category — " +
         "`categoryId` alone, or `categoryId` with `subcategoryId` — the same way the app's own visibility " +
@@ -49,6 +54,7 @@ export function registerCompetitorTools(server: McpServer, { client }: ToolConte
       outputSchema: {
         data: z.array(CompetitorSchema),
         nextCursor: NextCursorSchema,
+        changesHidden: ChangesHiddenSchema,
         projectName: z.string(),
         brand: z.string(),
         model: z.string().nullable().describe("The assistant the ranking is narrowed to. null = all assistants."),

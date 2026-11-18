@@ -50,8 +50,19 @@ const MetricsChangeSchema = z.object({
 });
 
 const NullableMetricsChangeSchema = MetricsChangeSchema.nullable().describe(
-  "Movement against the period of the same length directly before this one. null = no figure could be compared."
+  "Movement against the period of the same length directly before this one. null = no figure could be compared, " +
+    "which is always the case when either period has fewer than 7 measured days (see changesHidden)."
 );
+
+/** Whether the response hides every `change`; absent from API versions that predate it. */
+export const ChangesHiddenSchema = z
+  .boolean()
+  .optional()
+  .describe(
+    "True when every change in the response is null because either period (this one or the one of the same length " +
+      "before it) has fewer than 7 measured days, counted from the project's creation and never past today. false " +
+      "does not promise a change on every entry: one neither period measured still has change null."
+  );
 
 export const AccountSchema = z.object({
   id: z.string(),
@@ -249,6 +260,7 @@ export const PromptSchema = z.object({
 });
 
 export const PromptDetailSchema = PromptSchema.extend({
+  changesHidden: ChangesHiddenSchema,
   aiTrafficPhrases: aiTrafficPhrases.optional(),
   byModel: z
     .array(z.object({ model: z.string(), metrics: ModelMetricsSchema }))
@@ -338,8 +350,21 @@ export const CitedDomainSchema = z.object({
 });
 
 export const CompetitorSchema = z.object({
+  rank: z
+    .number()
+    .optional()
+    .describe(
+      "The brand's place in the whole ranking of the period, 1 for the strongest. The own brand's row added past limit " +
+        "keeps its true place, so it can be greater than limit."
+    ),
   brand: z.string(),
-  ownBrand: z.boolean().describe("True for the project's own brand, ranked alongside the rest."),
+  ownBrand: z
+    .boolean()
+    .describe(
+      "True for the project's own brand, ranked alongside the rest. Its row is always returned, even when limit cuts it: " +
+        "it is added after the others, so a page can hold limit + 1 rows. When the own brand is a product line, the row " +
+        "added is its parent company's (ownBrand false). A brand no answer named in the period is not in the ranking."
+    ),
   metrics: MetricsSchema,
   change: NullableMetricsChangeSchema,
   shareOfVoice: z
@@ -461,11 +486,11 @@ export const SuggestionRunAvailabilitySchema = z.object({
     .nullable()
     .describe("This group's most recent run. null = it never had one."),
 });
-export const PromptPageSchema = pageOf(PromptSchema);
+export const PromptPageSchema = pageOf(PromptSchema).extend({ changesHidden: ChangesHiddenSchema });
 export const PromptGroupPageSchema = pageOf(PromptGroupSchema);
 export const PromptGroupSettingsSchema = PromptGroupSchema.omit({ aiTrafficTotal: true, metrics: true });
 export const CitedDomainPageSchema = pageOf(CitedDomainSchema);
-export const CompetitorPageSchema = pageOf(CompetitorSchema);
+export const CompetitorPageSchema = pageOf(CompetitorSchema).extend({ changesHidden: ChangesHiddenSchema });
 
 export const CitedPageSchema = z.object({
   url: z.string().describe("The exact page the assistants cited."),

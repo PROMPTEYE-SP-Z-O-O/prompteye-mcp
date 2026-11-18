@@ -13,6 +13,7 @@ export {
   BrandAnalysisAvailabilitySchema,
   BrandAnalysisRunSchema,
   CategorySchema,
+  ChangesHiddenSchema,
   CitedDomainSchema,
   CitedPageSchema,
   CompanyProfileSchema,

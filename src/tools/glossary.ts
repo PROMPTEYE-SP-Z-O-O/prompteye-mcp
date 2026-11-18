@@ -58,7 +58,8 @@ export const SHARE_OF_VOICE =
   "of answers, not of sources, so it is not comparable with sourceOccurrences from list_sources, which " +
   "counts every source on one host. Being cited can diverge from being named — a brand can be " +
   "recommended without being linked, and linked without being recommended. The " +
-  "project's own brand is in the ranking and marked with ownBrand, so it can be read against the rest.";
+  "project's own brand is in the ranking and marked with ownBrand, so it can be read against the rest; " +
+  "it is returned even when it ranks below the limit, and rank gives its true place.";
 
 export const CITED_DOMAINS =
   "A cited domain is a site an assistant leaned on while answering the project's prompts. " +
