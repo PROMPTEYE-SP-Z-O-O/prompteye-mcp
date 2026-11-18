@@ -28,7 +28,9 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
         "Each row includes its label, brand/name and domain; use these fields together " +
         "to identify a project. Projects with different labels are distinct: do not call them duplicates " +
         "based only on similar brand names. When unsure which one the user means, ask using the labels " +
-        "and domains shown, and use the id of the confirmed one.",
+        "and domains shown, and use the id of the confirmed one. Each row also carries how often that " +
+        "project is asked (scanFrequency) and when its next run starts (nextScanAt); a project asked " +
+        "weekly has no new answers between its runs.",
       annotations: READ_ONLY,
       inputSchema: {
         workspaceId: z

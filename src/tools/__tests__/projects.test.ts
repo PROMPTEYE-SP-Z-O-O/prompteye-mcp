@@ -83,6 +83,19 @@ describe("project tools keep competitor exclusions to list_competitor_exclusions
     });
   });
 
+  it("list_projects passes on each project's own scan frequency and next scan", async () => {
+    const weekly = { ...PROJECT, scanFrequency: "weekly", nextScanAt: "2026-11-16T00:00:00.000Z" };
+    const listProjects = fakeClient.listProjects;
+    fakeClient.listProjects = async () => ({ data: [weekly] });
+    const client = await connectedClient();
+    const result = await client.callTool({ name: "list_projects", arguments: {} });
+    fakeClient.listProjects = listProjects;
+
+    expect(result.structuredContent).toEqual({
+      data: [{ ...PROJECT_OUTPUT, scanFrequency: "weekly", nextScanAt: "2026-11-16T00:00:00.000Z" }],
+    });
+  });
+
   it("points update_project at list_competitor_exclusions", async () => {
     const client = await connectedClient();
     const { tools } = await client.listTools();
