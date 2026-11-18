@@ -105,6 +105,49 @@ describe("project tools keep competitor exclusions to list_competitor_exclusions
   });
 });
 
+describe("update_project scanFrequency", () => {
+  it("passes the new scan frequency to the API and answers the project it returns", async () => {
+    const updates: unknown[] = [];
+    const updateProject = fakeClient.updateProject;
+    fakeClient.updateProject = (async (projectId: string, body: unknown) => {
+      updates.push({ projectId, body });
+      return { ...PROJECT, scanFrequency: "weekly" };
+    }) as PromptEyeClient["updateProject"];
+    const client = await connectedClient();
+    const result = await client.callTool({
+      name: "update_project",
+      arguments: { projectId: PROJECT.id, scanFrequency: "weekly" },
+    });
+    fakeClient.updateProject = updateProject;
+
+    expect(result.isError).toBeFalsy();
+    expect(updates).toEqual([{ projectId: PROJECT.id, body: { scanFrequency: "weekly" } }]);
+    expect(result.structuredContent).toEqual({ ...PROJECT_OUTPUT, scanFrequency: "weekly" });
+  });
+
+  it("refuses a frequency outside the five the API takes", async () => {
+    const client = await connectedClient();
+
+    const result = await client.callTool({
+      name: "update_project",
+      arguments: { projectId: PROJECT.id, scanFrequency: "hourly" },
+    });
+
+    expect(result.isError).toBe(true);
+  });
+
+  it("names the accepted frequencies and the account restriction in its input schema", async () => {
+    const client = await connectedClient();
+    const { tools } = await client.listTools();
+    const field = tools.find((tool) => tool.name === "update_project")?.inputSchema.properties?.scanFrequency as
+      | { enum?: string[]; description?: string }
+      | undefined;
+
+    expect(field?.enum).toEqual(["thriceDaily", "twiceDaily", "daily", "everyTwoDays", "weekly"]);
+    expect(field?.description).toContain("not available");
+  });
+});
+
 describe("set_project_public_link", () => {
   beforeEach(() => {
     publicLinkCalls.length = 0;

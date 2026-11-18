@@ -1,6 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { COUNTRY_CODES, KnowledgeBaseSchema, ProjectSchema, PublicLinkSchema } from "../schemas/prompteye.js";
+import {
+  COUNTRY_CODES,
+  KnowledgeBaseSchema,
+  ProjectSchema,
+  PublicLinkSchema,
+  SCAN_FREQUENCY_VALUES,
+} from "../schemas/prompteye.js";
 import type { Project } from "../schemas/prompteye.js";
 import { FIRST_MEASUREMENT, PROMPT_GENERATION } from "./glossary.js";
 import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
@@ -141,7 +147,8 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
       title: "Update project settings",
       description:
         "Correct what the project tracks: change the display name, grouping label, primary domain, " +
-        "alternative brand spellings, and alternative domains.\n\n" +
+        "alternative brand spellings, and alternative domains, or set how often its prompts are asked " +
+        "(scanFrequency).\n\n" +
         "Note: alternativeBrandNames and alternativeDomains are replaced as a whole rather than appended to, " +
         "so pass the complete list. Neither the brand name nor the market country can be changed here because " +
         "historical measurements depend on them (a different brand/market is a separate project).\n\n" +
@@ -169,6 +176,15 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
           .max(20)
           .optional()
           .describe("Further domains owned by the brand whose citations count as its own. Replaces the existing list."),
+        scanFrequency: z
+          .enum(SCAN_FREQUENCY_VALUES)
+          .optional()
+          .describe(
+            "How often the project's prompts are asked; daily is the default. Only accounts with scan-frequency " +
+              "control may change it: any other account gets an error saying it is not available, and nothing in " +
+              "the call is changed. A new frequency does not rebuild historical metrics. Leave it out unless the " +
+              "user asked to change how often the project is scanned."
+          ),
       },
       outputSchema: ProjectOutputSchema.shape,
     },

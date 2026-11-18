@@ -115,8 +115,8 @@ export const ProjectSchema = z.object({
     .optional()
     .describe(
       "How often this project's prompts are asked: thriceDaily, twiceDaily, daily, everyTwoDays or weekly. A weekly " +
-        "project has no new answers between its runs, so missing days are expected, not a fault. Read-only: it is " +
-        "set in the app, and update_project does not change it."
+        "project has no new answers between its runs, so missing days are expected, not a fault. It is set in the " +
+        "app or with update_project, on accounts with scan-frequency control."
     ),
   nextScanAt: z
     .string()
@@ -937,12 +937,15 @@ export type ContentBriefPhrase = z.infer<typeof ContentBriefPhraseSchema>;
 export type ContentBriefSeparateArticle = z.infer<typeof ContentBriefSeparateArticleSchema>;
 export type ContentBriefOutlineItem = z.infer<typeof ContentBriefOutlineItemSchema>;
 
+export const SCAN_FREQUENCY_VALUES = ["thriceDaily", "twiceDaily", "daily", "everyTwoDays", "weekly"] as const;
+
 export const UpdateProjectRequestSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   label: z.string().min(1).max(40).optional(),
   domain: z.string().min(3).max(253).optional(),
   alternativeBrandNames: z.array(z.string().min(1).max(120)).max(20).optional(),
   alternativeDomains: z.array(z.string().min(3).max(253)).max(20).optional(),
+  scanFrequency: z.enum(SCAN_FREQUENCY_VALUES).optional(),
 });
 
 export const BUSINESS_PRIORITY_VALUES = [
