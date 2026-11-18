@@ -6,6 +6,7 @@ import { dateRangeShape, paginationShape } from "../schemas/common.js";
 import {
   AcceptedPromptSuggestionSchema,
   CategorySchema,
+  ChangesHiddenSchema,
   NewPromptSchema,
   NextCursorSchema,
   PromptDetailSchema,
@@ -40,7 +41,8 @@ export function registerPromptTools(server: McpServer, { client }: ToolContext):
       title: "List the prompts of the project",
       description:
         "The questions the project puts to the assistants, with the visibility each one earns " +
-        "over the period and how it moved against the period before. Every measurement PromptEye " +
+        "over the period and how it moved against the period before; that movement is hidden (changesHidden " +
+        "true, every change null) when either period has fewer than 7 measured days. Every measurement PromptEye " +
         "reports is taken on the answers to these prompts, so this is where to look for which " +
         "questions carry the brand and which do not. Paused prompts are listed too, newest first.\n\n" +
         "A prompt the brand is rarely or never named on, especially one with a high business priority, " +
@@ -62,6 +64,7 @@ export function registerPromptTools(server: McpServer, { client }: ToolContext):
       outputSchema: {
         data: z.array(PromptSchema),
         nextCursor: NextCursorSchema,
+        changesHidden: ChangesHiddenSchema,
         projectName: z.string(),
         brand: z.string(),
       },
