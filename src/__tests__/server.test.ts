@@ -355,6 +355,8 @@ describe("output schema descriptions", () => {
     ["list_prompts", ["data", "[]", "aiTraffic"], "null = no figure"],
     ["list_prompts", ["data", "[]", "aiTrafficMeasuredAt"], "null = never measured"],
     ["get_prompt", ["aiTrafficMeasuredAt"], "null = never measured"],
+    ["list_prompts", ["data", "[]", "aiTrafficSource"], "estimated = an AI estimate"],
+    ["get_prompt", ["aiTrafficPhrases"], "aiTraffic is the volume of the decisive one"],
     ["list_prompts", ["data", "[]", "metrics", "visibility"], "percent 0-100. null = not measured"],
     ["list_prompts", ["data", "[]", "change"], "null = no figure could be compared"],
     ["list_prompts", ["data", "[]", "businessPriority"], "null = not ranked yet"],

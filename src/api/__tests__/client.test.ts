@@ -204,6 +204,34 @@ describe("PromptEyeApi", () => {
     );
   });
 
+  it("lists prompts with the source of their AI traffic but without the measured phrases", async () => {
+    const prompt = {
+      id: "prompt1",
+      prompt: "best tools",
+      keyword: "",
+      status: "active",
+      categories: [],
+      subcategories: [],
+      groupId: null,
+      createdAt: "2026-09-10T09:24:11.000Z",
+      aiTraffic: 1900,
+      aiTrafficMeasuredAt: "2026-11-17T05:30:00.000Z",
+      aiTrafficSource: "measured",
+      businessPriority: null,
+      businessPriorityReason: null,
+      metrics: { visibility: null, reachIndex: null, averagePosition: null },
+      change: null,
+    };
+    const phrases = [{ phrase: "best tools", volume: 1880, measuredAt: "2026-11-17T05:30:00.000Z", decisive: true }];
+
+    const page = await stubFetch(json(200, { data: [{ ...prompt, aiTrafficPhrases: phrases }], nextCursor: null })).api.prompts.list(
+      "p1",
+      {}
+    );
+
+    expect(page.data).toEqual([prompt]);
+  });
+
   it("creates, changes and deletes a prompt group", async () => {
     const group = { id: "g1", name: "Overall", description: null, order: 2, promptCount: 0 };
     const created = stubFetch(json(201, group));
