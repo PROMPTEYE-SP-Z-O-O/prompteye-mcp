@@ -415,6 +415,28 @@ describe("PromptEyeApi", () => {
       });
     });
 
+    it("accepts optional place field when creating a report", async () => {
+      const reportWithPlace = { ...report, place: "Poznań" };
+      const { api, calls } = stubFetch(json(201, reportWithPlace));
+
+      const result = await api.reports.create({
+        agencyId: "a1",
+        brand: "Acme",
+        email: "lead@acme.example",
+        website: "acme.example",
+        place: "Poznań",
+      });
+
+      expect(result.report.place).toBe("Poznań");
+      expect(JSON.parse(calls[0].init.body as string)).toEqual({
+        agencyId: "a1",
+        brand: "Acme",
+        email: "lead@acme.example",
+        website: "acme.example",
+        place: "Poznań",
+      });
+    });
+
     it("reports a 200 as a report that was answered again rather than rebuilt", async () => {
       const { api } = stubFetch(json(200, { ...report, status: "ready", score: 42 }));
 
