@@ -51,6 +51,15 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
             "How wide the brand competes, which decides the questions asked: local, regional or " +
               "national. Defaults to national."
           ),
+        place: z
+          .string()
+          .min(1)
+          .max(500)
+          .optional()
+          .describe(
+            "City or region the report is about, as free text. Kept on the report; it does not decide " +
+              "whether an earlier report is reused."
+          ),
         utm: z
           .string()
           .min(1)
@@ -126,6 +135,7 @@ export function registerReportTools(server: McpServer, { client, baseUrl }: Tool
           "  country?: string;  // ISO 3166-1 alpha-2, e.g. pl",
           "  language?: string; // two-letter code",
           "  reach?: Reach;     // defaults to national",
+          "  place?: string;    // city or region, free text up to 500 characters",
           "  utm?: string;      // campaign the lead came from, kept on the report and in its link",
           "};",
         ].join("\n");

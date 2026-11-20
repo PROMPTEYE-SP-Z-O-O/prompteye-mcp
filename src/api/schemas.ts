@@ -729,6 +729,7 @@ export const ReportSchema = z.object({
   status: z.string().describe("processing until the assistants have answered, then ready, or error."),
   score: z.number().nullable().describe("Visibility of the brand in whole percent 0-100. null = the report is not ready yet."),
   reach: z.string().nullable().describe("How far the brand sells: local, regional or national."),
+  place: z.string().nullable().optional().describe("City or region the report was taken for, as sent. null = none was given."),
   country: z.string().nullable().describe("Market the report was taken in, ISO 3166-1 alpha-2."),
   language: z.string().nullable(),
   utm: z.string().nullable(),
@@ -823,6 +824,7 @@ export type CreateReportInput = {
   country?: string;
   language?: string;
   reach?: (typeof REPORT_REACH)[number];
+  place?: string;
   /** Campaign, kept on the report and in its link. */
   utm?: string;
 };
