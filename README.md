@@ -64,7 +64,7 @@ Every one of these calls the PromptEye API.
 | `create_article` | `POST /v1/content/briefs/{briefId}/article` |
 | `save_article` | `PUT /v1/content/briefs/{briefId}/article` |
 | `list_articles` | `GET /v1/content/articles` |
-| `publish_article` | `POST /v1/content/articles/{articleId}/publication` |
+| `record_published_article` | `POST /v1/content/articles/{articleId}/publication` |
 | `request_indexing` | `POST /v1/content/articles/{articleId}/indexing` |
 | `get_article` | `GET /v1/content/articles/{articleId}` |
 | `generate_article_schema` | `POST /v1/content/articles/{articleId}/schema` |
@@ -148,7 +148,7 @@ phrases that deserve an article of their own.
 minutes; `get_article` reads the Markdown text until the status is no longer `processing`, and
 `list_articles` lists a project's articles without their text. Once the user has published it,
 `save_article` stores text written outside PromptEye (for example by the user's own assistant) as the
-article of a `ready` brief, without generating anything. `publish_article` records the live URL and marks it `published`, and `request_indexing` sends that URL
+article of a `ready` brief, without generating anything. `record_published_article` records the live URL and marks it `published`, and `request_indexing` sends that URL
 for indexing — at most once every 7 days per URL; a repeat comes back with `skipped` saying why.
 Following citations is done in the PromptEye app under [Content](https://app.prompteye.com/content).
 

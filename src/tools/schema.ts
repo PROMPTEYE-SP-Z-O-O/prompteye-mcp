@@ -28,7 +28,7 @@ export function registerSchemaTools(server: McpServer, { client }: ToolContext):
         "plain text with the Markdown stripped, exactly as they read on the published page — never invent " +
         "them — and pass the real author; never invent one either. The Article is only built for a " +
         "published article with an author; otherwise `skipped` lists every reason that applies: " +
-        "`not_published` — publish the article first (publish_article), then call this again; " +
+        "`not_published` — publish the article first, record its URL with record_published_article, then call this again; " +
         "`author_missing` — ask the user who wrote it. Nothing is stored. Tell the objects in `jsonLd` " +
         "apart by their `@type`, not their position, and place each in its own " +
         '<script type="application/ld+json"> tag on the page.\n\n' +
