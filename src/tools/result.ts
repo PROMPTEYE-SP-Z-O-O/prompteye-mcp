@@ -8,7 +8,7 @@ import type { ProjectSession } from "../session.js";
  * API whose contents are not a closed set. Hosts surface this to the user, and
  * the Connectors Directory requires it on submission.
  */
-export const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
+export const READ_ONLY = { readOnlyHint: true, destructiveHint: false, openWorldHint: true } as const;
 
 /**
  * A tool that changes the workspace. Nothing here deletes or replaces a whole
