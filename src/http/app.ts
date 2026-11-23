@@ -29,6 +29,8 @@ const CORS_OPTIONS: cors.CorsOptions = {
 };
 
 const WELL_KNOWN_PATH = "/.well-known/oauth-protected-resource";
+const OPENAI_APPS_CHALLENGE_PATH = "/.well-known/openai-apps-challenge";
+const OPENAI_APPS_CHALLENGE_TOKEN = "9ce-YotvqqVDzdAcwptOpEvcKyMCjEcApciAKioyIm4";
 
 function health(_req: express.Request, res: express.Response): void {
   res.json({ status: "ok", server: { name: serverName, version: serverVersion } });
@@ -44,6 +46,10 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
   app.use(express.json({ limit: "1mb" }));
 
   app.get(["/", "/healthz"], health);
+
+  app.get(OPENAI_APPS_CHALLENGE_PATH, (_req, res) => {
+    res.type("text/plain").send(OPENAI_APPS_CHALLENGE_TOKEN);
+  });
 
   if (oauth) {
     const { origin, pathname } = new URL(oauth.resource);
