@@ -28,7 +28,7 @@ import {
   RELATIVE_VOLUME,
   VISIBILITY,
 } from "./glossary.js";
-import { DELETES, READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
+import { DELETES, DESTRUCTIVE_WRITES, READ_ONLY, WRITES, fail, handled, ok, type ToolContext } from "./result.js";
 import { projectIdShape } from "./project-id.js";
 
 export const PROMPTS_WIDGET = "prompts";
@@ -139,7 +139,7 @@ export function registerPromptTools(server: McpServer, { client }: ToolContext):
         "Without groupId a new, empty group is created: name is required, and the group goes after the " +
         "existing ones unless order says otherwise. Prompts join a group through update_prompt (groupId) " +
         "or through a matching groupName in add_prompts.",
-      annotations: WRITES,
+      annotations: DESTRUCTIVE_WRITES,
       inputSchema: {
         ...projectIdShape,
         groupId: z
@@ -482,7 +482,7 @@ export function registerPromptTools(server: McpServer, { client }: ToolContext):
         "(add a new prompt and pause the old one instead).\n" +
         "- Moving a prompt between groups or categories keeps its history intact.\n" +
         "- Setting businessPriority overrides the computed priority; passing null hands it back to PromptEye's computation.",
-      annotations: WRITES,
+      annotations: DESTRUCTIVE_WRITES,
       inputSchema: {
         ...projectIdShape,
         promptId: z.string().min(1).describe("Id of the prompt to update, as list_prompts reports it."),

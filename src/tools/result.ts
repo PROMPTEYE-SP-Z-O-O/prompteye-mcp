@@ -21,6 +21,14 @@ export const WRITES = {
   openWorldHint: true,
 } as const;
 
+/** Changes existing state in a way that can overwrite data or invalidate prior state. */
+export const DESTRUCTIVE_WRITES = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: false,
+  openWorldHint: true,
+} as const;
+
 export const DELETES = {
   readOnlyHint: false,
   destructiveHint: true,

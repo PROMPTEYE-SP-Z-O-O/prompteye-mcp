@@ -38,7 +38,8 @@ export function registerSourceTools(server: McpServer, { client }: ToolContext):
         "time may show none yet; calling again later can fill it. The own domain never carries an offer. The call " +
         "takes noticeably longer because the offers are fetched, so before passing it ASK the user whether they " +
         "want offers — unless the user already asked for prices, sponsored publications or where to buy articles, " +
-        "then pass it straight away.",
+        "then pass it straight away. This remains a read-only lookup: it requests offer data from PromptEye but " +
+        "does not buy a placement or change the project.",
       annotations: READ_ONLY,
       inputSchema: {
         ...projectIdShape,

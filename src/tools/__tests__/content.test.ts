@@ -186,7 +186,7 @@ describe("content generation", () => {
       "save_article",
       "get_article",
       "list_articles",
-      "publish_article",
+      "record_published_article",
       "request_indexing",
     ]);
   });
@@ -297,7 +297,7 @@ describe("content generation", () => {
     const { mcp, published } = await connect(READY_BRIEF);
 
     const result = await mcp.callTool({
-      name: "publish_article",
+      name: "record_published_article",
       arguments: { articleId: "a1", url: "https://example.com/blog/crm" },
     });
 

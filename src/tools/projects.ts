@@ -9,7 +9,7 @@ import {
 } from "../schemas/prompteye.js";
 import type { Project } from "../schemas/prompteye.js";
 import { FIRST_MEASUREMENT, PROMPT_GENERATION } from "./glossary.js";
-import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
+import { DESTRUCTIVE_WRITES, READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
 import { projectIdShape } from "./project-id.js";
 
 const ProjectOutputSchema = ProjectSchema.omit({ excludedCompetitors: true });
@@ -156,7 +156,7 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
         "The rebuild may take up to an hour. During that time, aggregated reads such as list_competitors and " +
         "list_prompt_groups may be temporarily unavailable.\n\n" +
         EXCLUSIONS_POINTER,
-      annotations: WRITES,
+      annotations: DESTRUCTIVE_WRITES,
       inputSchema: {
         ...projectIdShape,
         name: z.string().min(1).max(120).optional().describe("Display name of the project. Defaults to the brand name."),
@@ -206,7 +206,7 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
         "Publishing a project that is already public answers the link it already has, so it is safe to call again to " +
         "read the link back; list_projects also shows it as publicUrl. Taking the link down and publishing again " +
         "creates a new link and the old one stops working, so warn the user before disabling a link they have handed out.",
-      annotations: WRITES,
+      annotations: DESTRUCTIVE_WRITES,
       inputSchema: {
         ...projectIdShape,
         enabled: z.boolean().describe("true publishes the project under a public link, false takes the link down."),
@@ -248,7 +248,7 @@ export function registerProjectTools(server: McpServer, { client }: ToolContext)
         "Everything PromptEye generates for the project (prompts, suggestions, analyses) leans on these fields, " +
         "so keeping them accurate ensures generated content and evaluation criteria match reality.\n\n" +
         "Only provided fields are updated; omitted fields keep their current values.",
-      annotations: WRITES,
+      annotations: DESTRUCTIVE_WRITES,
       inputSchema: {
         ...projectIdShape,
         industry: z.string().max(4000).optional().describe("The industry the brand sells into, e.g. 'AI search analytics'."),

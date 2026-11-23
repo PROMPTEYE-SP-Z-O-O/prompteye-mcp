@@ -9,7 +9,7 @@ import {
   NextCursorSchema,
 } from "../schemas/prompteye.js";
 import { CONTENT_GENERATION } from "./glossary.js";
-import { READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
+import { DESTRUCTIVE_WRITES, READ_ONLY, WRITES, handled, ok, type ToolContext } from "./result.js";
 import { projectIdShape } from "./project-id.js";
 
 export function registerContentTools(server: McpServer, { client }: ToolContext): void {
@@ -94,7 +94,7 @@ export function registerContentTools(server: McpServer, { client }: ToolContext)
         "calling this again for a brief whose article is already written rewrites it and replaces the " +
         "previous text, and it is refused while the article is still being written. Each written article " +
         "counts against the plan's monthly article limit.",
-      annotations: WRITES,
+      annotations: DESTRUCTIVE_WRITES,
       inputSchema: {
         briefId: z
           .string()
@@ -129,10 +129,10 @@ export function registerContentTools(server: McpServer, { client }: ToolContext)
         "generated and nothing counts against the plan's monthly article limit. A brief has one article: " +
         "when it has none, this creates it as a `draft`; when it already has one, the text replaces the " +
         "current text and the article keeps its status. It is refused while PromptEye is still writing the " +
-        "article. Returns the article with its id, to read with get_article or record with publish_article; " +
+        "article. Returns the article with its id, to read with get_article or record with record_published_article; " +
         "the user finds it in the app under Content (https://app.prompteye.com/content).\n\n" +
         CONTENT_GENERATION,
-      annotations: WRITES,
+      annotations: DESTRUCTIVE_WRITES,
       inputSchema: {
         briefId: z.string().min(1).describe("Id of the brief the article belongs to, as create_content_brief reports it."),
         content: z
@@ -202,11 +202,11 @@ export function registerContentTools(server: McpServer, { client }: ToolContext)
   );
 
   server.registerTool(
-    "publish_article",
+    "record_published_article",
     {
-      title: "Mark an article as published",
+      title: "Record an article's publication",
       description:
-        "Records that an article went live on the user's site at the given address and marks it " +
+        "Records that an article is already live on the user's site at the given address and marks it " +
         "`published`, the same as saving the live URL in the PromptEye app. From then on PromptEye shows " +
         "it as published content and follows whether the assistants cite that page. Call this once the " +
         "user has published the text from get_article on their own site. The article must be written " +
@@ -214,7 +214,7 @@ export function registerContentTools(server: McpServer, { client }: ToolContext)
         "`error` is refused. Calling it again " +
         "with another address replaces the URL and keeps the first publication date.\n\n" +
         CONTENT_GENERATION,
-      annotations: WRITES,
+      annotations: DESTRUCTIVE_WRITES,
       inputSchema: {
         articleId: z
           .string()
@@ -238,7 +238,7 @@ export function registerContentTools(server: McpServer, { client }: ToolContext)
       description:
         "Sends the live URL of a published article to the indexing service, the same as Request indexing " +
         "in the PromptEye app; PromptEye then checks whether the search engine picked the page up. Call it " +
-        "after publish_article. The article must be `published` or `tracked` with a live URL, otherwise it " +
+        "after record_published_article. The article must be `published` or `tracked` with a live URL, otherwise it " +
         "is refused. A URL is sent at most once every 7 days and never once it is indexed; then nothing is " +
         "sent, submitted is false and skipped says why — tell the user rather than retrying. Indexing helps a " +
         "page get cited but guarantees nothing.\n\n" +
