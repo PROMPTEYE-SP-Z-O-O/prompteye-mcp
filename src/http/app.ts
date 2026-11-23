@@ -31,6 +31,8 @@ const CORS_OPTIONS: cors.CorsOptions = {
 };
 
 const WELL_KNOWN_PATH = "/.well-known/oauth-protected-resource";
+const OPENAI_APPS_CHALLENGE_PATH = "/.well-known/openai-apps-challenge";
+const OPENAI_APPS_CHALLENGE_TOKEN = "9ce-YotvqqVDzdAcwptOpEvcKyMCjEcApciAKioyIm4";
 
 const ICON_PATHS = ["/favicon.ico", "/icon.png"];
 
@@ -63,6 +65,10 @@ export function createHttpApp(options: HttpAppOptions): express.Express {
   app.get(["/", "/healthz"], health);
   app.get(ICON_PATHS, icon);
   app.get("/widgets/:name.js", widgetScriptFile);
+
+  app.get(OPENAI_APPS_CHALLENGE_PATH, (_req, res) => {
+    res.type("text/plain").send(OPENAI_APPS_CHALLENGE_TOKEN);
+  });
 
   if (oauth) {
     const { origin, pathname } = new URL(oauth.resource);
