@@ -75,6 +75,14 @@ Every one of these calls the PromptEye API.
 | `list_competitor_groups` | `GET /v1/projects/{projectId}/competitors/groups` |
 | `merge_competitors` | `POST /v1/projects/{projectId}/competitors/groups/merge` |
 | `ungroup_competitors` | `POST /v1/projects/{projectId}/competitors/groups/{groupId}/ungroup` |
+| `get_product_shelf` | `GET /v1/projects/{projectId}/products/shelf` |
+| `list_product_shops` | `GET /v1/projects/{projectId}/products/shops` |
+| `get_product_shop` | `GET /v1/projects/{projectId}/products/shops/{shopKey}` |
+| `list_products` | `GET /v1/projects/{projectId}/products` |
+| `get_product` | `GET /v1/projects/{projectId}/products/{productKey}` |
+| `list_product_offers` | `GET /v1/projects/{projectId}/products/offers` |
+| `list_product_ratings` | `GET /v1/projects/{projectId}/products/ratings` |
+| `list_product_issues` | `GET /v1/projects/{projectId}/products/issues` |
 | `get_integrations_status` | `GET /v1/projects/{projectId}/integrations/status` |
 | `get_google_status` | `GET /v1/projects/{projectId}/traffic/google/status` |
 | `get_search_performance` | `GET /v1/projects/{projectId}/traffic/google/search`, `…/search/queries`, `…/search/pages` |
@@ -98,6 +106,15 @@ Every one of these calls the PromptEye API.
 
 Periods default to the last 30 days and are capped at 366 — except the bot traffic, which the API
 reads a month at a time, so `list_bot_visits`, `count_bot_visits` and `get_crawl_health` cap theirs at 31 days.
+
+### The products
+
+Eight read-only tools report on the product boxes ChatGPT shows: `get_product_shelf` for the
+client's shop as a whole, `list_product_shops` and `get_product_shop` for the shops, `list_products`
+and `get_product` for the products, `list_product_offers` for the offers behind a product,
+`list_product_ratings` and `list_product_issues`. They cover ChatGPT only and take no `model`.
+Days are UTC, shares are percent 0-100, and `promptId` and `groupId` cannot be combined.
+`list_product_offers` needs a `productKey` or `mine=true`.
 
 ### The bot traffic
 

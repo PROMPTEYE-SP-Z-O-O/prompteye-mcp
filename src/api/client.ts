@@ -12,6 +12,7 @@ import {
   GoogleResource,
   IntegrationsResource,
   KnowledgeBaseResource,
+  ProductsResource,
   ProjectsResource,
   PromptGroupsResource,
   PromptsResource,
@@ -68,6 +69,7 @@ export class PromptEyeApi {
   readonly brandAnalysis: BrandAnalysisResource;
   readonly audits: AuditsResource;
   readonly topicalMaps: TopicalMapsResource;
+  readonly products: ProductsResource;
 
   constructor(options: PromptEyeApiOptions) {
     if (!options.token?.trim()) throw new TypeError("token is required.");
@@ -102,5 +104,6 @@ export class PromptEyeApi {
     this.brandAnalysis = new BrandAnalysisResource(http);
     this.audits = new AuditsResource(http);
     this.topicalMaps = new TopicalMapsResource(http);
+    this.products = new ProductsResource(http);
   }
 }
