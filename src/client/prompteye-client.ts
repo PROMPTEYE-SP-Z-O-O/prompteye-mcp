@@ -1,3 +1,11 @@
+import type {
+  ProductIssueParams,
+  ProductListParams,
+  ProductOfferParams,
+  ProductParams,
+  ProductRatingParams,
+  ProductShopsParams,
+} from "../api/index.js";
 import type { DateRange, ModelKey, Page } from "../schemas/common.js";
 import type {
   AcceptPromptSuggestionInput,
@@ -37,6 +45,14 @@ import type {
   KnowledgeBase,
   List,
   NewPrompt,
+  Product,
+  ProductIssue,
+  ProductIssueType,
+  ProductOffer,
+  ProductRating,
+  ProductShelf,
+  ProductShop,
+  ProductShopDetail,
   Project,
   Prompt,
   PromptDetail,
@@ -226,6 +242,15 @@ export interface PromptEyeClient {
   listSourcePages(projectId: string, query: SourcePageQuery): Promise<Page<CitedPage>>;
 
   listAnswers(projectId: string, query: AnswerQuery): Promise<Page<Answer>>;
+
+  getProductShelf(projectId: string, query: ProductParams): Promise<ProductShelf>;
+  listProductShops(projectId: string, query: ProductShopsParams): Promise<Page<ProductShop>>;
+  getProductShop(projectId: string, shopKey: string, query: ProductParams): Promise<ProductShopDetail>;
+  listProducts(projectId: string, query: ProductListParams): Promise<Page<Product>>;
+  getProduct(projectId: string, productKey: string, query: ProductParams): Promise<Product>;
+  listProductOffers(projectId: string, query: ProductOfferParams): Promise<Page<ProductOffer>>;
+  listProductRatings(projectId: string, query: ProductRatingParams): Promise<Page<ProductRating>>;
+  listProductIssues(projectId: string, query: ProductIssueParams): Promise<Page<ProductIssue>>;
 
   createBrandAnalysisRun(projectId: string): Promise<BrandAnalysisRun>;
   getBrandAnalysisAvailability(projectId: string): Promise<BrandAnalysisAvailability>;

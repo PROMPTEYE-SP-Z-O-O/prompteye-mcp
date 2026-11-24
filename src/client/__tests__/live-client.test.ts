@@ -518,3 +518,60 @@ describe("createLiveClient", () => {
     ]);
   });
 });
+
+describe("live client products", () => {
+  const shelf = {
+    from: "2026-08-16",
+    to: "2026-09-15",
+    firstBoxDay: "2026-08-20",
+    share: 12.5,
+    presence: 40,
+    boxes: 8,
+    promptsWithBoxes: 2,
+    promptsTotal: 5,
+    clientShop: { shopKey: "acme", name: "Acme", host: "acme.example" },
+    shopsAheadOfClient: [],
+    prompts: [],
+    weeks: [],
+  };
+
+  const page = { data: [], nextCursor: null };
+
+  function productClient() {
+    const paths: string[] = [];
+    const fetch: FetchLike = async (url) => {
+      const { pathname, search } = new URL(url);
+      paths.push(pathname + search);
+      const body = pathname.endsWith("/products/shelf") ? shelf : page;
+      return new Response(JSON.stringify(body), { status: 200 });
+    };
+    const api = new PromptEyeApi({ token: "pe_live_test", baseUrl: "https://example.convex.site", fetch });
+    return { client: createLiveClient(api), paths };
+  }
+
+  it("reads the shelf through the products resource", async () => {
+    const { client, paths } = productClient();
+
+    await expect(client.getProductShelf("p1", { promptId: "pr1" })).resolves.toEqual(shelf);
+
+    expect(paths).toEqual(["/v1/projects/p1/products/shelf?promptId=pr1"]);
+  });
+
+  it("sends every product query to its own endpoint", async () => {
+    const { client, paths } = productClient();
+
+    await client.listProductOffers("p1", { mine: true });
+    await client.listProductRatings("p1", { belowTypical: true });
+    await client.listProductIssues("p1", { type: "stock" });
+    await client.listProductShops("p1", {});
+    await client.listProducts("p1", { q: "shoe" });
+
+    expect(paths).toEqual([
+      "/v1/projects/p1/products/offers?mine=true",
+      "/v1/projects/p1/products/ratings?belowTypical=true",
+      "/v1/projects/p1/products/issues?type=stock",
+      "/v1/projects/p1/products/shops",
+      "/v1/projects/p1/products?q=shoe",
+    ]);
+  });
+});

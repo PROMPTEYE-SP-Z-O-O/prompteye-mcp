@@ -1087,3 +1087,143 @@ describe("PromptEyeApi", () => {
     });
   });
 });
+
+describe("products", () => {
+  const shop = {
+    shopKey: "allegro",
+    name: "Allegro",
+    domain: "allegro.pl",
+    isMine: false,
+    isMarketplace: true,
+    share: 41.5,
+    presence: 60,
+    boxes: 12,
+    positions: 30,
+  };
+
+  const product = {
+    productKey: "k1",
+    title: "Trail shoe",
+    imageUrl: null,
+    answers: 7,
+    lastDay: "2026-09-14",
+    clientPosition: 2,
+    offersCount: 4,
+    clientPrice: 299,
+    currency: "PLN",
+    cheapest: { shopKey: "allegro", name: "Allegro", domain: "allegro.pl", price: 279 },
+    gapAmount: 20,
+    gapPercent: 7.2,
+    isMine: true,
+  };
+
+  const issue = {
+    id: "price:k1",
+    type: "price",
+    product: { itemId: "k1", title: "Trail shoe", imageUrl: null, link: null },
+    group: null,
+    before: { amount: 299, currency: "PLN" },
+    after: { amount: 279, currency: "PLN" },
+    answers: 7,
+    lastDay: "2026-09-14",
+    weight: 7,
+  };
+
+  it("reads the shelf for a period and a prompt group", async () => {
+    const shelf = {
+      from: "2026-08-16",
+      to: "2026-09-15",
+      firstBoxDay: null,
+      share: null,
+      presence: null,
+      boxes: 0,
+      promptsWithBoxes: 0,
+      promptsTotal: 3,
+      clientShop: null,
+      shopsAheadOfClient: [],
+      prompts: [],
+      weeks: [],
+    };
+    const { api, calls } = stubFetch(json(200, shelf));
+
+    await expect(api.products.shelf("p1", { startDate: "2026-08-16", groupId: "g1" })).resolves.toEqual(shelf);
+
+    expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/products/shelf?startDate=2026-08-16&groupId=g1`);
+  });
+
+  it("lists shops and reads one by its key", async () => {
+    const list = stubFetch(json(200, { data: [shop], nextCursor: null }));
+    await expect(list.api.products.shops("p1", { limit: 5 })).resolves.toEqual({ data: [shop], nextCursor: null });
+    expect(list.calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/products/shops?limit=5`);
+
+    const detail = { ...shop, meanPosition: 2.1, firstPlaces: 3, shopsAheadOfClient: [], prompts: [], weeks: [] };
+    const read = stubFetch(json(200, detail));
+    await expect(read.api.products.shop("p1", "a/b")).resolves.toEqual(detail);
+    expect(read.calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/products/shops/a%2Fb`);
+  });
+
+  it("lists products with their filters and reads one by its key", async () => {
+    const list = stubFetch(json(200, { data: [product], nextCursor: null }));
+    await list.api.products.list("p1", { mine: true, shop: "allegro", q: "shoe" });
+    expect(list.calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/products?mine=true&shop=allegro&q=shoe`);
+
+    const read = stubFetch(json(200, product));
+    await expect(read.api.products.get("p1", "k 1")).resolves.toEqual(product);
+    expect(read.calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/products/k%201`);
+  });
+
+  it("lists offers, ratings and issues with their filters", async () => {
+    const offer = {
+      productKey: "k1",
+      shopKey: "allegro",
+      shop: "Allegro",
+      domain: "allegro.pl",
+      position: 1,
+      price: 279,
+      currency: "PLN",
+      condition: "new",
+      isMine: false,
+      isCheapest: true,
+      gapAmount: 0,
+      gapPercent: 0,
+    };
+    const offers = stubFetch(json(200, { data: [offer], nextCursor: null }));
+    await expect(offers.api.products.offers("p1", { productKey: "k1", shopKey: "allegro" })).resolves.toEqual({
+      data: [offer],
+      nextCursor: null,
+    });
+    expect(offers.calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/products/offers?productKey=k1&shopKey=allegro`);
+
+    const ratings = stubFetch(json(200, { data: [], nextCursor: null }));
+    await ratings.api.products.ratings("p1", { belowTypical: true });
+    expect(ratings.calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/products/ratings?belowTypical=true`);
+
+    const issues = stubFetch(json(200, { data: [issue], nextCursor: null }));
+    await expect(issues.api.products.issues("p1", { type: "price" })).resolves.toEqual({
+      data: [issue],
+      nextCursor: null,
+    });
+    expect(issues.calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/products/issues?type=price`);
+  });
+
+  it("keeps the three shapes of an issue's before and after", async () => {
+    const stock = { ...issue, type: "stock", before: "in_stock", after: "out_of_stock" };
+    const drop = {
+      ...issue,
+      type: "shelf_drop",
+      product: null,
+      group: { groupId: "g1", name: "Shoes" },
+      before: { week: { from: "2026-08-03", to: "2026-08-09" }, share: 40 },
+      after: { week: { from: "2026-08-10", to: "2026-08-16" }, share: 12.5 },
+    };
+    const { api } = stubFetch(json(200, { data: [stock, drop], nextCursor: null }));
+
+    await expect(api.products.issues("p1")).resolves.toEqual({ data: [stock, drop], nextCursor: null });
+  });
+
+  it("rejects an issue of an unknown type", async () => {
+    const { api } = stubFetch(json(200, { data: [{ ...issue, type: "other" }], nextCursor: null }));
+
+    await expect(api.products.issues("p1")).rejects.toBeInstanceOf(ZodError);
+  });
+});

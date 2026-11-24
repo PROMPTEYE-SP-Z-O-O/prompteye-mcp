@@ -155,3 +155,12 @@ export const CONTENT_GENERATION =
   "live at and request_indexing sends that URL for indexing; following citations happens in the app. A generated article is a draft to review, and neither it " +
   "nor its indexing guarantees that an assistant will cite it. Guides: " +
   "https://app.prompteye.com/help/content/ and https://app.prompteye.com/help/content/article-workflow/.";
+
+export const PRODUCTS_SCOPE =
+  "Product figures cover ChatGPT only: they are read from the product boxes ChatGPT shows in its answers, " +
+  "and there is no model parameter. Days are YYYY-MM-DD in UTC, the period defaults to the last 30 days, " +
+  "both ends included, and is capped at 366, and shares and presences are percent 0-100 with one decimal. " +
+  "Narrow the figures to one prompt (`promptId`) or one prompt group (`groupId`); giving both fails. A " +
+  "project that sells as a producer rather than a shop still gets the shelf and shop figures, but an empty " +
+  "list from list_products, list_product_offers, list_product_ratings and list_product_issues, and a " +
+  "not-found error from get_product.";

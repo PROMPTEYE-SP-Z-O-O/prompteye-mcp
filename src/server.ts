@@ -19,6 +19,7 @@ import { registerIntegrationTools } from "./tools/integrations.js";
 import { registerTrafficTools } from "./tools/traffic.js";
 import { SOURCES_WIDGET, registerSourceTools } from "./tools/evidence.js";
 import { PROMPTS_WIDGET, registerPromptTools } from "./tools/prompts.js";
+import { registerProductTools } from "./tools/products.js";
 import { registerProjectTools } from "./tools/projects.js";
 import { registerReportTools } from "./tools/reports.js";
 import { registerSchemaTools } from "./tools/schema.js";
@@ -95,6 +96,7 @@ export function createMcpServer(context: ToolContext): McpServer {
   );
   registerCompetitorTools(server, context);
   registerCompetitorGroupTools(server, context);
+  registerProductTools(server, context);
   registerContentTools(server, context);
   registerSchemaTools(server, context);
   registerIntegrationTools(server, context);

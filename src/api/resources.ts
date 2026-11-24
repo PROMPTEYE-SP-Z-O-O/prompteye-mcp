@@ -28,6 +28,14 @@ import {
   IntegrationsStatusSchema,
   KnowledgeBaseSchema,
   NewPromptListSchema,
+  ProductIssuePageSchema,
+  ProductOfferPageSchema,
+  ProductPageSchema,
+  ProductRatingPageSchema,
+  ProductSchema,
+  ProductShelfSchema,
+  ProductShopDetailSchema,
+  ProductShopPageSchema,
   ProjectListSchema,
   ProjectSchema,
   PublicLinkSchema,
@@ -95,6 +103,14 @@ import {
   type List,
   type NewPrompt,
   type Page,
+  type Product,
+  type ProductIssue,
+  type ProductIssueType,
+  type ProductOffer,
+  type ProductRating,
+  type ProductShelf,
+  type ProductShop,
+  type ProductShopDetail,
   type Project,
   type Prompt,
   type PromptDetail,
@@ -863,5 +879,77 @@ export class FeedbackResource {
 
   create(input: CreateFeedbackInput, options?: RequestOptions): Promise<Feedback> {
     return this.http.post("/v1/feedback", input, FeedbackSchema, options);
+  }
+}
+
+export type ProductParams = DateRange & { promptId?: string; groupId?: string };
+
+export type ProductShopsParams = ProductParams & { limit?: number };
+
+export type ProductListParams = ProductParams & { mine?: boolean; shop?: string; q?: string; limit?: number };
+
+export type ProductOfferParams = ProductParams & {
+  productKey?: string;
+  shopKey?: string;
+  mine?: boolean;
+  limit?: number;
+};
+
+export type ProductRatingParams = ProductParams & { belowTypical?: boolean; limit?: number };
+
+export type ProductIssueParams = ProductParams & { type?: ProductIssueType; limit?: number };
+
+export class ProductsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  private path(projectId: string, suffix = ""): string {
+    return `${projectPath(projectId)}/products${suffix}`;
+  }
+
+  shelf(projectId: string, params: ProductParams = {}, options?: RequestOptions): Promise<ProductShelf> {
+    return this.http.get(this.path(projectId, "/shelf"), ProductShelfSchema, { ...options, query: params });
+  }
+
+  shops(projectId: string, params: ProductShopsParams = {}, options?: RequestOptions): Promise<Page<ProductShop>> {
+    return this.http.get(this.path(projectId, "/shops"), ProductShopPageSchema, { ...options, query: params });
+  }
+
+  shop(
+    projectId: string,
+    shopKey: string,
+    params: ProductParams = {},
+    options?: RequestOptions
+  ): Promise<ProductShopDetail> {
+    return this.http.get(this.path(projectId, `/shops/${encodeURIComponent(shopKey)}`), ProductShopDetailSchema, {
+      ...options,
+      query: params,
+    });
+  }
+
+  list(projectId: string, params: ProductListParams = {}, options?: RequestOptions): Promise<Page<Product>> {
+    return this.http.get(this.path(projectId), ProductPageSchema, { ...options, query: params });
+  }
+
+  get(projectId: string, productKey: string, params: ProductParams = {}, options?: RequestOptions): Promise<Product> {
+    return this.http.get(this.path(projectId, `/${encodeURIComponent(productKey)}`), ProductSchema, {
+      ...options,
+      query: params,
+    });
+  }
+
+  offers(projectId: string, params: ProductOfferParams = {}, options?: RequestOptions): Promise<Page<ProductOffer>> {
+    return this.http.get(this.path(projectId, "/offers"), ProductOfferPageSchema, { ...options, query: params });
+  }
+
+  ratings(
+    projectId: string,
+    params: ProductRatingParams = {},
+    options?: RequestOptions
+  ): Promise<Page<ProductRating>> {
+    return this.http.get(this.path(projectId, "/ratings"), ProductRatingPageSchema, { ...options, query: params });
+  }
+
+  issues(projectId: string, params: ProductIssueParams = {}, options?: RequestOptions): Promise<Page<ProductIssue>> {
+    return this.http.get(this.path(projectId, "/issues"), ProductIssuePageSchema, { ...options, query: params });
   }
 }

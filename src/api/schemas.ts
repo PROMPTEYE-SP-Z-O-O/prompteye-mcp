@@ -1464,3 +1464,214 @@ export type CreateFeedbackInput = {
 };
 
 export type Feedback = z.infer<typeof FeedbackSchema>;
+
+const PERCENT_FIELD = "Percent 0-100, one decimal.";
+const DAY_FIELD = "A day as YYYY-MM-DD in UTC.";
+
+const ProductShopRefSchema = z.object({
+  shopKey: z.string().describe("Stable key of the shop; pass it as shopKey to get_product_shop or list_product_offers."),
+  name: z.string(),
+  host: z.string().describe("The shop's host name."),
+});
+
+const ProductWeekSchema = z.object({
+  week: z.string().describe(`First day of the week, a Monday. ${DAY_FIELD}`),
+  from: z.string().describe(`First day of the week inside the period. ${DAY_FIELD}`),
+  to: z.string().describe(`Last day of the week inside the period. ${DAY_FIELD}`),
+});
+
+export const ProductShelfSchema = z.object({
+  from: z.string().describe(`First day of the period. ${DAY_FIELD}`),
+  to: z.string().describe(`Last day of the period. ${DAY_FIELD}`),
+  firstBoxDay: z.string().nullable().describe(`The first day this project ever had a product box, not limited to the period. ${DAY_FIELD} null = never.`),
+  share: z.number().nullable().describe(`Share of shelf positions the client's shop holds. ${PERCENT_FIELD} null = no prompt had a box.`),
+  presence: z.number().nullable().describe(`Share of product boxes that carried the client's shop. ${PERCENT_FIELD} null = no prompt had a box.`),
+  boxes: z.number().describe("Product boxes ChatGPT showed in the period."),
+  promptsWithBoxes: z.number().describe("Prompts that produced at least one box."),
+  promptsTotal: z.number().describe("Prompts measured in the period."),
+  clientShop: ProductShopRefSchema.nullable().describe("The client's shop as it appears on the shelf. null = it does not appear."),
+  shopsAheadOfClient: z.array(ProductShopRefSchema).describe("Shops that appear ahead of the client's shop."),
+  prompts: z.array(
+    z.object({
+      promptId: z.string(),
+      boxes: z.number(),
+      clientBoxes: z.number(),
+      positions: z.number(),
+      clientPositions: z.number(),
+      share: z.number().describe(PERCENT_FIELD),
+      presence: z.number().describe(PERCENT_FIELD),
+      meanPosition: z.number().nullable().describe("Mean place of the client's shop in the boxes, counting from 1. null = never shown."),
+    })
+  ),
+  weeks: z.array(
+    ProductWeekSchema.extend({
+      share: z.number().nullable().describe(`${PERCENT_FIELD} null = no prompt had a box.`),
+      presence: z.number().nullable().describe(`${PERCENT_FIELD} null = no prompt had a box.`),
+      promptsWithBoxes: z.number(),
+    })
+  ),
+});
+
+export const ProductShopSchema = z.object({
+  shopKey: z.string(),
+  name: z.string(),
+  domain: z.string(),
+  isMine: z.boolean().describe("Whether it is the client's own shop."),
+  isMarketplace: z.boolean(),
+  share: z.number().describe(`Share of all shelf positions this shop holds. ${PERCENT_FIELD}`),
+  presence: z.number().describe(`Share of the boxes that carried this shop. ${PERCENT_FIELD}`),
+  boxes: z.number().describe("Boxes that carried this shop."),
+  positions: z.number().describe("Positions this shop held across the boxes."),
+});
+
+export const ProductShopDetailSchema = ProductShopSchema.extend({
+  share: z
+    .number()
+    .nullable()
+    .describe(`Share of all shelf positions this shop holds. ${PERCENT_FIELD} null = the client's own shop when it is outside the top shops.`),
+  presence: z
+    .number()
+    .nullable()
+    .describe(`Share of the boxes that carried this shop. ${PERCENT_FIELD} null = no box of the period carried the shop.`),
+  meanPosition: z.number().nullable().describe("Mean place in the boxes, counting from 1; lower is earlier. null = never shown."),
+  firstPlaces: z.number().describe("Boxes where the shop was first."),
+  shopsAheadOfClient: z
+    .array(ProductShopRefSchema)
+    .describe("Shops ahead of the client's shop. Filled only when the shop is the client's own, empty otherwise."),
+  prompts: z.array(
+    z.object({
+      promptId: z.string(),
+      boxes: z.number().describe("Boxes of this prompt that carried the shop."),
+      meanPosition: z.number().nullable().describe("Mean place of the shop in those boxes, counting from 1. null = never shown."),
+    })
+  ),
+  weeks: z.array(
+    ProductWeekSchema.extend({
+      presence: z.number().nullable().describe(`${PERCENT_FIELD} null = the week had no box.`),
+      meanPosition: z.number().nullable().describe("Mean place of the shop in that week, counting from 1. null = never shown."),
+    })
+  ),
+});
+
+export const ProductSchema = z.object({
+  productKey: z.string().describe("Stable key of the product; pass it as productKey to get_product and list_product_offers."),
+  title: z.string().describe("Title of the product."),
+  imageUrl: z.string().nullable().describe("Picture of the product. null = none."),
+  answers: z.number().describe("Answers in the period that showed the product."),
+  lastDay: z.string().describe(`Last day it was shown. ${DAY_FIELD}`),
+  clientPosition: z.number().nullable().describe("Place of the client's shop among its offers, counting from 1. null = not offered there."),
+  offersCount: z.number(),
+  clientPrice: z.number().nullable().describe("The client's price in `currency`. null = no client offer."),
+  currency: z.string(),
+  cheapest: z
+    .object({ shopKey: z.string(), name: z.string(), domain: z.string(), price: z.number() })
+    .nullable()
+    .describe("The cheapest offer. null = no priced offer."),
+  gapAmount: z.number().nullable().describe("Client price minus the cheapest price; positive = the client is dearer."),
+  gapPercent: z.number().nullable().describe("The gap as percent of the cheapest price."),
+  isMine: z.boolean().describe("Whether the client's shop is among the offers."),
+});
+
+const PRODUCT_OFFER_CONDITIONS = ["new", "used", "refurbished", "ex_display", "unknown"] as const;
+
+export const ProductOfferSchema = z.object({
+  productKey: z.string(),
+  shopKey: z.string(),
+  shop: z.string().describe("The shop's name."),
+  domain: z.string(),
+  position: z.number().describe("Place in the offer list, counting from 1."),
+  price: z.number().nullable(),
+  currency: z.string(),
+  condition: z.enum(PRODUCT_OFFER_CONDITIONS).describe("Condition of the item; only offers in the same condition are compared."),
+  isMine: z.boolean(),
+  isCheapest: z.boolean(),
+  gapAmount: z.number().nullable().describe("Price minus the cheapest price."),
+  gapPercent: z.number().nullable().describe("The gap as percent of the cheapest price."),
+});
+
+export const ProductRatingSchema = z.object({
+  productKey: z.string(),
+  title: z.string().describe("Title of the product."),
+  groupId: z.string().nullable().describe("The prompt group the product is listed under. null = ungrouped."),
+  groupName: z.string().nullable().describe("Name of that group."),
+  rating: z.number().nullable().describe("Mean rating in the period."),
+  ratingMin: z.number().nullable(),
+  ratingMax: z.number().nullable(),
+  reviews: z.number().nullable().describe("Review count."),
+  measurements: z.number().describe("How many times the rating was measured."),
+  days: z.number().describe("Days with a measurement."),
+  belowTypical: z.boolean().describe("Whether the product is rated below the typical rating of its competitors."),
+  typicalRating: z.number().nullable().describe("Typical rating of the competitors in the product's group."),
+  typicalReviews: z.number().nullable().describe("Typical review count of the competitors in the product's group."),
+  ratingDifference: z.number().nullable().describe("Rating minus the typical rating; negative = below."),
+  reviewsPercentOfTypical: z.number().nullable().describe("Reviews as percent of the typical count."),
+});
+
+const ProductIssueMoneySchema = z.object({ amount: z.number(), currency: z.string() });
+const ProductIssueShelfSchema = z.object({
+  week: z.object({ from: z.string(), to: z.string() }),
+  share: z.number().describe(PERCENT_FIELD),
+});
+const ProductIssueProductSchema = z
+  .object({ itemId: z.string(), title: z.string().nullable(), imageUrl: z.string().nullable(), link: z.string().nullable() })
+  .describe("The product concerned.");
+
+export const PRODUCT_ISSUE_TYPES = ["price", "stock", "shelf_drop"] as const;
+
+const issueFigures = {
+  id: z.string().describe("Stable id: price:{itemId}, stock:{itemId}, drop:{groupId} or drop:project."),
+  answers: z.number().describe("Answers affected in the period."),
+  lastDay: z.string().describe(DAY_FIELD),
+  weight: z.number().describe("How much the issue matters; equal to answers. The list is sorted by it, descending."),
+};
+
+const ProductPriceIssueSchema = z.object({
+  ...issueFigures,
+  type: z.literal("price"),
+  product: ProductIssueProductSchema,
+  group: z.null(),
+  before: ProductIssueMoneySchema.describe("The price ChatGPT shows."),
+  after: ProductIssueMoneySchema.describe("The price in the feed."),
+});
+
+const ProductStockIssueSchema = z.object({
+  ...issueFigures,
+  type: z.literal("stock"),
+  product: ProductIssueProductSchema,
+  group: z.null(),
+  before: z.string().nullable().describe("The availability on the product page."),
+  after: z.string().nullable().describe("The availability in the feed."),
+});
+
+const ProductShelfDropIssueSchema = z.object({
+  ...issueFigures,
+  type: z.literal("shelf_drop"),
+  product: z.null(),
+  group: z
+    .object({ groupId: z.string(), name: z.string() })
+    .nullable()
+    .describe("The prompt group that lost share. null = a drop of the whole project."),
+  before: ProductIssueShelfSchema.describe("The earlier week and its share."),
+  after: ProductIssueShelfSchema.describe("The later week and its share."),
+});
+
+export const ProductIssueSchema = z.discriminatedUnion("type", [
+  ProductPriceIssueSchema,
+  ProductStockIssueSchema,
+  ProductShelfDropIssueSchema,
+]);
+
+export const ProductShopPageSchema = pageOf(ProductShopSchema);
+export const ProductPageSchema = pageOf(ProductSchema);
+export const ProductOfferPageSchema = pageOf(ProductOfferSchema);
+export const ProductRatingPageSchema = pageOf(ProductRatingSchema);
+export const ProductIssuePageSchema = pageOf(ProductIssueSchema);
+
+export type ProductShelf = z.infer<typeof ProductShelfSchema>;
+export type ProductShop = z.infer<typeof ProductShopSchema>;
+export type ProductShopDetail = z.infer<typeof ProductShopDetailSchema>;
+export type Product = z.infer<typeof ProductSchema>;
+export type ProductOffer = z.infer<typeof ProductOfferSchema>;
+export type ProductRating = z.infer<typeof ProductRatingSchema>;
+export type ProductIssue = z.infer<typeof ProductIssueSchema>;
+export type ProductIssueType = (typeof PRODUCT_ISSUE_TYPES)[number];
