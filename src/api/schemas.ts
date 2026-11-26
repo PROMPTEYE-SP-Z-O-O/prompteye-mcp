@@ -263,8 +263,25 @@ export const PromptDetailSchema = PromptSchema.extend({
   changesHidden: ChangesHiddenSchema,
   aiTrafficPhrases: aiTrafficPhrases.optional(),
   byModel: z
-    .array(z.object({ model: z.string(), metrics: ModelMetricsSchema }))
-    .describe("One entry per assistant that actually answered."),
+    .array(
+      z.object({
+        model: z.string(),
+        metrics: ModelMetricsSchema,
+        unansweredAnswers: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe(
+            "Times this assistant was asked the prompt in the period without a counted answer, e.g. Google showed " +
+              "no AI Overview or the provider failed; 0 when every answer was counted. Absent from API versions that predate it."
+          ),
+      })
+    )
+    .describe(
+      "One entry per assistant of the plan that was asked this prompt in the period, including one that produced " +
+        "no counted answer: its visibility and averagePosition are null."
+    ),
 });
 
 export const PromptGroupSchema = z.object({

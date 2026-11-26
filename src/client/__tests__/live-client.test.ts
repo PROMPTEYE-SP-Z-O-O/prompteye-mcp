@@ -131,6 +131,11 @@ type Call = { path: string; method: string; body: unknown };
 
 const LIVE_COMPETITOR_GROUP = { id: "g1", name: "PKO BP", aliases: ["PKO Bank Polski"], excludedNames: [] };
 
+const LIVE_BY_MODEL = [
+  { model: "gpt", metrics: { visibility: 100, averagePosition: 2 }, unansweredAnswers: 0 },
+  { model: "aio", metrics: { visibility: null, averagePosition: null }, unansweredAnswers: 3 },
+];
+
 /** An API that knows one project and one prompt, recording what it is asked for. */
 function liveClient() {
   const calls: Call[] = [];
@@ -219,7 +224,7 @@ function liveClient() {
                       : pathname.endsWith(`/prompts/${LIVE_PROMPT.id}`)
                         ? {
                             ...LIVE_PROMPT,
-                            byModel: [{ model: "gpt", metrics: { visibility: 100, averagePosition: 2 } }],
+                            byModel: LIVE_BY_MODEL,
                           }
                         : undefined);
 
@@ -267,7 +272,7 @@ describe("createLiveClient", () => {
 
     const prompt = await client.getPrompt(LIVE_PROJECT.id, LIVE_PROMPT.id, RANGE);
 
-    expect(prompt.byModel).toEqual([{ model: "gpt", metrics: { visibility: 100, averagePosition: 2 } }]);
+    expect(prompt.byModel).toEqual(LIVE_BY_MODEL);
     expect(calls[0].path).toBe(
       `/v1/projects/${LIVE_PROJECT.id}/prompts/${LIVE_PROMPT.id}?startDate=2026-08-16&endDate=2026-09-15`
     );
