@@ -83,8 +83,10 @@ export function registerPromptTools(server: McpServer, { client }: ToolContext):
     {
       title: "Read one prompt",
       description:
-        "One prompt of the project, with its visibility broken down per assistant — only the " +
-        "assistants that actually answered are listed. Call this to see which assistant is carrying a " +
+        "One prompt of the project, with its visibility broken down per assistant — every " +
+        "assistant of the plan that was asked this prompt in the period is listed; one with no counted answer has " +
+        "null visibility and averagePosition, and unansweredAnswers says how many times it was asked " +
+        "without one. Call this to see which assistant is carrying a " +
         "prompt and which is dropping the brand from it. When the brand is weak here, " +
         "create_content_brief starts an article aimed at this prompt.\n\n" +
         "Changes are signed so that positive always means improvement. For average position that means the brand was named earlier in the answer, so a positive change goes with a lower position number.\n\n" +

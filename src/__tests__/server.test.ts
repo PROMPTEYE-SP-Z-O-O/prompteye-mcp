@@ -362,6 +362,8 @@ describe("output schema descriptions", () => {
     ["list_prompts", ["data", "[]", "change"], "fewer than 7 measured days"],
     ["list_prompts", ["changesHidden"], "fewer than 7 measured days"],
     ["get_prompt", ["changesHidden"], "fewer than 7 measured days"],
+    ["get_prompt", ["byModel"], "including one that produced no counted answer"],
+    ["get_prompt", ["byModel", "[]", "unansweredAnswers"], "without a counted answer"],
     ["list_competitors", ["changesHidden"], "fewer than 7 measured days"],
     ["list_competitors", ["data", "[]", "rank"], "can be greater than limit"],
     ["list_competitors", ["data", "[]", "ownBrand"], "even when limit cuts it"],

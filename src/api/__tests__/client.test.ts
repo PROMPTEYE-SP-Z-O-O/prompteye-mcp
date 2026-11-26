@@ -232,23 +232,24 @@ describe("PromptEyeApi", () => {
     expect(page.data).toEqual([prompt]);
   });
 
+  const prompt = {
+    id: "prompt1",
+    prompt: "best tools",
+    keyword: "",
+    status: "active",
+    categories: [],
+    subcategories: [],
+    groupId: null,
+    createdAt: "2026-09-10T09:24:11.000Z",
+    aiTraffic: null,
+    aiTrafficMeasuredAt: null,
+    businessPriority: null,
+    businessPriorityReason: null,
+    metrics: { visibility: null, reachIndex: null, averagePosition: null },
+    change: null,
+  };
+
   describe("period comparison", () => {
-    const prompt = {
-      id: "prompt1",
-      prompt: "best tools",
-      keyword: "",
-      status: "active",
-      categories: [],
-      subcategories: [],
-      groupId: null,
-      createdAt: "2026-09-10T09:24:11.000Z",
-      aiTraffic: null,
-      aiTrafficMeasuredAt: null,
-      businessPriority: null,
-      businessPriorityReason: null,
-      metrics: { visibility: null, reachIndex: null, averagePosition: null },
-      change: null,
-    };
     const competitor = {
       brand: "Acme",
       ownBrand: true,
@@ -277,6 +278,26 @@ describe("PromptEyeApi", () => {
       await expect(stubFetch(json(200, promptPage)).api.prompts.list("p1")).resolves.toEqual(promptPage);
       await expect(stubFetch(json(200, detail)).api.prompts.get("p1", "prompt1")).resolves.toEqual(detail);
       await expect(stubFetch(json(200, competitorPage)).api.competitors.list("p1")).resolves.toEqual(competitorPage);
+    });
+  });
+
+  describe("per-assistant breakdown of a prompt", () => {
+    it("keeps unansweredAnswers and null metrics of an assistant without a counted answer", async () => {
+      const detail = {
+        ...prompt,
+        byModel: [
+          { model: "gpt", metrics: { visibility: 40, averagePosition: 2 }, unansweredAnswers: 0 },
+          { model: "aio", metrics: { visibility: null, averagePosition: null }, unansweredAnswers: 3 },
+        ],
+      };
+
+      await expect(stubFetch(json(200, detail)).api.prompts.get("p1", "prompt1")).resolves.toEqual(detail);
+    });
+
+    it("still reads an assistant entry from an API that sends no unansweredAnswers", async () => {
+      const detail = { ...prompt, byModel: [{ model: "gpt", metrics: { visibility: 40, averagePosition: 2 } }] };
+
+      await expect(stubFetch(json(200, detail)).api.prompts.get("p1", "prompt1")).resolves.toEqual(detail);
     });
   });
 
