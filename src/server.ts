@@ -7,6 +7,7 @@ import { SERVER_INSTRUCTIONS } from "./instructions.js";
 import { registerPromptWorkflows } from "./prompts.js";
 import { registerWidget } from "./widgets.js";
 import { registerAccountTools } from "./tools/account.js";
+import { registerBacklinkCartTools } from "./tools/backlink-cart.js";
 import { registerAuditTools } from "./tools/audits.js";
 import { registerBrandAnalysisTools } from "./tools/analysis.js";
 import { registerCompetitorGroupTools } from "./tools/competitor-groups.js";
@@ -87,6 +88,7 @@ export function createMcpServer(context: ToolContext): McpServer {
     "The domains the assistants cite on a project's prompts, ranked by share of citations"
   );
   registerSourceTools(server, context);
+  registerBacklinkCartTools(server, context);
 
   registerWidget(
     server,

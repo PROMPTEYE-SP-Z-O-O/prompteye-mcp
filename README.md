@@ -69,6 +69,9 @@ Every one of these calls the PromptEye API.
 | `get_article` | `GET /v1/content/articles/{articleId}` |
 | `generate_article_schema` | `POST /v1/content/articles/{articleId}/schema` |
 | `list_sources` | `GET /v1/projects/{projectId}/sources` |
+| `get_backlink_cart` | `GET /v1/projects/{projectId}/backlink-cart` |
+| `add_to_backlink_cart` | `POST /v1/projects/{projectId}/backlink-cart/items` |
+| `remove_from_backlink_cart` | `DELETE /v1/projects/{projectId}/backlink-cart/items` |
 | `get_prompt_answers` | `GET /v1/projects/{projectId}/answers` |
 | `list_source_pages` | `GET /v1/projects/{projectId}/sources/pages` |
 | `list_competitors` | `GET /v1/projects/{projectId}/competitors` |

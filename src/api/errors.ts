@@ -14,6 +14,8 @@ export const API_ERROR_MESSAGES: Record<string, string> = {
   internal_error: "PromptEye failed on its side. Retrying a moment later is safe.",
 };
 
+const API_MESSAGE_FIRST = new Set(["plan_limit_exceeded"]);
+
 export type ApiErrorDetail = { field: string; message: string };
 
 type ErrorBody = { error?: string | { code?: string; message?: string; details?: ApiErrorDetail[] } };
@@ -31,9 +33,11 @@ export class PromptEyeApiError extends Error {
     const envelope = typeof error === "object" ? error : undefined;
     const code = (typeof error === "string" ? error : envelope?.code)?.toLowerCase();
 
-    super(
-      (code && API_ERROR_MESSAGES[code]) ?? envelope?.message ?? `The PromptEye API responded with HTTP ${status}.`
-    );
+    const knownMessage = code ? API_ERROR_MESSAGES[code] : undefined;
+    const apiFirst = code !== undefined && API_MESSAGE_FIRST.has(code);
+    const [preferred, fallback] = apiFirst ? [envelope?.message, knownMessage] : [knownMessage, envelope?.message];
+
+    super(preferred ?? fallback ?? `The PromptEye API responded with HTTP ${status}.`);
     this.name = "PromptEyeApiError";
     this.status = status;
     this.body = body;

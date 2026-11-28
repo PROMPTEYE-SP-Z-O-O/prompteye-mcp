@@ -328,6 +328,30 @@ export const PromptSuggestionSchema = z.object({
   expiresAt: timestamp("When it lapses if nobody decides on it"),
 });
 
+export const PLACEMENT_PROVIDERS = ["whitepress", "linkhouse"] as const;
+
+export const PlacementOfferSchema = z.object({
+  provider: z.enum(PLACEMENT_PROVIDERS).describe("The marketplace that sells the placement."),
+  offerId: z
+    .string()
+    .describe(
+      "The offer's identifier on that marketplace. To put it in the backlink cart, pass it with `provider` to " +
+        "add_to_backlink_cart, together with url = 'https://' + the source domain."
+    ),
+  type: z
+    .string()
+    .describe(
+      "What is bought. Known values: sponsoredArticle, linkInsert, mention, advertisingLink, pressMention."
+    ),
+  scope: z
+    .enum(["article", "portal"])
+    .describe("`article` for a placement on the cited page itself, `portal` for one somewhere on the same site."),
+  price: z.number().describe("The price of this offer, in `currency`."),
+  currency: z.string().describe("The currency of `price`."),
+  isFollow: z.boolean().describe("Whether the link passes ranking value."),
+  isPermanent: z.boolean().describe("Whether the placement stays up with no end date."),
+});
+
 export const SponsoredOfferSchema = z.object({
   available: z
     .boolean()
@@ -348,6 +372,54 @@ export const SponsoredOfferSchema = z.object({
     .describe("The currency of `linkOrMentionPriceFrom`. null = none or not checked yet."),
   domainRank: z.number().nullable().describe("The domain's DataForSEO rank, shown as DR in the app. null = unknown."),
   monthlyVisits: z.number().nullable().describe("Estimated monthly organic visits to the domain. null = unknown."),
+  offers: z
+    .array(PlacementOfferSchema)
+    .optional()
+    .describe(
+      "Every offer behind the figures above, one entry per placement. Linkhouse offers appear only for accounts that have them enabled. Empty when the domain has no offers yet. Absent on an API that predates the backlink cart."
+    ),
+});
+
+export const BacklinkCartItemRefSchema = z.object({
+  provider: z.enum(PLACEMENT_PROVIDERS).describe("The marketplace that sells the placement."),
+  offerId: z.string().min(1).describe("The offer's `offerId` from list_sources with includeOffers (data[].offer.offers[])."),
+  url: z.string().min(1).describe("The page the placement is bought on: 'https://' + the source domain."),
+});
+
+export const BacklinkCartItemSchema = PlacementOfferSchema.extend({
+  url: z.string().describe("The page the placement is bought on."),
+  domain: z.string().nullable().describe("The site the page belongs to. null = the marketplace did not name it."),
+  addedAt: timestamp("When the line was added"),
+});
+
+export const BacklinkCartTotalSchema = z.object({
+  currency: z.string().describe("The currency of the sum."),
+  amount: z.number().describe("The sum of the line prices in this currency."),
+});
+
+export const BacklinkCartSchema = z.object({
+  projectId: z.string().describe("The project the cart belongs to."),
+  items: z.array(BacklinkCartItemSchema).describe("The lines, in the order they were added. The price of each line is a snapshot from when it was added."),
+  totals: z
+    .array(BacklinkCartTotalSchema)
+    .describe("The sum of the line prices, one entry per currency. Prices of different currencies are never added together."),
+  cartUrl: z
+    .string()
+    .describe(
+      "The link to the cart in the PromptEye app, where the user reviews the lines and buys. Buying is not possible through the API."
+    ),
+  updatedAt: z.string().nullable().describe("When the cart last changed, ISO 8601 in UTC. null = nothing was ever added."),
+});
+
+export const BacklinkCartResponseSchema = z.object({ data: BacklinkCartSchema });
+
+export const AddBacklinkCartItemsResponseSchema = z.object({
+  data: BacklinkCartSchema,
+  rejected: z
+    .array(BacklinkCartItemRefSchema)
+    .describe(
+      "The references that were not added because the marketplace has no such offer for that page, or the marketplace is not available to this account. The others were added."
+    ),
 });
 
 export const CitedDomainSchema = z.object({
@@ -1159,6 +1231,9 @@ export type CompanyProfile = z.infer<typeof CompanyProfileSchema>;
 export type KnowledgeBase = z.infer<typeof KnowledgeBaseSchema>;
 export type UpdateKnowledgeBaseInput = z.infer<typeof UpdateKnowledgeBaseRequestSchema>;
 export type Category = z.infer<typeof CategorySchema>;
+export type BacklinkCart = z.infer<typeof BacklinkCartSchema>;
+export type BacklinkCartItemRef = z.infer<typeof BacklinkCartItemRefSchema>;
+export type AddBacklinkCartItemsResult = z.infer<typeof AddBacklinkCartItemsResponseSchema>;
 export type SponsoredOffer = z.infer<typeof SponsoredOfferSchema>;
 export type CitedDomain = z.infer<typeof CitedDomainSchema>;
 export type Competitor = z.infer<typeof CompetitorSchema>;

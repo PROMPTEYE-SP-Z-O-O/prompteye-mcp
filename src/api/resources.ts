@@ -1,6 +1,8 @@
 import type { HttpClient, RequestOptions } from "./http.js";
 import {
   AcceptedPromptSuggestionSchema,
+  AddBacklinkCartItemsResponseSchema,
+  BacklinkCartResponseSchema,
   AccountSchema,
   AnalyticsPagePageSchema,
   AnalyticsSourcePageSchema,
@@ -68,7 +70,10 @@ import {
   type AnalyticsPage,
   type AnalyticsSource,
   type AnalyticsSummary,
+  type AddBacklinkCartItemsResult,
   type Audit,
+  type BacklinkCart,
+  type BacklinkCartItemRef,
   type AuditUsage,
   type BrandAnalysisAvailability,
   type BrandAnalysisRun,
@@ -351,6 +356,41 @@ export class SourcesResource {
     return this.http.get(`${projectPath(projectId)}/sources/pages`, CitedPagePageSchema, {
       ...options,
       query: params,
+    });
+  }
+}
+
+export class BacklinkCartResource {
+  constructor(private readonly http: HttpClient) {}
+
+  /** `GET /v1/projects/{projectId}/backlink-cart` — the placements picked for the project, with totals and the link to the cart in the app. */
+  get(projectId: string, options?: RequestOptions): Promise<{ data: BacklinkCart }> {
+    return this.http.get(`${projectPath(projectId)}/backlink-cart`, BacklinkCartResponseSchema, options);
+  }
+
+  /** `POST /v1/projects/{projectId}/backlink-cart/items` — adds placements by reference; the ones the marketplace does not know come back as `rejected`. */
+  addItems(
+    projectId: string,
+    items: BacklinkCartItemRef[],
+    options?: RequestOptions
+  ): Promise<AddBacklinkCartItemsResult> {
+    return this.http.post(
+      `${projectPath(projectId)}/backlink-cart/items`,
+      { items },
+      AddBacklinkCartItemsResponseSchema,
+      options
+    );
+  }
+
+  /** `DELETE /v1/projects/{projectId}/backlink-cart/items` — removes one line; a line that is not there is not an error. */
+  removeItem(
+    projectId: string,
+    ref: BacklinkCartItemRef,
+    options?: RequestOptions
+  ): Promise<{ data: BacklinkCart }> {
+    return this.http.deleteReturning(`${projectPath(projectId)}/backlink-cart/items`, BacklinkCartResponseSchema, {
+      ...options,
+      query: ref,
     });
   }
 }

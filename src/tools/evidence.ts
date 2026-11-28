@@ -29,9 +29,12 @@ export function registerSourceTools(server: McpServer, { client }: ToolContext):
         "Narrow the count to one prompt (`promptId`), one prompt group (`groupId`), or one category — " +
         "`categoryId` alone, or `categoryId` with `subcategoryId` — the same way the app's own screens " +
         "narrow it. Give at most one of these; combining them fails. list_source_pages does not take them.\n\n" +
-        "`includeOffers` adds the WhitePress offers for each cited domain: a new sponsored article (`price`), a " +
-        "link insert in an existing article (`linkInsert`) or a mention in an existing article (`mention`), the " +
-        "latter two priced by `linkOrMentionPriceFrom`; plus DR and estimated monthly visits. Use it to build a " +
+        "`includeOffers` adds the WhitePress and Linkhouse offers for each cited domain: a new sponsored article " +
+        "(`price`), a link insert in an existing article (`linkInsert`) or a mention in an existing article " +
+        "(`mention`), the latter two priced by `linkOrMentionPriceFrom`; plus DR and estimated monthly visits. " +
+        "Linkhouse offers appear only for accounts that have Linkhouse enabled. Each domain's `offers` list every " +
+        "placement with its `provider`, `offerId`, type, scope, price, currency, follow and permanence; when the " +
+        "user wants to buy, pass `offerId` and `provider` to add_to_backlink_cart. Use it to build a " +
         "shortlist of cited domains where the brand can buy a placement and rank them by cost per citation — the " +
         "cheapest available price (`price` or `linkOrMentionPriceFrom`) divided by sourceOccurrences, which you " +
         "compute yourself. Link and mention offers are checked in the background, so a domain seen for the first " +
@@ -57,7 +60,7 @@ export function registerSourceTools(server: McpServer, { client }: ToolContext):
           .boolean()
           .optional()
           .describe(
-            "Add each cited domain's sponsored publication offer (WhitePress availability, price, currency, DR, estimated monthly visits). Slower; ask the user first."
+            "Add each cited domain's sponsored publication offers (WhitePress and Linkhouse: availability, price, currency, DR, estimated monthly visits, and the placements in offers[]). Slower; ask the user first."
           ),
       },
       outputSchema: {
