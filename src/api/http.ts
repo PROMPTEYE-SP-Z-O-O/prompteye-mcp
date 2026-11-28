@@ -91,6 +91,20 @@ export class HttpClient {
     await this.send({ method: "DELETE", path, schema: z.undefined(), options });
   };
 
+  deleteReturning = async <T>(
+    path: string,
+    schema: Schema<T>,
+    options: RequestOptions & { query?: Query } = {}
+  ): Promise<T> =>
+    (
+      await this.send({
+        method: "DELETE",
+        path: `${path}${queryString(options.query)}`,
+        schema,
+        options,
+      })
+    ).data;
+
   /** Like {@link post}, for the endpoints whose status carries meaning of its own. */
   postAnswered<T>(
     path: string,

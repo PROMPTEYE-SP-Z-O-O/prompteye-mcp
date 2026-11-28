@@ -864,6 +864,123 @@ describe("PromptEyeApi", () => {
     });
   });
 
+  describe("backlink cart", () => {
+    const line = {
+      provider: "whitepress",
+      offerId: "4821",
+      type: "sponsoredArticle",
+      scope: "portal",
+      price: 120,
+      currency: "PLN",
+      isFollow: true,
+      isPermanent: false,
+      url: "https://news.example/post",
+      domain: "news.example",
+      addedAt: "2026-11-28T09:30:00.000Z",
+    };
+    const cart = {
+      projectId: "p1",
+      items: [line],
+      totals: [{ currency: "PLN", amount: 120 }],
+      cartUrl: "https://app.prompteye.com/project/p1/backlink-cart",
+      updatedAt: "2026-11-28T09:30:00.000Z",
+    };
+    const ref = { provider: "whitepress", offerId: "4821", url: "https://news.example/post?a=1&b=2" };
+
+    it("reads the cart of a project", async () => {
+      const { api, calls } = stubFetch(json(200, { data: cart }));
+
+      await expect(api.backlinkCart.get("p1")).resolves.toEqual({ data: cart });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/backlink-cart`);
+      expect(calls[0].init.method).toBe("GET");
+    });
+
+    it("posts the references and keeps the rejected ones", async () => {
+      const rejected = [{ provider: "linkhouse", offerId: "9", url: "https://gone.example/a" }];
+      const { api, calls } = stubFetch(json(200, { data: cart, rejected }));
+
+      await expect(api.backlinkCart.addItems("p1", [ref])).resolves.toEqual({ data: cart, rejected });
+      expect(calls[0].url).toBe(`${BASE_URL}/v1/projects/p1/backlink-cart/items`);
+      expect(calls[0].init.method).toBe("POST");
+      expect(JSON.parse(calls[0].init.body as string)).toEqual({ items: [ref] });
+    });
+
+    it("deletes a line by provider, offer and percent-encoded page in the query", async () => {
+      const { api, calls } = stubFetch(json(200, { data: { ...cart, items: [], totals: [] } }));
+
+      await expect(api.backlinkCart.removeItem("p1", ref)).resolves.toEqual({
+        data: { ...cart, items: [], totals: [] },
+      });
+      const url = new URL(calls[0].url);
+      expect(url.pathname).toBe("/v1/projects/p1/backlink-cart/items");
+      expect(calls[0].url).toContain(`url=${encodeURIComponent(ref.url)}`);
+      expect(Object.fromEntries(url.searchParams)).toEqual(ref);
+      expect(calls[0].init.method).toBe("DELETE");
+      expect(calls[0].init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}` });
+    });
+
+    it("throws the API's reason when the cart is full", async () => {
+      const message = "A backlink cart holds at most 100 lines. Nothing was added; remove lines or add fewer.";
+      const { api } = stubFetch(json(422, { error: { code: "not_available", message } }));
+
+      const error = await api.backlinkCart.addItems("p1", [ref]).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(PromptEyeApiError);
+      expect(error).toMatchObject({ status: 422, code: "not_available", message });
+    });
+
+    it("uses the API message for plan_limit_exceeded", async () => {
+      const message = "The Pro plan does not include backlink carts.";
+      const { api } = stubFetch(json(402, { error: { code: "plan_limit_exceeded", message } }));
+
+      const error = await api.backlinkCart.addItems("p1", [ref]).catch((e: unknown) => e);
+
+      expect(error).toMatchObject({ status: 402, code: "plan_limit_exceeded", message });
+    });
+
+    it("falls back to the generic text for plan_limit_exceeded without an API message", async () => {
+      const { api } = stubFetch(json(402, { error: { code: "plan_limit_exceeded" } }));
+
+      const error = await api.backlinkCart.addItems("p1", [ref]).catch((e: unknown) => e);
+
+      expect(error).toMatchObject({ code: "plan_limit_exceeded", message: "The workspace plan does not allow this." });
+    });
+
+    it("keeps offerId and provider of the offers in the source ranking", async () => {
+      const offers = [
+        {
+          provider: "linkhouse",
+          offerId: "77",
+          type: "sponsoredArticle",
+          scope: "article",
+          price: 450,
+          currency: "PLN",
+          isFollow: true,
+          isPermanent: true,
+        },
+      ];
+      const offer = {
+        available: true,
+        price: 450,
+        currency: "PLN",
+        linkInsert: false,
+        mention: false,
+        linkOrMentionPriceFrom: null,
+        linkOrMentionCurrency: null,
+        domainRank: null,
+        monthlyVisits: null,
+        offers,
+      };
+      const { api } = stubFetch(
+        json(200, { data: [{ domain: "g2.com", sourceOccurrences: 4, share: 10, ownDomain: false, offer }], nextCursor: null })
+      );
+
+      const result = await api.sources.list("p1", { includeOffers: true });
+
+      expect(result.data[0].offer?.offers).toEqual(offers);
+    });
+  });
+
   describe("source pages", () => {
     it("ranks the cited pages of one assistant", async () => {
       const page = { url: "https://example.com/pricing", domain: "example.com", sourceOccurrences: 7, share: 3.84615, ownDomain: false };
@@ -963,6 +1080,27 @@ describe("PromptEyeApi", () => {
       );
 
       await expect(api.sources.list("p1", { includeOffers: true })).resolves.toMatchObject({ data: [{ offer }] });
+    });
+
+    it("parses an offer that has no offers list", async () => {
+      const offer = {
+        available: false,
+        price: null,
+        currency: null,
+        linkInsert: false,
+        mention: false,
+        linkOrMentionPriceFrom: null,
+        linkOrMentionCurrency: null,
+        domainRank: null,
+        monthlyVisits: null,
+      };
+      const { api } = stubFetch(
+        json(200, { data: [{ domain: "g2.com", sourceOccurrences: 4, share: 10, ownDomain: false, offer }], nextCursor: null })
+      );
+
+      const result = await api.sources.list("p1", { includeOffers: true });
+
+      expect(result.data[0].offer?.offers).toBeUndefined();
     });
 
     it("leaves includeOffers out of the source ranking request when false", async () => {

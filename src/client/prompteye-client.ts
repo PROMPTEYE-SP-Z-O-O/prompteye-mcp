@@ -10,6 +10,7 @@ import type { DateRange, ModelKey, Page } from "../schemas/common.js";
 import type {
   AcceptPromptSuggestionInput,
   AcceptedPromptSuggestion,
+  AddBacklinkCartItemsResult,
   Account,
   AnalyticsPage,
   AnalyticsSource,
@@ -17,6 +18,8 @@ import type {
   AnalyticsSummary,
   ArticleSchemaMarkup,
   Audit,
+  BacklinkCart,
+  BacklinkCartItemRef,
   AuditUsage,
   BrandAnalysisAvailability,
   BrandAnalysisRun,
@@ -240,6 +243,10 @@ export interface PromptEyeClient {
 
   listSources(projectId: string, query: SourceQuery): Promise<Page<CitedDomain>>;
   listSourcePages(projectId: string, query: SourcePageQuery): Promise<Page<CitedPage>>;
+
+  getBacklinkCart(projectId: string): Promise<{ data: BacklinkCart }>;
+  addToBacklinkCart(projectId: string, items: BacklinkCartItemRef[]): Promise<AddBacklinkCartItemsResult>;
+  removeFromBacklinkCart(projectId: string, ref: BacklinkCartItemRef): Promise<{ data: BacklinkCart }>;
 
   listAnswers(projectId: string, query: AnswerQuery): Promise<Page<Answer>>;
 
